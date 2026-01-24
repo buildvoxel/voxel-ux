@@ -3,19 +3,24 @@
  */
 
 import React from 'react';
-import { Card, Progress, Typography, Space, Tag, Steps, Spin, Alert } from 'antd';
-import {
-  LoadingOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ClockCircleOutlined,
-  CodeOutlined,
-} from '@ant-design/icons';
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import LinearProgress from '@mui/material/LinearProgress';
+import Typography from '@mui/material/Typography';
+import Chip from '@mui/material/Chip';
+import Stepper from '@mui/material/Stepper';
+import Step from '@mui/material/Step';
+import StepLabel from '@mui/material/StepLabel';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import CodeIcon from '@mui/icons-material/Code';
 import { getVibeVariantColor, getVibeVariantLabel } from '../../store/vibeStore';
 import type { VibeVariant } from '../../services/variantCodeService';
 import type { VariantPlan } from '../../services/variantPlanService';
-
-const { Title, Text } = Typography;
 
 interface GenerationProgressProps {
   plans: VariantPlan[];
@@ -29,28 +34,14 @@ interface GenerationProgressProps {
 const getVariantIcon = (status: string | undefined) => {
   switch (status) {
     case 'complete':
-      return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+      return <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} />;
     case 'generating':
     case 'capturing':
-      return <LoadingOutlined spin style={{ color: '#1890ff' }} />;
+      return <CircularProgress size={18} />;
     case 'failed':
-      return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />;
+      return <CancelIcon sx={{ color: 'error.main', fontSize: 20 }} />;
     default:
-      return <ClockCircleOutlined style={{ color: '#d9d9d9' }} />;
-  }
-};
-
-const getStepStatus = (status: string | undefined): 'wait' | 'process' | 'finish' | 'error' => {
-  switch (status) {
-    case 'complete':
-      return 'finish';
-    case 'generating':
-    case 'capturing':
-      return 'process';
-    case 'failed':
-      return 'error';
-    default:
-      return 'wait';
+      return <AccessTimeIcon sx={{ color: 'grey.400', fontSize: 20 }} />;
   }
 };
 
@@ -69,104 +60,98 @@ export const GenerationProgress: React.FC<GenerationProgressProps> = ({
   const completedCount = variants.filter((v) => v.status === 'complete').length;
   const totalCount = 4;
 
-  // Build steps data
-  const steps = plans.map((plan) => {
-    const variant = variantStatusMap.get(plan.variant_index);
-    const color = getVibeVariantColor(plan.variant_index);
-    const label = getVibeVariantLabel(plan.variant_index);
-    const status = variant?.status || 'pending';
-    const isActive = plan.variant_index === currentVariantIndex;
-
-    return {
-      key: plan.variant_index,
-      title: (
-        <Space>
-          <Tag color={color} style={{ marginRight: 0 }}>
-            {plan.variant_index}
-          </Tag>
-          <span style={{ fontWeight: isActive ? 600 : 400 }}>{label}</span>
-        </Space>
-      ),
-      description: (
-        <div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {plan.title}
-          </Text>
-          {variant?.generation_duration_ms && (
-            <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-              Generated in {(variant.generation_duration_ms / 1000).toFixed(1)}s
-            </Text>
-          )}
-        </div>
-      ),
-      status: getStepStatus(status),
-      icon: getVariantIcon(status),
-    };
-  });
+  // Calculate active step
+  const activeStep = currentVariantIndex ? currentVariantIndex - 1 : -1;
 
   return (
     <Card>
-      <Space direction="vertical" style={{ width: '100%' }} size="large">
-        {/* Header */}
-        <div style={{ textAlign: 'center' }}>
-          <CodeOutlined style={{ fontSize: 24, color: '#1890ff', marginBottom: 8 }} />
-          <Title level={4} style={{ marginBottom: 4 }}>
-            Generating Variants
-          </Title>
-          <Text type="secondary">
-            {completedCount === totalCount
-              ? 'All variants generated successfully!'
-              : `${completedCount} of ${totalCount} variants complete`}
-          </Text>
-        </div>
+      <CardContent>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {/* Header */}
+          <Box sx={{ textAlign: 'center' }}>
+            <CodeIcon sx={{ fontSize: 32, color: 'primary.main', mb: 1 }} />
+            <Typography variant="h6" gutterBottom>
+              Generating Variants
+            </Typography>
+            <Typography color="text.secondary">
+              {completedCount === totalCount
+                ? 'All variants generated successfully!'
+                : `${completedCount} of ${totalCount} variants complete`}
+            </Typography>
+          </Box>
 
-        {/* Overall Progress */}
-        <div>
-          <Progress
-            percent={Math.round(overallPercent)}
-            status={error ? 'exception' : completedCount === totalCount ? 'success' : 'active'}
-            strokeColor={{
-              '0%': '#1890ff',
-              '100%': '#52c41a',
-            }}
-          />
-          {currentMessage && (
-            <div style={{ textAlign: 'center', marginTop: 8 }}>
-              <Spin size="small" style={{ marginRight: 8 }} />
-              <Text type="secondary">{currentMessage}</Text>
-            </div>
+          {/* Overall Progress */}
+          <Box>
+            <LinearProgress
+              variant="determinate"
+              value={Math.round(overallPercent)}
+              color={error ? 'error' : completedCount === totalCount ? 'success' : 'primary'}
+              sx={{ height: 8, borderRadius: 1 }}
+            />
+            {currentMessage && (
+              <Box sx={{ textAlign: 'center', mt: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                <CircularProgress size={14} />
+                <Typography variant="body2" color="text.secondary">{currentMessage}</Typography>
+              </Box>
+            )}
+          </Box>
+
+          {/* Error Alert */}
+          {error && (
+            <Alert severity="error">
+              <Typography variant="subtitle2">Generation Error</Typography>
+              <Typography variant="body2">{error}</Typography>
+            </Alert>
           )}
-        </div>
 
-        {/* Error Alert */}
-        {error && (
-          <Alert
-            type="error"
-            message="Generation Error"
-            description={error}
-            showIcon
-          />
-        )}
+          {/* Variant Steps */}
+          <Stepper activeStep={activeStep} orientation="vertical">
+            {plans.map((plan) => {
+              const variant = variantStatusMap.get(plan.variant_index);
+              const color = getVibeVariantColor(plan.variant_index);
+              const label = getVibeVariantLabel(plan.variant_index);
+              const status = variant?.status || 'pending';
+              const isActive = plan.variant_index === currentVariantIndex;
 
-        {/* Variant Steps */}
-        <Steps
-          direction="vertical"
-          size="small"
-          current={currentVariantIndex ? currentVariantIndex - 1 : -1}
-          items={steps}
-        />
+              return (
+                <Step key={plan.variant_index} completed={status === 'complete'}>
+                  <StepLabel
+                    icon={getVariantIcon(status)}
+                    error={status === 'failed'}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Chip
+                        label={plan.variant_index}
+                        size="small"
+                        sx={{ bgcolor: color, color: 'white', fontWeight: 600, minWidth: 24 }}
+                      />
+                      <Typography fontWeight={isActive ? 600 : 400}>{label}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {plan.title}
+                      </Typography>
+                      {variant?.generation_duration_ms && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          Generated in {(variant.generation_duration_ms / 1000).toFixed(1)}s
+                        </Typography>
+                      )}
+                    </Box>
+                  </StepLabel>
+                </Step>
+              );
+            })}
+          </Stepper>
 
-        {/* Completion Message */}
-        {completedCount === totalCount && !error && (
-          <Alert
-            type="success"
-            message="All variants generated!"
-            description="Click on any variant to preview and compare."
-            showIcon
-            icon={<CheckCircleOutlined />}
-          />
-        )}
-      </Space>
+          {/* Completion Message */}
+          {completedCount === totalCount && !error && (
+            <Alert severity="success" icon={<CheckCircleIcon />}>
+              <Typography variant="subtitle2">All variants generated!</Typography>
+              <Typography variant="body2">Click on any variant to preview and compare.</Typography>
+            </Alert>
+          )}
+        </Box>
+      </CardContent>
     </Card>
   );
 };

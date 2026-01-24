@@ -3,16 +3,20 @@
  */
 
 import React from 'react';
-import { Row, Col, Typography, Button, Space, Alert, Card, Spin, Empty } from 'antd';
-import {
-  CheckCircleOutlined,
-  ReloadOutlined,
-  RocketOutlined,
-} from '@ant-design/icons';
+import Box from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import { VariantPlanCard } from './VariantPlanCard';
+import { EmptyState } from '@/components';
 import type { VariantPlan } from '../../services/variantPlanService';
-
-const { Title, Text } = Typography;
 
 interface PlanReviewGridProps {
   plans: VariantPlan[];
@@ -41,17 +45,17 @@ export const PlanReviewGrid: React.FC<PlanReviewGridProps> = ({
   if (isLoading) {
     return (
       <Card>
-        <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-          <Spin size="large" />
-          <div style={{ marginTop: 16 }}>
-            <Title level={4} style={{ marginBottom: 8 }}>
+        <CardContent sx={{ textAlign: 'center', py: 8 }}>
+          <CircularProgress size={48} />
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="h6" gutterBottom>
               AI is designing your variants...
-            </Title>
-            <Text type="secondary">
+            </Typography>
+            <Typography color="text.secondary">
               {loadingMessage || 'This may take a moment'}
-            </Text>
-          </div>
-        </div>
+            </Typography>
+          </Box>
+        </CardContent>
       </Card>
     );
   }
@@ -60,10 +64,12 @@ export const PlanReviewGrid: React.FC<PlanReviewGridProps> = ({
   if (plans.length === 0) {
     return (
       <Card>
-        <Empty
-          description="No variant plans generated yet"
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-        />
+        <CardContent>
+          <EmptyState
+            title="No variant plans generated yet"
+            description="Enter a prompt to generate variant plans"
+          />
+        </CardContent>
       </Card>
     );
   }
@@ -74,98 +80,96 @@ export const PlanReviewGrid: React.FC<PlanReviewGridProps> = ({
   // Compact mode - just the grid, no header or actions
   if (compact) {
     return (
-      <Row gutter={[12, 12]}>
+      <Grid container spacing={1.5}>
         {sortedPlans.map((plan) => (
-          <Col key={plan.id} xs={24} sm={12} lg={6}>
+          <Grid item key={plan.id} xs={12} sm={6} lg={3}>
             <VariantPlanCard
               plan={plan}
               onUpdate={(updates) => onUpdatePlan?.(plan.variant_index, updates)}
               isEditable={!isApproved}
               compact
             />
-          </Col>
+          </Grid>
         ))}
-      </Row>
+      </Grid>
     );
   }
 
   return (
-    <div>
+    <Box>
       {/* Header */}
-      <div style={{ marginBottom: 16 }}>
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <div>
-            <Title level={4} style={{ marginBottom: 4 }}>
-              <RocketOutlined style={{ marginRight: 8 }} />
-              Review Variant Plans
-            </Title>
-            <Text type="secondary">
-              Review and edit the AI-generated concepts before generating code
-            </Text>
-            {modelInfo && (
-              <div style={{ marginTop: 4 }}>
-                <Text type="secondary" style={{ fontSize: 11 }}>
-                  Generated with {modelInfo.model} ({modelInfo.provider})
-                </Text>
-              </div>
-            )}
-          </div>
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Box>
+          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+            <RocketLaunchIcon />
+            Review Variant Plans
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Review and edit the AI-generated concepts before generating code
+          </Typography>
+          {modelInfo && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+              Generated with {modelInfo.model} ({modelInfo.provider})
+            </Typography>
+          )}
+        </Box>
 
-          <Space>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={onRegenerate}
-              disabled={isApproved}
-            >
-              Regenerate
-            </Button>
-            <Button
-              type="primary"
-              icon={<CheckCircleOutlined />}
-              onClick={onApprove}
-              disabled={isApproved}
-              size="large"
-            >
-              {isApproved ? 'Approved' : 'Approve & Generate Code'}
-            </Button>
-          </Space>
-        </Space>
-      </div>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            startIcon={<RefreshIcon />}
+            onClick={onRegenerate}
+            disabled={isApproved}
+          >
+            Regenerate
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<CheckCircleIcon />}
+            onClick={onApprove}
+            disabled={isApproved}
+            size="large"
+          >
+            {isApproved ? 'Approved' : 'Approve & Generate Code'}
+          </Button>
+        </Box>
+      </Box>
 
       {/* Approved Alert */}
       {isApproved && (
         <Alert
-          type="success"
-          message="Plan approved! Generating variant code..."
-          showIcon
-          icon={<CheckCircleOutlined />}
-          style={{ marginBottom: 16 }}
-        />
+          severity="success"
+          icon={<CheckCircleIcon />}
+          sx={{ mb: 2 }}
+        >
+          Plan approved! Generating variant code...
+        </Alert>
       )}
 
       {/* Plans Grid */}
-      <Row gutter={[16, 16]}>
+      <Grid container spacing={2}>
         {sortedPlans.map((plan) => (
-          <Col key={plan.id} xs={24} sm={12} lg={6}>
+          <Grid item key={plan.id} xs={12} sm={6} lg={3}>
             <VariantPlanCard
               plan={plan}
               onUpdate={(updates) => onUpdatePlan?.(plan.variant_index, updates)}
               isEditable={!isApproved}
             />
-          </Col>
+          </Grid>
         ))}
-      </Row>
+      </Grid>
 
       {/* Help Text */}
       {!isApproved && (
-        <div style={{ marginTop: 16, textAlign: 'center' }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Click the edit icon on any card to customize the plan before generating code.
-            Changes will affect the final output.
-          </Text>
-        </div>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ mt: 2, display: 'block', textAlign: 'center' }}
+        >
+          Click the edit icon on any card to customize the plan before generating code.
+          Changes will affect the final output.
+        </Typography>
       )}
-    </div>
+    </Box>
   );
 };
 

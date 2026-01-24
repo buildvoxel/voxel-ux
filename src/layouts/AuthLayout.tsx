@@ -1,56 +1,50 @@
 import { Outlet } from 'react-router-dom';
-import { Layout, theme } from 'antd';
-
-const { Content } = Layout;
+import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
 
 export function AuthLayout() {
-  const {
-    token: { colorBgContainer },
-  } = theme.useToken();
-
   return (
-    <Layout style={{ minHeight: '100vh', background: '#f5f5f5' }}>
-      <Content
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 24,
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'background.default',
+        p: 3,
+      }}
+    >
+      <Paper
+        elevation={0}
+        sx={{
+          width: '100%',
+          maxWidth: 400,
+          p: 4,
+          borderRadius: 2,
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
         }}
       >
-        <div
-          style={{
-            width: '100%',
-            maxWidth: 400,
-            padding: 32,
-            background: colorBgContainer,
-            borderRadius: 8,
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-          }}
-        >
-          <div
-            style={{
-              textAlign: 'center',
-              marginBottom: 32,
+        <Box sx={{ textAlign: 'center', mb: 4 }}>
+          <Typography
+            variant="h4"
+            component="h1"
+            fontWeight={600}
+            sx={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
             }}
           >
-            <h1
-              style={{
-                margin: 0,
-                fontSize: 28,
-                fontWeight: 600,
-                color: '#1890ff',
-              }}
-            >
-              SaaS App
-            </h1>
-            <p style={{ margin: '8px 0 0', color: '#666' }}>
-              Welcome back! Please sign in to continue.
-            </p>
-          </div>
-          <Outlet />
-        </div>
-      </Content>
-    </Layout>
+            Voxel
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Welcome back! Please sign in to continue.
+          </Typography>
+        </Box>
+        <Outlet />
+      </Paper>
+    </Box>
   );
 }

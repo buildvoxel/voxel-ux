@@ -1,0 +1,300 @@
+import { useNavigate } from 'react-router-dom';
+import Box from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CardActionArea from '@mui/material/CardActionArea';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import LinearProgress from '@mui/material/LinearProgress';
+import AddIcon from '@mui/icons-material/Add';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
+import ScienceIcon from '@mui/icons-material/Science';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import { StatCard } from '@/components';
+import { useAuthStore } from '@/store/authStore';
+
+// Mock data
+const recentPrototypes = [
+  {
+    id: '1',
+    name: 'E-commerce Checkout Flow',
+    status: 'shared',
+    views: 234,
+    updatedAt: '2 hours ago',
+  },
+  {
+    id: '2',
+    name: 'Dashboard Redesign',
+    status: 'draft',
+    views: 0,
+    updatedAt: '1 day ago',
+  },
+  {
+    id: '3',
+    name: 'Mobile App Onboarding',
+    status: 'deployed',
+    views: 567,
+    updatedAt: '3 days ago',
+  },
+];
+
+const recentInsights = [
+  {
+    id: '1',
+    prototypeName: 'E-commerce Checkout Flow',
+    metric: 'Conversion Rate',
+    value: '+15.3%',
+    trend: 'up' as const,
+  },
+  {
+    id: '2',
+    prototypeName: 'Dashboard Redesign',
+    metric: 'Avg. Time on Page',
+    value: '4m 32s',
+    trend: 'up' as const,
+  },
+  {
+    id: '3',
+    prototypeName: 'Mobile App Onboarding',
+    metric: 'Completion Rate',
+    value: '78%',
+    trend: 'up' as const,
+  },
+];
+
+const deployedPrototypes = [
+  {
+    id: '1',
+    name: 'Mobile App Onboarding',
+    environment: 'Production',
+    progress: 100,
+    deployedAt: '3 days ago',
+  },
+  {
+    id: '2',
+    name: 'Settings Page v2',
+    environment: 'Staging',
+    progress: 75,
+    deployedAt: 'In progress',
+  },
+];
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'shared':
+      return 'primary';
+    case 'deployed':
+      return 'success';
+    default:
+      return 'default';
+  }
+};
+
+export function Home() {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+
+  return (
+    <Box>
+      {/* Header */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" fontWeight={600} gutterBottom>
+          Welcome back, {user?.name?.split(' ')[0] || 'there'}
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Here's what's happening with your prototypes
+        </Typography>
+      </Box>
+
+      {/* Quick Stats */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Total Prototypes"
+            value={12}
+            icon={<ScienceIcon />}
+            trend={{ direction: 'up', value: 8 }}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Total Views"
+            value="2.4K"
+            icon={<VisibilityIcon />}
+            trend={{ direction: 'up', value: 12.5 }}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Shared"
+            value={5}
+            icon={<TrendingUpIcon />}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Deployed"
+            value={3}
+            icon={<RocketLaunchIcon />}
+            color="#52c41a"
+          />
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={3}>
+        {/* Recent Prototypes */}
+        <Grid item xs={12} lg={8}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" fontWeight={600}>
+                  Recent Prototypes
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  size="small"
+                  onClick={() => navigate('/prototypes')}
+                >
+                  New Prototype
+                </Button>
+              </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {recentPrototypes.map((prototype) => (
+                  <Card key={prototype.id} variant="outlined">
+                    <CardActionArea onClick={() => navigate(`/prototypes/${prototype.id}`)}>
+                      <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Box
+                            sx={{
+                              width: 48,
+                              height: 48,
+                              borderRadius: 1,
+                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <ScienceIcon sx={{ color: 'white' }} />
+                          </Box>
+                          <Box>
+                            <Typography variant="subtitle1" fontWeight={500}>
+                              {prototype.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Updated {prototype.updatedAt}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          {prototype.views > 0 && (
+                            <Typography variant="body2" color="text.secondary">
+                              {prototype.views} views
+                            </Typography>
+                          )}
+                          <Chip
+                            label={prototype.status}
+                            size="small"
+                            color={getStatusColor(prototype.status)}
+                          />
+                        </Box>
+                      </Box>
+                    </CardActionArea>
+                  </Card>
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Sidebar */}
+        <Grid item xs={12} lg={4}>
+          {/* Recent Insights */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                Recent Insights
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {recentInsights.map((insight) => (
+                  <Box
+                    key={insight.id}
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      p: 1.5,
+                      borderRadius: 1,
+                      backgroundColor: 'grey.50',
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>
+                        {insight.prototypeName}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {insight.metric}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <TrendingUpIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                      <Typography variant="body2" color="success.main" fontWeight={600}>
+                        {insight.value}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+              <Button
+                fullWidth
+                variant="text"
+                sx={{ mt: 2 }}
+                onClick={() => navigate('/insights')}
+              >
+                View All Insights
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Deployed Prototypes */}
+          <Card>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} gutterBottom>
+                Deployments
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {deployedPrototypes.map((item) => (
+                  <Box key={item.id}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="body2" fontWeight={500}>
+                        {item.name}
+                      </Typography>
+                      <Chip
+                        label={item.environment}
+                        size="small"
+                        color={item.environment === 'Production' ? 'success' : 'warning'}
+                        variant="outlined"
+                      />
+                    </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={item.progress}
+                      sx={{ mb: 0.5 }}
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                      {item.deployedAt}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+}

@@ -3,24 +3,33 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Modal, Typography, Tag, Space, Button, Spin, Tabs, Tooltip, message } from 'antd';
-import {
-  ExpandOutlined,
-  CompressOutlined,
-  CopyOutlined,
-  DownloadOutlined,
-  CodeOutlined,
-  EyeOutlined,
-  CheckOutlined,
-  DesktopOutlined,
-  TabletOutlined,
-  MobileOutlined,
-} from '@ant-design/icons';
+import Box from '@mui/material/Box';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Typography from '@mui/material/Typography';
+import Chip from '@mui/material/Chip';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import Tooltip from '@mui/material/Tooltip';
+import CircularProgress from '@mui/material/CircularProgress';
+import OpenInFullIcon from '@mui/icons-material/OpenInFull';
+import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import DownloadIcon from '@mui/icons-material/Download';
+import CodeIcon from '@mui/icons-material/Code';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import CheckIcon from '@mui/icons-material/Check';
+import DesktopWindowsIcon from '@mui/icons-material/DesktopWindows';
+import TabletIcon from '@mui/icons-material/Tablet';
+import PhoneIphoneIcon from '@mui/icons-material/PhoneIphone';
+import { useSnackbar } from '@/components/SnackbarProvider';
 import { getVibeVariantColor, getVibeVariantLabel } from '../../store/vibeStore';
 import type { VibeVariant } from '../../services/variantCodeService';
 import type { VariantPlan } from '../../services/variantPlanService';
-
-const { Title } = Typography;
 
 interface VariantPreviewModalProps {
   open: boolean;
@@ -48,13 +57,13 @@ export const VariantPreviewModal: React.FC<VariantPreviewModalProps> = ({
   onSelect,
   isSelected = false,
 }) => {
+  const { showSuccess } = useSnackbar();
   const [viewMode, setViewMode] = useState<ViewMode>('preview');
   const [deviceMode, setDeviceMode] = useState<DeviceMode>('desktop');
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Fetch HTML content when modal opens
   useEffect(() => {
     if (open && variant?.html_url && viewMode === 'code' && !htmlContent) {
       setIsLoading(true);
@@ -66,7 +75,6 @@ export const VariantPreviewModal: React.FC<VariantPreviewModalProps> = ({
     }
   }, [open, variant?.html_url, viewMode, htmlContent]);
 
-  // Reset state when modal closes
   useEffect(() => {
     if (!open) {
       setHtmlContent(null);
@@ -78,12 +86,11 @@ export const VariantPreviewModal: React.FC<VariantPreviewModalProps> = ({
   const handleCopyHtml = async () => {
     if (!htmlContent) return;
     await navigator.clipboard.writeText(htmlContent);
-    message.success('HTML copied to clipboard');
+    showSuccess('HTML copied to clipboard');
   };
 
   const handleDownloadHtml = () => {
     if (!htmlContent || !variant) return;
-
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -93,207 +100,86 @@ export const VariantPreviewModal: React.FC<VariantPreviewModalProps> = ({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    message.success('HTML downloaded');
+    showSuccess('HTML downloaded');
   };
 
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
-  };
-
-  if (!variant || !plan) {
-    return null;
-  }
+  if (!variant || !plan) return null;
 
   const color = getVibeVariantColor(plan.variant_index);
   const label = getVibeVariantLabel(plan.variant_index);
 
   return (
-    <Modal
+    <Dialog
       open={open}
-      onCancel={onClose}
-      width={isFullscreen ? '100vw' : 1200}
-      style={isFullscreen ? { top: 0, padding: 0, maxWidth: '100vw' } : undefined}
-      bodyStyle={{
-        padding: 0,
-        height: isFullscreen ? 'calc(100vh - 55px)' : 600,
-        overflow: 'hidden',
-      }}
-      title={
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Space>
-            <Tag color={color} style={{ marginRight: 0 }}>
-              {plan.variant_index}
-            </Tag>
-            <Title level={5} style={{ marginBottom: 0 }}>
-              {label}: {plan.title}
-            </Title>
-          </Space>
-          <Space>
-            <Tooltip title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
-              <Button
-                type="text"
-                icon={isFullscreen ? <CompressOutlined /> : <ExpandOutlined />}
-                onClick={toggleFullscreen}
-              />
-            </Tooltip>
-          </Space>
-        </Space>
-      }
-      footer={
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Space>
-            {/* View Mode Toggle */}
-            <Tabs
-              activeKey={viewMode}
-              onChange={(key) => setViewMode(key as ViewMode)}
-              size="small"
-              items={[
-                { key: 'preview', label: <><EyeOutlined /> Preview</>, icon: null },
-                { key: 'code', label: <><CodeOutlined /> Code</>, icon: null },
-              ]}
-              style={{ marginBottom: 0 }}
-            />
-
-            {/* Device Mode (only in preview) */}
-            {viewMode === 'preview' && (
-              <Space style={{ marginLeft: 16 }}>
-                <Tooltip title="Desktop">
-                  <Button
-                    type={deviceMode === 'desktop' ? 'primary' : 'default'}
-                    size="small"
-                    icon={<DesktopOutlined />}
-                    onClick={() => setDeviceMode('desktop')}
-                  />
-                </Tooltip>
-                <Tooltip title="Tablet">
-                  <Button
-                    type={deviceMode === 'tablet' ? 'primary' : 'default'}
-                    size="small"
-                    icon={<TabletOutlined />}
-                    onClick={() => setDeviceMode('tablet')}
-                  />
-                </Tooltip>
-                <Tooltip title="Mobile">
-                  <Button
-                    type={deviceMode === 'mobile' ? 'primary' : 'default'}
-                    size="small"
-                    icon={<MobileOutlined />}
-                    onClick={() => setDeviceMode('mobile')}
-                  />
-                </Tooltip>
-              </Space>
-            )}
-          </Space>
-
-          <Space>
-            {viewMode === 'code' && (
-              <>
-                <Button icon={<CopyOutlined />} onClick={handleCopyHtml} disabled={!htmlContent}>
-                  Copy HTML
-                </Button>
-                <Button icon={<DownloadOutlined />} onClick={handleDownloadHtml} disabled={!htmlContent}>
-                  Download
-                </Button>
-              </>
-            )}
-            <Button
-              type={isSelected ? 'default' : 'primary'}
-              icon={isSelected ? <CheckOutlined /> : null}
-              onClick={onSelect}
-            >
-              {isSelected ? 'Selected as Winner' : 'Select as Winner'}
-            </Button>
-          </Space>
-        </div>
-      }
+      onClose={onClose}
+      maxWidth={false}
+      fullScreen={isFullscreen}
+      PaperProps={{ sx: { width: isFullscreen ? '100%' : 1200, maxWidth: '100%' } }}
     >
-      <div
-        style={{
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: viewMode === 'preview' ? '#e8e8e8' : '#1e1e1e',
-        }}
-      >
-        {/* Preview Mode */}
-        {viewMode === 'preview' && (
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'flex-start',
-              padding: 20,
-              overflow: 'auto',
-            }}
-          >
-            <div
-              style={{
-                width: deviceMode === 'desktop' ? '100%' : DEVICE_WIDTHS[deviceMode],
-                maxWidth: '100%',
-                height: '100%',
-                backgroundColor: '#fff',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-                borderRadius: 8,
-                overflow: 'hidden',
-              }}
-            >
-              {variant.html_url ? (
-                <iframe
-                  src={variant.html_url}
-                  title={`Variant ${plan.variant_index} preview`}
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                />
-              ) : (
-                <div
-                  style={{
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Spin />
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Chip label={plan.variant_index} size="small" sx={{ bgcolor: color, color: 'white', fontWeight: 600 }} />
+          <Typography variant="h6">{label}: {plan.title}</Typography>
+        </Box>
+        <Tooltip title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+          <IconButton onClick={() => setIsFullscreen(!isFullscreen)}>
+            {isFullscreen ? <CloseFullscreenIcon /> : <OpenInFullIcon />}
+          </IconButton>
+        </Tooltip>
+      </DialogTitle>
 
-        {/* Code Mode */}
-        {viewMode === 'code' && (
-          <div style={{ flex: 1, overflow: 'auto' }}>
-            {isLoading ? (
-              <div
-                style={{
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Spin />
-              </div>
-            ) : (
-              <pre
-                style={{
-                  margin: 0,
-                  padding: 16,
-                  color: '#d4d4d4',
-                  fontSize: 12,
-                  fontFamily: '"Fira Code", "Monaco", monospace',
-                  lineHeight: 1.6,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                }}
-              >
-                {htmlContent}
-              </pre>
-            )}
-          </div>
+      <DialogContent sx={{ p: 0, height: isFullscreen ? 'calc(100vh - 140px)' : 500, bgcolor: viewMode === 'preview' ? 'grey.300' : '#1e1e1e' }}>
+        {viewMode === 'preview' && (
+          <Box sx={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', p: 2.5, overflow: 'auto' }}>
+            <Box sx={{ width: deviceMode === 'desktop' ? '100%' : DEVICE_WIDTHS[deviceMode], maxWidth: '100%', height: '100%', bgcolor: 'white', boxShadow: 4, borderRadius: 2, overflow: 'hidden' }}>
+              {variant.html_url ? (
+                <iframe src={variant.html_url} title={`Variant ${plan.variant_index}`} style={{ width: '100%', height: '100%', border: 'none' }} />
+              ) : (
+                <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CircularProgress /></Box>
+              )}
+            </Box>
+          </Box>
         )}
-      </div>
-    </Modal>
+        {viewMode === 'code' && (
+          <Box sx={{ height: '100%', overflow: 'auto' }}>
+            {isLoading ? (
+              <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CircularProgress /></Box>
+            ) : (
+              <Box component="pre" sx={{ m: 0, p: 2, color: '#d4d4d4', fontSize: 12, fontFamily: '"Fira Code", monospace', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {htmlContent}
+              </Box>
+            )}
+          </Box>
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{ justifyContent: 'space-between', px: 3, py: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Tabs value={viewMode} onChange={(_, v) => setViewMode(v)} sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, py: 0 } }}>
+            <Tab value="preview" label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><VisibilityIcon fontSize="small" /> Preview</Box>} />
+            <Tab value="code" label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><CodeIcon fontSize="small" /> Code</Box>} />
+          </Tabs>
+          {viewMode === 'preview' && (
+            <Box sx={{ display: 'flex', gap: 0.5 }}>
+              <Tooltip title="Desktop"><IconButton size="small" color={deviceMode === 'desktop' ? 'primary' : 'default'} onClick={() => setDeviceMode('desktop')}><DesktopWindowsIcon /></IconButton></Tooltip>
+              <Tooltip title="Tablet"><IconButton size="small" color={deviceMode === 'tablet' ? 'primary' : 'default'} onClick={() => setDeviceMode('tablet')}><TabletIcon /></IconButton></Tooltip>
+              <Tooltip title="Mobile"><IconButton size="small" color={deviceMode === 'mobile' ? 'primary' : 'default'} onClick={() => setDeviceMode('mobile')}><PhoneIphoneIcon /></IconButton></Tooltip>
+            </Box>
+          )}
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {viewMode === 'code' && (
+            <>
+              <Button startIcon={<ContentCopyIcon />} onClick={handleCopyHtml} disabled={!htmlContent}>Copy HTML</Button>
+              <Button startIcon={<DownloadIcon />} onClick={handleDownloadHtml} disabled={!htmlContent}>Download</Button>
+            </>
+          )}
+          <Button variant={isSelected ? 'outlined' : 'contained'} startIcon={isSelected ? <CheckIcon /> : undefined} onClick={onSelect}>
+            {isSelected ? 'Selected as Winner' : 'Select as Winner'}
+          </Button>
+        </Box>
+      </DialogActions>
+    </Dialog>
   );
 };
 

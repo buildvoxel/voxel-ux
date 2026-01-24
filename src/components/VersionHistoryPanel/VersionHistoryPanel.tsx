@@ -1,26 +1,22 @@
 import { useState } from 'react';
-import {
-  Timeline,
-  Typography,
-  Button,
-  Tag,
-  Modal,
-  Space,
-  Empty,
-  Spin,
-  Popconfirm,
-  Tooltip,
-} from 'antd';
-import {
-  RobotOutlined,
-  ClockCircleOutlined,
-  EyeOutlined,
-  RollbackOutlined,
-  CheckCircleOutlined,
-} from '@ant-design/icons';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Tooltip from '@mui/material/Tooltip';
+import CircularProgress from '@mui/material/CircularProgress';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import RestoreIcon from '@mui/icons-material/Restore';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { EmptyState } from '@/components';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import type { ScreenVersion } from '@/types';
-
-const { Text, Paragraph } = Typography;
 
 interface VersionHistoryPanelProps {
   versions: ScreenVersion[];
@@ -57,6 +53,7 @@ export function VersionHistoryPanel({
 }: VersionHistoryPanelProps) {
   const [previewVersion, setPreviewVersion] = useState<ScreenVersion | null>(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [restoreConfirmVersion, setRestoreConfirmVersion] = useState<ScreenVersion | null>(null);
 
   const handlePreview = (version: ScreenVersion) => {
     setPreviewVersion(version);
@@ -71,6 +68,7 @@ export function VersionHistoryPanel({
 
   const handleRestore = (version: ScreenVersion) => {
     onRestore(version);
+    setRestoreConfirmVersion(null);
   };
 
   // Check if a version matches current HTML content
@@ -82,208 +80,215 @@ export function VersionHistoryPanel({
 
   if (isLoading) {
     return (
-      <div style={{ padding: 24, textAlign: 'center' }}>
-        <Spin size="small" />
-        <Text type="secondary" style={{ marginLeft: 8, display: 'block', marginTop: 8 }}>
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <CircularProgress size={24} />
+        <Typography color="text.secondary" sx={{ mt: 1 }}>
           Loading versions...
-        </Text>
-      </div>
+        </Typography>
+      </Box>
     );
   }
 
   if (!versions || versions.length === 0) {
     return (
-      <div style={{ padding: 24 }}>
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={
-            <Text type="secondary">No version history yet</Text>
-          }
-        />
-      </div>
+      <Box sx={{ p: 3 }}>
+        <EmptyState title="No version history yet" />
+      </Box>
     );
   }
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
-        <Text strong>Version History</Text>
-        <Tag color="blue" style={{ marginLeft: 8 }}>
-          {versions.length}
-        </Tag>
-      </div>
+      <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography variant="subtitle2" fontWeight={600}>Version History</Typography>
+        <Chip label={versions.length} size="small" color="primary" />
+      </Box>
 
       {/* Timeline */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
-        <Timeline
-          items={versions.map((version, index) => {
-            const isAI = !!version.prompt;
-            const isCurrent = isCurrentVersion(version);
-            const isLatest = index === 0;
+      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+        {versions.map((version, index) => {
+          const isAI = !!version.prompt;
+          const isCurrent = isCurrentVersion(version);
+          const isLatest = index === 0;
+          const isLast = index === versions.length - 1;
 
-            return {
-              key: version.id,
-              dot: isAI ? (
-                <RobotOutlined style={{ fontSize: 14, color: '#764ba2' }} />
-              ) : (
-                <ClockCircleOutlined style={{ fontSize: 14, color: '#1890ff' }} />
-              ),
-              children: (
-                <div style={{ marginBottom: 8 }}>
-                  {/* Tags */}
-                  <Space size={4} style={{ marginBottom: 4 }}>
-                    {isLatest && <Tag color="green">Latest</Tag>}
-                    {isCurrent && (
-                      <Tag color="blue" icon={<CheckCircleOutlined />}>
-                        Current
-                      </Tag>
-                    )}
-                    {isAI && <Tag color="purple">AI</Tag>}
-                  </Space>
+          return (
+            <Box key={version.id} sx={{ display: 'flex', gap: 2, mb: isLast ? 0 : 2 }}>
+              {/* Timeline indicator */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <Box
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    bgcolor: isAI ? 'secondary.main' : 'primary.main',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                  }}
+                >
+                  {isAI ? <SmartToyIcon sx={{ fontSize: 16 }} /> : <AccessTimeIcon sx={{ fontSize: 16 }} />}
+                </Box>
+                {!isLast && (
+                  <Box sx={{ width: 2, flex: 1, bgcolor: 'divider', mt: 0.5 }} />
+                )}
+              </Box>
 
-                  {/* Description */}
-                  <div style={{ marginBottom: 4 }}>
-                    {version.prompt ? (
-                      <Paragraph
-                        ellipsis={{ rows: 2, expandable: false }}
-                        style={{ margin: 0, fontSize: 12 }}
+              {/* Content */}
+              <Box sx={{ flex: 1, pb: isLast ? 0 : 2 }}>
+                {/* Tags */}
+                <Box sx={{ display: 'flex', gap: 0.5, mb: 0.5, flexWrap: 'wrap' }}>
+                  {isLatest && <Chip label="Latest" size="small" color="success" />}
+                  {isCurrent && (
+                    <Chip label="Current" size="small" color="primary" icon={<CheckCircleIcon />} />
+                  )}
+                  {isAI && <Chip label="AI" size="small" color="secondary" />}
+                </Box>
+
+                {/* Description */}
+                <Box sx={{ mb: 0.5 }}>
+                  {version.prompt ? (
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {version.prompt}
+                    </Typography>
+                  ) : version.description ? (
+                    <Typography variant="body2">{version.description}</Typography>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Manual edit
+                    </Typography>
+                  )}
+                </Box>
+
+                {/* Timestamp */}
+                <Typography variant="caption" color="text.secondary">
+                  {formatTimeAgo(version.createdAt)}
+                </Typography>
+
+                {/* Actions */}
+                <Box sx={{ mt: 1, display: 'flex', gap: 0.5 }}>
+                  <Tooltip title="Preview this version">
+                    <Button
+                      size="small"
+                      startIcon={<VisibilityIcon />}
+                      onClick={() => handlePreview(version)}
+                    >
+                      Preview
+                    </Button>
+                  </Tooltip>
+                  {!isCurrent && (
+                    <Tooltip title="Restore this version">
+                      <Button
+                        size="small"
+                        startIcon={<RestoreIcon />}
+                        onClick={() => setRestoreConfirmVersion(version)}
                       >
-                        {version.prompt}
-                      </Paragraph>
-                    ) : version.description ? (
-                      <Text style={{ fontSize: 12 }}>{version.description}</Text>
-                    ) : (
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        Manual edit
-                      </Text>
-                    )}
-                  </div>
+                        Restore
+                      </Button>
+                    </Tooltip>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+          );
+        })}
+      </Box>
 
-                  {/* Timestamp */}
-                  <Text type="secondary" style={{ fontSize: 11 }}>
-                    {formatTimeAgo(version.createdAt)}
-                  </Text>
-
-                  {/* Actions */}
-                  <div style={{ marginTop: 8 }}>
-                    <Space size={4}>
-                      <Tooltip title="Preview this version">
-                        <Button
-                          size="small"
-                          icon={<EyeOutlined />}
-                          onClick={() => handlePreview(version)}
-                        >
-                          Preview
-                        </Button>
-                      </Tooltip>
-                      {!isCurrent && (
-                        <Popconfirm
-                          title="Restore this version?"
-                          description="This will replace the current content with this version."
-                          onConfirm={() => handleRestore(version)}
-                          okText="Restore"
-                          cancelText="Cancel"
-                        >
-                          <Tooltip title="Restore this version">
-                            <Button
-                              size="small"
-                              icon={<RollbackOutlined />}
-                            >
-                              Restore
-                            </Button>
-                          </Tooltip>
-                        </Popconfirm>
-                      )}
-                    </Space>
-                  </div>
-                </div>
-              ),
-            };
-          })}
-        />
-      </div>
+      {/* Restore Confirmation Dialog */}
+      <ConfirmDialog
+        open={!!restoreConfirmVersion}
+        title="Restore this version?"
+        content="This will replace the current content with this version."
+        confirmText="Restore"
+        onConfirm={() => restoreConfirmVersion && handleRestore(restoreConfirmVersion)}
+        onClose={() => setRestoreConfirmVersion(null)}
+      />
 
       {/* Preview Modal */}
-      <Modal
-        title={
-          <Space>
-            <Text strong>Version Preview</Text>
-            {previewVersion?.prompt && <Tag color="purple">AI Generated</Tag>}
-          </Space>
-        }
+      <Dialog
         open={isPreviewModalOpen}
-        onCancel={handleClosePreview}
-        width={800}
-        footer={[
-          <Button key="close" onClick={handleClosePreview}>
-            Close
-          </Button>,
-          previewVersion && !isCurrentVersion(previewVersion) && (
-            <Popconfirm
-              key="restore"
-              title="Restore this version?"
-              description="This will replace the current content with this version."
-              onConfirm={() => {
+        onClose={handleClosePreview}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="h6">Version Preview</Typography>
+          {previewVersion?.prompt && <Chip label="AI Generated" size="small" color="secondary" />}
+        </DialogTitle>
+        <DialogContent>
+          {previewVersion && (
+            <Box>
+              {/* Version info */}
+              <Box sx={{ mb: 2 }}>
+                {previewVersion.prompt && (
+                  <Box sx={{ mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary" component="span">Prompt: </Typography>
+                    <Typography variant="body2" component="span">{previewVersion.prompt}</Typography>
+                  </Box>
+                )}
+                {previewVersion.description && (
+                  <Box sx={{ mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary" component="span">Description: </Typography>
+                    <Typography variant="body2" component="span">{previewVersion.description}</Typography>
+                  </Box>
+                )}
+                <Typography variant="body2" color="text.secondary">
+                  Created: {new Date(previewVersion.createdAt).toLocaleString()}
+                </Typography>
+              </Box>
+
+              {/* Preview iframe */}
+              <Box
+                sx={{
+                  border: 1,
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                  overflow: 'hidden',
+                  height: 400,
+                }}
+              >
+                <iframe
+                  srcDoc={previewVersion.html}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                  }}
+                  sandbox="allow-same-origin"
+                  title="Version preview"
+                />
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClosePreview}>Close</Button>
+          {previewVersion && !isCurrentVersion(previewVersion) && (
+            <Button
+              variant="contained"
+              startIcon={<RestoreIcon />}
+              onClick={() => {
                 if (previewVersion) {
                   handleRestore(previewVersion);
                   handleClosePreview();
                 }
               }}
-              okText="Restore"
-              cancelText="Cancel"
             >
-              <Button type="primary" icon={<RollbackOutlined />}>
-                Restore
-              </Button>
-            </Popconfirm>
-          ),
-        ].filter(Boolean)}
-      >
-        {previewVersion && (
-          <div>
-            {/* Version info */}
-            <div style={{ marginBottom: 16 }}>
-              {previewVersion.prompt && (
-                <div style={{ marginBottom: 8 }}>
-                  <Text type="secondary">Prompt: </Text>
-                  <Text>{previewVersion.prompt}</Text>
-                </div>
-              )}
-              {previewVersion.description && (
-                <div style={{ marginBottom: 8 }}>
-                  <Text type="secondary">Description: </Text>
-                  <Text>{previewVersion.description}</Text>
-                </div>
-              )}
-              <Text type="secondary">
-                Created: {new Date(previewVersion.createdAt).toLocaleString()}
-              </Text>
-            </div>
-
-            {/* Preview iframe */}
-            <div
-              style={{
-                border: '1px solid #d9d9d9',
-                borderRadius: 8,
-                overflow: 'hidden',
-                height: 400,
-              }}
-            >
-              <iframe
-                srcDoc={previewVersion.html}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  border: 'none',
-                }}
-                sandbox="allow-same-origin"
-                title="Version preview"
-              />
-            </div>
-          </div>
-        )}
-      </Modal>
-    </div>
+              Restore
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

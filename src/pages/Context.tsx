@@ -1,774 +1,507 @@
 import { useState } from 'react';
-import {
-  Typography,
-  Card,
-  Row,
-  Col,
-  Button,
-  Upload,
-  Empty,
-  Space,
-  Input,
-  Modal,
-  Tag,
-  Checkbox,
-  message,
-  Dropdown,
-  Tabs,
-  Badge,
-} from 'antd';
-import type { MenuProps } from 'antd';
-import {
-  FileTextOutlined,
-  FilePdfOutlined,
-  VideoCameraOutlined,
-  LinkOutlined,
-  UploadOutlined,
-  PlusOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  MoreOutlined,
-  CopyOutlined,
-  EyeOutlined,
-  PictureOutlined,
-  BulbOutlined,
-} from '@ant-design/icons';
-import {
-  useContextStore,
-  getContextTypeColor,
-  type ProductContext,
-  type ContextType,
-} from '@/store/contextStore';
+import Box from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import Card from '@mui/material/Card';
+import CardActionArea from '@mui/material/CardActionArea';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import TextField from '@mui/material/TextField';
+import Chip from '@mui/material/Chip';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import Alert from '@mui/material/Alert';
+import FlagIcon from '@mui/icons-material/Flag';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import ListAltIcon from '@mui/icons-material/ListAlt';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import DescriptionIcon from '@mui/icons-material/Description';
+import LinkIcon from '@mui/icons-material/Link';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import { useSnackbar } from '@/components/SnackbarProvider';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
-const { Title, Text, Paragraph } = Typography;
-const { TextArea } = Input;
-
-// Type icons
-const TYPE_ICONS: Record<ContextType, React.ReactNode> = {
-  text: <FileTextOutlined />,
-  pdf: <FilePdfOutlined />,
-  video: <VideoCameraOutlined />,
-  url: <LinkOutlined />,
-  image: <PictureOutlined />,
-};
-
-// Add Text Modal
-function AddTextModal({
-  open,
-  onClose,
-  editContext,
-}: {
-  open: boolean;
-  onClose: () => void;
-  editContext?: ProductContext | null;
-}) {
-  const [name, setName] = useState(editContext?.name || '');
-  const [content, setContent] = useState(editContext?.content || '');
-  const [tags, setTags] = useState(editContext?.tags?.join(', ') || '');
-  const { addContext, updateContext } = useContextStore();
-
-  const handleSave = () => {
-    if (!name.trim() || !content.trim()) {
-      message.error('Please provide a name and content');
-      return;
-    }
-
-    const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean);
-
-    if (editContext) {
-      updateContext(editContext.id, {
-        name,
-        content,
-        tags: tagList,
-      });
-      message.success('Context updated');
-    } else {
-      addContext({
-        type: 'text',
-        name,
-        content,
-        tags: tagList,
-      });
-      message.success('Context added');
-    }
-
-    onClose();
-    setName('');
-    setContent('');
-    setTags('');
-  };
-
-  return (
-    <Modal
-      open={open}
-      onCancel={onClose}
-      title={
-        <Space>
-          <FileTextOutlined style={{ color: getContextTypeColor('text') }} />
-          {editContext ? 'Edit Text Context' : 'Add Text / Notes'}
-        </Space>
-      }
-      onOk={handleSave}
-      okText={editContext ? 'Save' : 'Add'}
-      width={700}
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
-        <div>
-          <Text strong>Name</Text>
-          <Input
-            placeholder="E.g., Product Requirements, User Stories..."
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{ marginTop: 4 }}
-          />
-        </div>
-        <div>
-          <Text strong>Content</Text>
-          <TextArea
-            placeholder="Paste your product context, requirements, notes, or any text that helps describe your product..."
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            autoSize={{ minRows: 8, maxRows: 16 }}
-            style={{ marginTop: 4 }}
-          />
-        </div>
-        <div>
-          <Text strong>Tags (optional)</Text>
-          <Input
-            placeholder="Comma-separated tags, e.g., requirements, v2, mobile"
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            style={{ marginTop: 4 }}
-          />
-        </div>
-      </Space>
-    </Modal>
-  );
+interface ContextItem {
+  id: string;
+  title: string;
+  content: string;
+  type: 'text' | 'url';
+  url?: string;
+  createdAt: string;
 }
 
-// Add URL Modal
-function AddURLModal({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
-  const [url, setUrl] = useState('');
-  const [name, setName] = useState('');
-  const [notes, setNotes] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { addContext } = useContextStore();
-
-  const handleAdd = async () => {
-    if (!url.trim()) {
-      message.error('Please provide a URL');
-      return;
-    }
-
-    setLoading(true);
-
-    // Simulate fetching URL metadata
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const contextName = name || new URL(url).hostname;
-    addContext({
-      type: 'url',
-      name: contextName,
-      content: notes || `Reference link: ${url}`,
-      metadata: { url },
-    });
-
-    message.success('URL added');
-    onClose();
-    setUrl('');
-    setName('');
-    setNotes('');
-    setLoading(false);
-  };
-
-  return (
-    <Modal
-      open={open}
-      onCancel={onClose}
-      title={
-        <Space>
-          <LinkOutlined style={{ color: getContextTypeColor('url') }} />
-          Add URL / Link
-        </Space>
-      }
-      onOk={handleAdd}
-      okText="Add"
-      confirmLoading={loading}
-      width={500}
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
-        <div>
-          <Text strong>URL</Text>
-          <Input
-            placeholder="https://..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            style={{ marginTop: 4 }}
-          />
-        </div>
-        <div>
-          <Text strong>Name (optional)</Text>
-          <Input
-            placeholder="Display name for this link"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{ marginTop: 4 }}
-          />
-        </div>
-        <div>
-          <Text strong>Notes (optional)</Text>
-          <TextArea
-            placeholder="Add notes about what this link contains..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            autoSize={{ minRows: 3, maxRows: 6 }}
-            style={{ marginTop: 4 }}
-          />
-        </div>
-      </Space>
-    </Modal>
-  );
+interface ContextCategory {
+  id: string;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  color: string;
+  items: ContextItem[];
 }
 
-// Preview Modal
-function PreviewModal({
-  context,
-  onClose,
-}: {
-  context: ProductContext | null;
-  onClose: () => void;
-}) {
-  if (!context) return null;
-
-  return (
-    <Modal
-      open={true}
-      onCancel={onClose}
-      title={
-        <Space>
-          {TYPE_ICONS[context.type]}
-          {context.name}
-        </Space>
-      }
-      footer={<Button onClick={onClose}>Close</Button>}
-      width={700}
-    >
-      {context.type === 'text' && (
-        <pre
-          style={{
-            background: '#f5f5f5',
-            padding: 16,
-            borderRadius: 8,
-            maxHeight: 400,
-            overflow: 'auto',
-            whiteSpace: 'pre-wrap',
-            fontSize: 13,
-          }}
-        >
-          {context.content}
-        </pre>
-      )}
-      {context.type === 'url' && (
-        <div>
-          <Paragraph>
-            <a href={context.metadata?.url} target="_blank" rel="noopener noreferrer">
-              {context.metadata?.url}
-            </a>
-          </Paragraph>
-          {context.content && (
-            <pre
-              style={{
-                background: '#f5f5f5',
-                padding: 16,
-                borderRadius: 8,
-                whiteSpace: 'pre-wrap',
-                fontSize: 13,
-              }}
-            >
-              {context.content}
-            </pre>
-          )}
-        </div>
-      )}
-      {(context.type === 'pdf' || context.type === 'video' || context.type === 'image') && (
-        <div style={{ textAlign: 'center', padding: 40 }}>
-          {TYPE_ICONS[context.type]}
-          <Paragraph style={{ marginTop: 16 }}>
-            File: {context.name}
-            {context.metadata?.fileSize && (
-              <Text type="secondary" style={{ marginLeft: 8 }}>
-                ({(context.metadata.fileSize / 1024).toFixed(1)} KB)
-              </Text>
-            )}
-          </Paragraph>
-          {context.content && (
-            <pre
-              style={{
-                background: '#f5f5f5',
-                padding: 16,
-                borderRadius: 8,
-                textAlign: 'left',
-                whiteSpace: 'pre-wrap',
-                fontSize: 13,
-                marginTop: 16,
-              }}
-            >
-              {context.content}
-            </pre>
-          )}
-        </div>
-      )}
-    </Modal>
-  );
-}
-
-// Context Item component
-function ContextItem({
-  context,
-  onEdit,
-  onDelete,
-  onPreview,
-}: {
-  context: ProductContext;
-  onEdit: () => void;
-  onDelete: () => void;
-  onPreview: () => void;
-}) {
-  const { selectedContextIds, toggleContextSelection } = useContextStore();
-  const isSelected = selectedContextIds.includes(context.id);
-  const color = getContextTypeColor(context.type);
-
-  const menuItems: MenuProps['items'] = [
-    {
-      key: 'preview',
-      icon: <EyeOutlined />,
-      label: 'Preview',
-      onClick: onPreview,
-    },
-    {
-      key: 'edit',
-      icon: <EditOutlined />,
-      label: 'Edit',
-      onClick: onEdit,
-    },
-    {
-      key: 'copy',
-      icon: <CopyOutlined />,
-      label: 'Copy Content',
-      onClick: () => {
-        navigator.clipboard.writeText(context.content);
-        message.success('Copied to clipboard');
-      },
-    },
-    { type: 'divider' },
-    {
-      key: 'delete',
-      icon: <DeleteOutlined />,
-      label: 'Delete',
-      danger: true,
-      onClick: onDelete,
-    },
-  ];
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  return (
-    <Card
-      size="small"
-      hoverable
-      style={{
-        borderColor: isSelected ? color : undefined,
-        borderWidth: isSelected ? 2 : 1,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-        <Checkbox
-          checked={isSelected}
-          onChange={() => toggleContextSelection(context.id)}
-          style={{ marginTop: 4 }}
-        />
-        <div
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 8,
-            background: `${color}15`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: color,
-            fontSize: 18,
-            flexShrink: 0,
-          }}
-        >
-          {TYPE_ICONS[context.type]}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Text strong ellipsis style={{ flex: 1 }}>
-              {context.name}
-            </Text>
-            <Dropdown menu={{ items: menuItems }} trigger={['click']}>
-              <Button type="text" size="small" icon={<MoreOutlined />} />
-            </Dropdown>
-          </div>
-          <Text type="secondary" style={{ fontSize: 12 }} ellipsis>
-            {context.type === 'url'
-              ? context.metadata?.url
-              : context.content.substring(0, 100)}
-            {context.content.length > 100 && '...'}
-          </Text>
-          <div style={{ marginTop: 4 }}>
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              {formatDate(context.createdAt)}
-            </Text>
-            {context.tags && context.tags.length > 0 && (
-              <span style={{ marginLeft: 8 }}>
-                {context.tags.slice(0, 2).map((tag) => (
-                  <Tag key={tag} style={{ fontSize: 10, margin: '0 2px' }}>
-                    {tag}
-                  </Tag>
-                ))}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    </Card>
-  );
-}
+// Initial mock data
+const initialCategories: ContextCategory[] = [
+  {
+    id: 'goals',
+    title: 'Goals / OKRs / Mission',
+    description: 'Company objectives and key results',
+    icon: <FlagIcon />,
+    color: '#764ba2',
+    items: [
+      { id: '1', title: 'Q1 2024 OKRs', content: 'Increase user engagement by 25%...', type: 'text', createdAt: '2024-01-15' },
+      { id: '2', title: 'Company Mission', content: 'To empower product teams...', type: 'text', createdAt: '2024-01-10' },
+    ],
+  },
+  {
+    id: 'kpis',
+    title: 'KPIs',
+    description: 'Key performance indicators and metrics',
+    icon: <TrendingUpIcon />,
+    color: '#52c41a',
+    items: [
+      { id: '3', title: 'Conversion Metrics', content: 'Current conversion rate: 3.2%...', type: 'text', createdAt: '2024-01-12' },
+    ],
+  },
+  {
+    id: 'backlog',
+    title: 'Backlog / Opportunities',
+    description: 'Product backlog and feature ideas',
+    icon: <ListAltIcon />,
+    color: '#faad14',
+    items: [
+      { id: '4', title: 'Feature Wishlist', content: 'Dark mode, Mobile app...', type: 'text', createdAt: '2024-01-08' },
+      { id: '5', title: 'User Feedback Summary', content: 'Top requested features...', type: 'text', createdAt: '2024-01-05' },
+    ],
+  },
+  {
+    id: 'knowledge',
+    title: 'Knowledge Base',
+    description: 'Documentation and reference materials',
+    icon: <MenuBookIcon />,
+    color: '#667eea',
+    items: [
+      { id: '6', title: 'Design Guidelines', content: 'Brand colors, typography...', type: 'text', createdAt: '2024-01-01' },
+      { id: '7', title: 'Competitor Analysis', content: 'https://notion.so/competitors', type: 'url', url: 'https://notion.so/competitors', createdAt: '2024-01-03' },
+    ],
+  },
+];
 
 export function Context() {
-  const {
-    contexts,
-    selectedContextIds,
-    addContext,
-    deleteContext,
-    selectAllContexts,
-    deselectAllContexts,
-    getAIContextPrompt,
-  } = useContextStore();
+  const { showSuccess, showError } = useSnackbar();
+  const [categories, setCategories] = useState(initialCategories);
+  const [selectedCategory, setSelectedCategory] = useState<ContextCategory | null>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editItem, setEditItem] = useState<ContextItem | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ categoryId: string; itemId: string } | null>(null);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [menuItem, setMenuItem] = useState<{ categoryId: string; item: ContextItem } | null>(null);
 
-  const [textModalOpen, setTextModalOpen] = useState(false);
-  const [urlModalOpen, setUrlModalOpen] = useState(false);
-  const [editContext, setEditContext] = useState<ProductContext | null>(null);
-  const [previewContext, setPreviewContext] = useState<ProductContext | null>(null);
+  // Form state
+  const [formTitle, setFormTitle] = useState('');
+  const [formContent, setFormContent] = useState('');
+  const [formType, setFormType] = useState<'text' | 'url'>('text');
+  const [formUrl, setFormUrl] = useState('');
 
-  const handleFileUpload = (file: File, type: ContextType) => {
-    const reader = new FileReader();
+  const totalItems = categories.reduce((sum, cat) => sum + cat.items.length, 0);
 
-    reader.onload = () => {
-      addContext({
-        type,
-        name: file.name,
-        content: type === 'pdf'
-          ? `PDF document uploaded. Contains ${Math.ceil(file.size / 5000)} estimated pages.`
-          : type === 'video'
-            ? `Video file uploaded. Duration unknown.`
-            : `Image uploaded.`,
-        metadata: {
-          fileSize: file.size,
-          mimeType: file.type,
-        },
-      });
-      message.success(`${file.name} uploaded`);
+  const handleOpenCategory = (category: ContextCategory) => {
+    setSelectedCategory(category);
+  };
+
+  const handleCloseCategory = () => {
+    setSelectedCategory(null);
+  };
+
+  const handleOpenAddDialog = () => {
+    setEditItem(null);
+    setFormTitle('');
+    setFormContent('');
+    setFormType('text');
+    setFormUrl('');
+    setAddDialogOpen(true);
+  };
+
+  const handleOpenEditDialog = (item: ContextItem) => {
+    setEditItem(item);
+    setFormTitle(item.title);
+    setFormContent(item.content);
+    setFormType(item.type);
+    setFormUrl(item.url || '');
+    setAddDialogOpen(true);
+    setAnchorEl(null);
+  };
+
+  const handleSaveItem = () => {
+    if (!formTitle.trim()) {
+      showError('Please enter a title');
+      return;
+    }
+
+    if (formType === 'text' && !formContent.trim()) {
+      showError('Please enter content');
+      return;
+    }
+
+    if (formType === 'url' && !formUrl.trim()) {
+      showError('Please enter a URL');
+      return;
+    }
+
+    const newItem: ContextItem = {
+      id: editItem?.id || Date.now().toString(),
+      title: formTitle,
+      content: formType === 'url' ? `Reference: ${formUrl}` : formContent,
+      type: formType,
+      url: formType === 'url' ? formUrl : undefined,
+      createdAt: editItem?.createdAt || new Date().toISOString().split('T')[0],
     };
 
-    reader.readAsDataURL(file);
-    return false; // Prevent auto upload
-  };
+    setCategories((prev) =>
+      prev.map((cat) => {
+        if (cat.id === selectedCategory?.id) {
+          if (editItem) {
+            return {
+              ...cat,
+              items: cat.items.map((item) => (item.id === editItem.id ? newItem : item)),
+            };
+          } else {
+            return {
+              ...cat,
+              items: [...cat.items, newItem],
+            };
+          }
+        }
+        return cat;
+      })
+    );
 
-  const handleDelete = (context: ProductContext) => {
-    Modal.confirm({
-      title: 'Delete Context',
-      content: `Are you sure you want to delete "${context.name}"?`,
-      okText: 'Delete',
-      okType: 'danger',
-      onOk: () => {
-        deleteContext(context.id);
-        message.success('Context deleted');
-      },
+    // Update selectedCategory to reflect changes
+    setSelectedCategory((prev) => {
+      if (!prev) return null;
+      if (editItem) {
+        return {
+          ...prev,
+          items: prev.items.map((item) => (item.id === editItem.id ? newItem : item)),
+        };
+      } else {
+        return {
+          ...prev,
+          items: [...prev.items, newItem],
+        };
+      }
     });
+
+    showSuccess(editItem ? 'Item updated' : 'Item added');
+    setAddDialogOpen(false);
   };
 
-  const handleEdit = (context: ProductContext) => {
-    if (context.type === 'text') {
-      setEditContext(context);
-      setTextModalOpen(true);
-    } else {
-      message.info('Only text context can be edited');
-    }
+  const handleDeleteItem = () => {
+    if (!itemToDelete) return;
+
+    setCategories((prev) =>
+      prev.map((cat) => {
+        if (cat.id === itemToDelete.categoryId) {
+          return {
+            ...cat,
+            items: cat.items.filter((item) => item.id !== itemToDelete.itemId),
+          };
+        }
+        return cat;
+      })
+    );
+
+    // Update selectedCategory to reflect changes
+    setSelectedCategory((prev) => {
+      if (!prev || prev.id !== itemToDelete.categoryId) return prev;
+      return {
+        ...prev,
+        items: prev.items.filter((item) => item.id !== itemToDelete.itemId),
+      };
+    });
+
+    showSuccess('Item deleted');
+    setDeleteConfirmOpen(false);
+    setItemToDelete(null);
   };
 
-  const contextTypes = [
-    {
-      type: 'text' as ContextType,
-      icon: <FileTextOutlined style={{ fontSize: 28 }} />,
-      title: 'Text / Notes',
-      description: 'Add product requirements, user stories, or notes',
-      color: getContextTypeColor('text'),
-      action: () => setTextModalOpen(true),
-    },
-    {
-      type: 'pdf' as ContextType,
-      icon: <FilePdfOutlined style={{ fontSize: 28 }} />,
-      title: 'PDF Document',
-      description: 'Upload PRDs, specs, or design docs',
-      color: getContextTypeColor('pdf'),
-      accept: '.pdf',
-    },
-    {
-      type: 'video' as ContextType,
-      icon: <VideoCameraOutlined style={{ fontSize: 28 }} />,
-      title: 'Video / Loom',
-      description: 'Upload video walkthroughs',
-      color: getContextTypeColor('video'),
-      accept: '.mp4,.webm,.mov',
-    },
-    {
-      type: 'url' as ContextType,
-      icon: <LinkOutlined style={{ fontSize: 28 }} />,
-      title: 'URL / Link',
-      description: 'Add reference links',
-      color: getContextTypeColor('url'),
-      action: () => setUrlModalOpen(true),
-    },
-  ];
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, categoryId: string, item: ContextItem) => {
+    event.stopPropagation();
+    setAnchorEl(event.currentTarget);
+    setMenuItem({ categoryId, item });
+  };
 
-  const aiContextPrompt = getAIContextPrompt();
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setMenuItem(null);
+  };
 
   return (
-    <div>
+    <Box>
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 24,
-        }}
-      >
-        <div>
-          <Title level={3} style={{ margin: 0 }}>
-            Product Context
-          </Title>
-          <Text type="secondary">
-            {contexts.length} items · {selectedContextIds.length} selected for AI
-          </Text>
-        </div>
-        {contexts.length > 0 && (
-          <Space>
-            <Button onClick={selectAllContexts}>Select All</Button>
-            <Button onClick={deselectAllContexts}>Deselect All</Button>
-          </Space>
-        )}
-      </div>
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" fontWeight={600} gutterBottom>
+          Product Context
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          {totalItems} items across {categories.length} categories
+        </Typography>
+      </Box>
 
-      {/* Info Card */}
-      <Card
-        size="small"
-        style={{ marginBottom: 24, background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)' }}
-      >
-        <Space>
-          <BulbOutlined style={{ color: '#764ba2', fontSize: 18 }} />
-          <div>
-            <Text strong>How it works:</Text>
-            <Text style={{ marginLeft: 8 }}>
-              Upload product context to help AI generate better, more relevant prototypes.
-              Selected items (checked) will be included when generating with AI.
-            </Text>
-          </div>
-        </Space>
-      </Card>
+      {/* Info Alert */}
+      <Alert severity="info" icon={<LightbulbIcon />} sx={{ mb: 4 }}>
+        <Typography variant="body2">
+          <strong>How it works:</strong> Add product context to help AI generate better, more relevant prototypes.
+          This information will be used when generating designs with AI.
+        </Typography>
+      </Alert>
 
-      {/* Add Context Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 32 }}>
-        {contextTypes.map((item) => (
-          <Col key={item.type} xs={24} sm={12} md={6}>
-            {item.accept ? (
-              <Upload
-                accept={item.accept}
-                showUploadList={false}
-                beforeUpload={(file) => handleFileUpload(file, item.type)}
+      {/* 2x2 Category Grid */}
+      <Grid container spacing={3}>
+        {categories.map((category) => (
+          <Grid item xs={12} md={6} key={category.id}>
+            <Card
+              sx={{
+                height: 200,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                '&:hover': {
+                  boxShadow: 4,
+                  transform: 'translateY(-2px)',
+                },
+              }}
+            >
+              <CardActionArea
+                onClick={() => handleOpenCategory(category)}
+                sx={{ height: '100%', p: 3 }}
               >
-                <Card
-                  hoverable
-                  style={{ textAlign: 'center', height: '100%', cursor: 'pointer' }}
-                >
-                  <div style={{ color: item.color, marginBottom: 12 }}>
-                    {item.icon}
-                  </div>
-                  <Title level={5} style={{ margin: '0 0 4px 0' }}>
-                    {item.title}
-                  </Title>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {item.description}
-                  </Text>
-                  <div style={{ marginTop: 12 }}>
-                    <Button size="small" icon={<UploadOutlined />}>
-                      Upload
-                    </Button>
-                  </div>
-                </Card>
-              </Upload>
-            ) : (
-              <Card
-                hoverable
-                style={{ textAlign: 'center', height: '100%', cursor: 'pointer' }}
-                onClick={item.action}
-              >
-                <div style={{ color: item.color, marginBottom: 12 }}>
-                  {item.icon}
-                </div>
-                <Title level={5} style={{ margin: '0 0 4px 0' }}>
-                  {item.title}
-                </Title>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {item.description}
-                </Text>
-                <div style={{ marginTop: 12 }}>
-                  <Button size="small" icon={<PlusOutlined />}>
-                    Add
-                  </Button>
-                </div>
-              </Card>
-            )}
-          </Col>
-        ))}
-      </Row>
-
-      {/* Uploaded Context List */}
-      <Tabs
-        items={[
-          {
-            key: 'all',
-            label: (
-              <Badge count={contexts.length} size="small" offset={[8, 0]}>
-                All Context
-              </Badge>
-            ),
-            children: contexts.length === 0 ? (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="No context added yet"
-              >
-                <Text type="secondary">
-                  Add product context to improve AI-generated prototypes
-                </Text>
-              </Empty>
-            ) : (
-              <Row gutter={[12, 12]}>
-                {contexts.map((context) => (
-                  <Col key={context.id} xs={24} md={12} lg={8}>
-                    <ContextItem
-                      context={context}
-                      onEdit={() => handleEdit(context)}
-                      onDelete={() => handleDelete(context)}
-                      onPreview={() => setPreviewContext(context)}
-                    />
-                  </Col>
-                ))}
-              </Row>
-            ),
-          },
-          {
-            key: 'selected',
-            label: (
-              <Badge count={selectedContextIds.length} size="small" offset={[8, 0]}>
-                Selected for AI
-              </Badge>
-            ),
-            children: selectedContextIds.length === 0 ? (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="No context selected"
-              >
-                <Text type="secondary">
-                  Check items to include them in AI generation
-                </Text>
-              </Empty>
-            ) : (
-              <Row gutter={[12, 12]}>
-                {contexts
-                  .filter((ctx) => selectedContextIds.includes(ctx.id))
-                  .map((context) => (
-                    <Col key={context.id} xs={24} md={12} lg={8}>
-                      <ContextItem
-                        context={context}
-                        onEdit={() => handleEdit(context)}
-                        onDelete={() => handleDelete(context)}
-                        onPreview={() => setPreviewContext(context)}
-                      />
-                    </Col>
-                  ))}
-              </Row>
-            ),
-          },
-          {
-            key: 'preview',
-            label: 'AI Context Preview',
-            children: (
-              <Card>
-                <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
-                  This is what will be sent to AI when generating prototypes:
-                </Text>
-                {aiContextPrompt ? (
-                  <pre
-                    style={{
-                      background: '#1e1e1e',
-                      color: '#d4d4d4',
-                      padding: 16,
-                      borderRadius: 8,
-                      maxHeight: 400,
-                      overflow: 'auto',
-                      whiteSpace: 'pre-wrap',
-                      fontSize: 12,
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 2,
+                      backgroundColor: `${category.color}15`,
+                      color: category.color,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      '& svg': { fontSize: 28 },
                     }}
                   >
-                    {aiContextPrompt}
-                  </pre>
-                ) : (
-                  <Empty
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description="No context selected"
-                  />
-                )}
-              </Card>
-            ),
-          },
-        ]}
-      />
+                    {category.icon}
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="h6" fontWeight={600} gutterBottom>
+                      {category.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      {category.description}
+                    </Typography>
+                    <Chip
+                      label={`${category.items.length} items`}
+                      size="small"
+                      sx={{ backgroundColor: `${category.color}15`, color: category.color }}
+                    />
+                  </Box>
+                </Box>
+              </CardActionArea>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
 
-      {/* Modals */}
-      <AddTextModal
-        open={textModalOpen}
-        onClose={() => {
-          setTextModalOpen(false);
-          setEditContext(null);
-        }}
-        editContext={editContext}
-      />
+      {/* Category Detail Dialog */}
+      <Dialog
+        open={!!selectedCategory}
+        onClose={handleCloseCategory}
+        maxWidth="md"
+        fullWidth
+      >
+        {selectedCategory && (
+          <>
+            <DialogTitle>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 1,
+                    backgroundColor: `${selectedCategory.color}15`,
+                    color: selectedCategory.color,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {selectedCategory.icon}
+                </Box>
+                <Typography variant="h6">{selectedCategory.title}</Typography>
+              </Box>
+            </DialogTitle>
+            <DialogContent>
+              {selectedCategory.items.length === 0 ? (
+                <Box sx={{ py: 4, textAlign: 'center' }}>
+                  <Typography color="text.secondary">No items yet</Typography>
+                  <Button
+                    startIcon={<AddIcon />}
+                    onClick={handleOpenAddDialog}
+                    sx={{ mt: 2 }}
+                  >
+                    Add First Item
+                  </Button>
+                </Box>
+              ) : (
+                <List>
+                  {selectedCategory.items.map((item) => (
+                    <ListItem
+                      key={item.id}
+                      sx={{
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        mb: 1,
+                      }}
+                    >
+                      <ListItemIcon>
+                        {item.type === 'url' ? <LinkIcon /> : <DescriptionIcon />}
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={item.title}
+                        secondary={
+                          item.type === 'url'
+                            ? item.url
+                            : item.content.substring(0, 100) + (item.content.length > 100 ? '...' : '')
+                        }
+                      />
+                      <ListItemSecondaryAction>
+                        <IconButton
+                          edge="end"
+                          onClick={(e) => handleMenuOpen(e, selectedCategory.id, item)}
+                        >
+                          <MoreVertIcon />
+                        </IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCloseCategory}>Close</Button>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleOpenAddDialog}
+              >
+                Add Item
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
 
-      <AddURLModal
-        open={urlModalOpen}
-        onClose={() => setUrlModalOpen(false)}
-      />
+      {/* Add/Edit Item Dialog */}
+      <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{editItem ? 'Edit Item' : 'Add Item'}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Chip
+                label="Text"
+                color={formType === 'text' ? 'primary' : 'default'}
+                onClick={() => setFormType('text')}
+                sx={{ cursor: 'pointer' }}
+              />
+              <Chip
+                label="URL"
+                color={formType === 'url' ? 'primary' : 'default'}
+                onClick={() => setFormType('url')}
+                sx={{ cursor: 'pointer' }}
+              />
+            </Box>
 
-      <PreviewModal
-        context={previewContext}
-        onClose={() => setPreviewContext(null)}
+            <TextField
+              fullWidth
+              label="Title"
+              value={formTitle}
+              onChange={(e) => setFormTitle(e.target.value)}
+              placeholder="e.g., Q1 2024 Goals"
+            />
+
+            {formType === 'text' ? (
+              <TextField
+                fullWidth
+                label="Content"
+                value={formContent}
+                onChange={(e) => setFormContent(e.target.value)}
+                multiline
+                rows={6}
+                placeholder="Enter your content here..."
+              />
+            ) : (
+              <TextField
+                fullWidth
+                label="URL"
+                value={formUrl}
+                onChange={(e) => setFormUrl(e.target.value)}
+                placeholder="https://..."
+              />
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleSaveItem}>
+            {editItem ? 'Save' : 'Add'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Context Menu */}
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+        <MenuItem onClick={() => menuItem && handleOpenEditDialog(menuItem.item)}>
+          <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
+          Edit
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            if (menuItem) {
+              setItemToDelete({ categoryId: menuItem.categoryId, itemId: menuItem.item.id });
+              setDeleteConfirmOpen(true);
+            }
+            handleMenuClose();
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+          Delete
+        </MenuItem>
+      </Menu>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteItem}
+        title="Delete Item"
+        content="Are you sure you want to delete this item?"
+        confirmText="Delete"
+        confirmColor="error"
       />
-    </div>
+    </Box>
   );
 }

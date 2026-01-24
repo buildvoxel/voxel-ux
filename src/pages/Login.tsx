@@ -1,14 +1,20 @@
 import { useState } from 'react';
-import { Form, Input, Button, message, Typography } from 'antd';
-import { LockOutlined, MailOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import Box from '@mui/material/Box';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import InputAdornment from '@mui/material/InputAdornment';
+import CircularProgress from '@mui/material/CircularProgress';
+import EmailIcon from '@mui/icons-material/Email';
+import LockIcon from '@mui/icons-material/Lock';
 import { useAuthStore } from '@/store/authStore';
-
-const { Text } = Typography;
+import { useSnackbar } from '@/components/SnackbarProvider';
 
 export function Login() {
   const navigate = useNavigate();
   const { loginWithEmail } = useAuthStore();
+  const { showSuccess, showError } = useSnackbar();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +39,8 @@ export function Login() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!validate()) return;
 
     setIsLoading(true);
@@ -41,60 +48,65 @@ export function Login() {
     setIsLoading(false);
 
     if (error) {
-      message.error(error);
+      showError(error);
     } else {
-      message.success('Login successful!');
-      navigate('/screens');
+      showSuccess('Login successful!');
+      navigate('/');
     }
   };
 
   return (
-    <Form layout="vertical" onFinish={handleSubmit}>
-      <Form.Item
+    <Box component="form" onSubmit={handleSubmit}>
+      <TextField
+        fullWidth
         label="Email"
-        validateStatus={errors.email ? 'error' : ''}
-        help={errors.email}
-      >
-        <Input
-          prefix={<MailOutlined />}
-          placeholder="Enter your email"
-          size="large"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-      </Form.Item>
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        error={!!errors.email}
+        helperText={errors.email}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <EmailIcon color="action" />
+            </InputAdornment>
+          ),
+        }}
+        sx={{ mb: 2 }}
+      />
 
-      <Form.Item
+      <TextField
+        fullWidth
         label="Password"
-        validateStatus={errors.password ? 'error' : ''}
-        help={errors.password}
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        error={!!errors.password}
+        helperText={errors.password}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <LockIcon color="action" />
+            </InputAdornment>
+          ),
+        }}
+        sx={{ mb: 3 }}
+      />
+
+      <Button
+        type="submit"
+        variant="contained"
+        fullWidth
+        size="large"
+        disabled={isLoading}
+        sx={{ mb: 2 }}
       >
-        <Input.Password
-          prefix={<LockOutlined />}
-          placeholder="Enter your password"
-          size="large"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </Form.Item>
+        {isLoading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
+      </Button>
 
-      <Form.Item>
-        <Button
-          type="primary"
-          htmlType="submit"
-          size="large"
-          block
-          loading={isLoading}
-        >
-          Sign In
-        </Button>
-      </Form.Item>
-
-      <div style={{ textAlign: 'center' }}>
-        <Text type="secondary">
-          Contact your administrator to get an account.
-        </Text>
-      </div>
-    </Form>
+      <Typography variant="body2" color="text.secondary" align="center">
+        Contact your administrator to get an account.
+      </Typography>
+    </Box>
   );
 }

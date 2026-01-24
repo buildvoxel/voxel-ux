@@ -1,35 +1,38 @@
 import { useState, useMemo } from 'react';
-import {
-  Card,
-  Row,
-  Col,
-  Input,
-  Select,
-  Tag,
-  Button,
-  Modal,
-  Tabs,
-  Typography,
-  Space,
-  message,
-  Empty,
-  Tooltip,
-  Segmented,
-} from 'antd';
-import {
-  SearchOutlined,
-  CopyOutlined,
-  CodeOutlined,
-  EyeOutlined,
-  FilterOutlined,
-  ClearOutlined,
-  AppstoreOutlined,
-  BarsOutlined,
-} from '@ant-design/icons';
+import Box from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CardActions from '@mui/material/CardActions';
+import Typography from '@mui/material/Typography';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Chip from '@mui/material/Chip';
+import Button from '@mui/material/Button';
+import Tooltip from '@mui/material/Tooltip';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import SearchIcon from '@mui/icons-material/Search';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CodeIcon from '@mui/icons-material/Code';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import ClearIcon from '@mui/icons-material/Clear';
+import GridViewIcon from '@mui/icons-material/GridView';
+import ViewListIcon from '@mui/icons-material/ViewList';
+import { EmptyState } from '@/components';
+import { useSnackbar } from '@/components/SnackbarProvider';
 import { useComponentsStore, type ExtractedComponent } from '@/store/componentsStore';
-
-const { Title, Text } = Typography;
-const { Search } = Input;
 
 // Component preview renderer
 function ComponentPreview({ component }: { component: ExtractedComponent }) {
@@ -57,18 +60,20 @@ function ComponentPreview({ component }: { component: ExtractedComponent }) {
 
 // Code block with copy
 function CodeBlock({ code, language }: { code: string; language: string }) {
+  const { showSuccess } = useSnackbar();
+
   const copyCode = () => {
     navigator.clipboard.writeText(code);
-    message.success(`${language.toUpperCase()} copied to clipboard`);
+    showSuccess(`${language.toUpperCase()} copied to clipboard`);
   };
 
   return (
-    <div style={{ position: 'relative' }}>
+    <Box sx={{ position: 'relative' }}>
       <Button
-        icon={<CopyOutlined />}
+        startIcon={<ContentCopyIcon />}
         size="small"
         onClick={copyCode}
-        style={{
+        sx={{
           position: 'absolute',
           top: 8,
           right: 8,
@@ -77,22 +82,23 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
       >
         Copy
       </Button>
-      <pre
-        style={{
-          background: '#1e1e1e',
+      <Box
+        component="pre"
+        sx={{
+          backgroundColor: '#1e1e1e',
           color: '#d4d4d4',
-          padding: 16,
-          borderRadius: 8,
+          p: 2,
+          borderRadius: 2,
           overflow: 'auto',
           maxHeight: 400,
           fontSize: 13,
           lineHeight: 1.5,
-          margin: 0,
+          m: 0,
         }}
       >
         <code>{code}</code>
-      </pre>
-    </div>
+      </Box>
+    </Box>
   );
 }
 
@@ -104,77 +110,77 @@ function ComponentCard({
   component: ExtractedComponent;
   onClick: () => void;
 }) {
+  const { showSuccess } = useSnackbar();
+
   const copyHTML = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard.writeText(component.html);
-    message.success('HTML copied');
+    showSuccess('HTML copied');
   };
 
   const copyCSS = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard.writeText(component.css);
-    message.success('CSS copied');
+    showSuccess('CSS copied');
   };
 
   const copyBoth = (e: React.MouseEvent) => {
     e.stopPropagation();
     const combined = `/* CSS */\n${component.css}\n\n<!-- HTML -->\n${component.html}`;
     navigator.clipboard.writeText(combined);
-    message.success('HTML + CSS copied');
+    showSuccess('HTML + CSS copied');
   };
 
   return (
     <Card
-      hoverable
+      sx={{
+        height: '100%',
+        cursor: 'pointer',
+        '&:hover': { boxShadow: 3 },
+      }}
       onClick={onClick}
-      style={{ height: '100%' }}
-      cover={
-        <div
-          style={{
-            height: 160,
-            background: '#fafafa',
-            borderBottom: '1px solid #f0f0f0',
-            overflow: 'hidden',
-          }}
-        >
-          <ComponentPreview component={component} />
-        </div>
-      }
-      actions={[
-        <Tooltip title="Copy HTML" key="html">
-          <span onClick={copyHTML}>
-            <CodeOutlined /> HTML
-          </span>
-        </Tooltip>,
-        <Tooltip title="Copy CSS" key="css">
-          <span onClick={copyCSS}>
-            <CodeOutlined /> CSS
-          </span>
-        </Tooltip>,
-        <Tooltip title="Copy Both" key="both">
-          <span onClick={copyBoth}>
-            <CopyOutlined /> All
-          </span>
-        </Tooltip>,
-      ]}
     >
-      <Card.Meta
-        title={component.name}
-        description={
-          <Space direction="vertical" size={4} style={{ width: '100%' }}>
-            <Text type="secondary" style={{ fontSize: 12, textTransform: 'capitalize' }}>
-              {component.category}
-            </Text>
-            <Space size={4} wrap>
-              {component.tags.slice(0, 3).map((tag) => (
-                <Tag key={tag} style={{ margin: 0, fontSize: 11 }}>
-                  {tag}
-                </Tag>
-              ))}
-            </Space>
-          </Space>
-        }
-      />
+      <Box
+        sx={{
+          height: 160,
+          backgroundColor: 'grey.100',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          overflow: 'hidden',
+        }}
+      >
+        <ComponentPreview component={component} />
+      </Box>
+      <CardContent sx={{ py: 1.5 }}>
+        <Typography variant="subtitle2" fontWeight={600} noWrap>
+          {component.name}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+          {component.category}
+        </Typography>
+        <Box sx={{ mt: 1, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+          {component.tags.slice(0, 3).map((tag) => (
+            <Chip key={tag} label={tag} size="small" variant="outlined" />
+          ))}
+        </Box>
+      </CardContent>
+      <CardActions sx={{ px: 2, pb: 1.5, pt: 0 }}>
+        <Tooltip title="Copy HTML">
+          <Button size="small" startIcon={<CodeIcon />} onClick={copyHTML}>
+            HTML
+          </Button>
+        </Tooltip>
+        <Tooltip title="Copy CSS">
+          <Button size="small" startIcon={<CodeIcon />} onClick={copyCSS}>
+            CSS
+          </Button>
+        </Tooltip>
+        <Tooltip title="Copy Both">
+          <Button size="small" startIcon={<ContentCopyIcon />} onClick={copyBoth}>
+            All
+          </Button>
+        </Tooltip>
+      </CardActions>
     </Card>
   );
 }
@@ -189,88 +195,62 @@ function ComponentDetailModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const { showSuccess } = useSnackbar();
+  const [tabValue, setTabValue] = useState(0);
+
   if (!component) return null;
 
   const copyAll = () => {
     const combined = `/* CSS */\n${component.css}\n\n<!-- HTML -->\n${component.html}`;
     navigator.clipboard.writeText(combined);
-    message.success('Component code copied to clipboard');
+    showSuccess('Component code copied to clipboard');
   };
 
   return (
-    <Modal
-      open={open}
-      onCancel={onClose}
-      width={900}
-      title={
-        <Space>
-          <span>{component.name}</span>
-          <Tag style={{ textTransform: 'capitalize' }}>{component.category}</Tag>
-        </Space>
-      }
-      footer={
-        <Space>
-          <Button onClick={onClose}>Close</Button>
-          <Button type="primary" icon={<CopyOutlined />} onClick={copyAll}>
-            Copy All Code
-          </Button>
-        </Space>
-      }
-    >
-      <div style={{ marginBottom: 16 }}>
-        <Space wrap>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography variant="h6">{component.name}</Typography>
+          <Chip label={component.category} size="small" sx={{ textTransform: 'capitalize' }} />
+        </Box>
+      </DialogTitle>
+      <DialogContent>
+        <Box sx={{ mb: 2 }}>
           {component.tags.map((tag) => (
-            <Tag key={tag} color="purple">
-              {tag}
-            </Tag>
+            <Chip key={tag} label={tag} size="small" color="primary" sx={{ mr: 0.5, mb: 0.5 }} />
           ))}
-        </Space>
-      </div>
+        </Box>
 
-      <Tabs
-        items={[
-          {
-            key: 'preview',
-            label: (
-              <span>
-                <EyeOutlined /> Preview
-              </span>
-            ),
-            children: (
-              <div
-                style={{
-                  height: 300,
-                  border: '1px solid #f0f0f0',
-                  borderRadius: 8,
-                  overflow: 'hidden',
-                  background: '#fafafa',
-                }}
-              >
-                <ComponentPreview component={component} />
-              </div>
-            ),
-          },
-          {
-            key: 'html',
-            label: (
-              <span>
-                <CodeOutlined /> HTML
-              </span>
-            ),
-            children: <CodeBlock code={component.html} language="html" />,
-          },
-          {
-            key: 'css',
-            label: (
-              <span>
-                <CodeOutlined /> CSS
-              </span>
-            ),
-            children: <CodeBlock code={component.css} language="css" />,
-          },
-        ]}
-      />
-    </Modal>
+        <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ mb: 2 }}>
+          <Tab icon={<VisibilityIcon />} label="Preview" iconPosition="start" />
+          <Tab icon={<CodeIcon />} label="HTML" iconPosition="start" />
+          <Tab icon={<CodeIcon />} label="CSS" iconPosition="start" />
+        </Tabs>
+
+        {tabValue === 0 && (
+          <Box
+            sx={{
+              height: 300,
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 2,
+              overflow: 'hidden',
+              backgroundColor: 'grey.100',
+            }}
+          >
+            <ComponentPreview component={component} />
+          </Box>
+        )}
+        {tabValue === 1 && <CodeBlock code={component.html} language="html" />}
+        {tabValue === 2 && <CodeBlock code={component.css} language="css" />}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+        <Button variant="contained" startIcon={<ContentCopyIcon />} onClick={copyAll}>
+          Copy All Code
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -290,7 +270,6 @@ export function Components() {
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  // Compute filtered components, categories, and tags
   const categories = useMemo(
     () => [...new Set(components.map((c) => c.category))].sort(),
     [components]
@@ -333,117 +312,113 @@ export function Components() {
   const hasFilters = searchQuery || selectedCategory || selectedTags.length > 0;
 
   return (
-    <div>
+    <Box>
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 24,
-        }}
-      >
-        <div>
-          <Title level={3} style={{ margin: 0 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box>
+          <Typography variant="h4" fontWeight={600}>
             Component Library
-          </Title>
-          <Text type="secondary">
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
             {filteredComponents.length} of {components.length} components
-          </Text>
-        </div>
-        <Space>
-          <Segmented
-            options={[
-              { value: 'grid', icon: <AppstoreOutlined /> },
-              { value: 'list', icon: <BarsOutlined /> },
-            ]}
-            value={viewMode}
-            onChange={(v) => setViewMode(v as 'grid' | 'list')}
-          />
-        </Space>
-      </div>
+          </Typography>
+        </Box>
+        <ToggleButtonGroup
+          value={viewMode}
+          exclusive
+          onChange={(_, v) => v && setViewMode(v)}
+          size="small"
+        >
+          <ToggleButton value="grid">
+            <GridViewIcon fontSize="small" />
+          </ToggleButton>
+          <ToggleButton value="list">
+            <ViewListIcon fontSize="small" />
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
 
       {/* Filters */}
-      <Card size="small" style={{ marginBottom: 24 }}>
-        <Space wrap style={{ width: '100%' }}>
-          <Search
+      <Card sx={{ mb: 3, p: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+          <TextField
             placeholder="Search components..."
-            prefix={<SearchOutlined />}
-            style={{ width: 250 }}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            allowClear
+            size="small"
+            sx={{ width: 250 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
           />
 
-          <Select
-            placeholder="Category"
-            style={{ width: 150 }}
-            value={selectedCategory}
-            onChange={setSelectedCategory}
-            allowClear
-            options={categories.map((cat) => ({
-              label: cat.charAt(0).toUpperCase() + cat.slice(1),
-              value: cat,
-            }))}
-          />
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel>Category</InputLabel>
+            <Select
+              value={selectedCategory || ''}
+              label="Category"
+              onChange={(e) => setSelectedCategory(e.target.value || null)}
+            >
+              <MenuItem value="">All Categories</MenuItem>
+              {categories.map((cat) => (
+                <MenuItem key={cat} value={cat} sx={{ textTransform: 'capitalize' }}>
+                  {cat}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FilterOutlined style={{ color: '#999' }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <FilterListIcon color="disabled" />
             {allTags.slice(0, 8).map((tag) => (
-              <Tag
+              <Chip
                 key={tag}
-                color={selectedTags.includes(tag) ? 'purple' : undefined}
-                style={{ cursor: 'pointer', margin: 0 }}
+                label={tag}
+                size="small"
+                color={selectedTags.includes(tag) ? 'primary' : 'default'}
                 onClick={() => toggleTag(tag)}
-              >
-                {tag}
-              </Tag>
+                sx={{ cursor: 'pointer' }}
+              />
             ))}
-          </div>
+          </Box>
 
           {hasFilters && (
-            <Button
-              icon={<ClearOutlined />}
-              size="small"
-              onClick={clearFilters}
-            >
+            <Button size="small" startIcon={<ClearIcon />} onClick={clearFilters}>
               Clear
             </Button>
           )}
-        </Space>
+        </Box>
       </Card>
 
       {/* Components Grid */}
       {filteredComponents.length === 0 ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={
-            hasFilters
-              ? 'No components match your filters'
-              : 'No components extracted yet'
-          }
-        >
-          {hasFilters && (
-            <Button onClick={clearFilters}>Clear Filters</Button>
-          )}
-        </Empty>
+        <EmptyState
+          title={hasFilters ? 'No components match your filters' : 'No components extracted yet'}
+          description={hasFilters ? 'Try adjusting your filters' : 'Components will appear here when extracted from screens'}
+          action={hasFilters ? { label: 'Clear Filters', onClick: clearFilters } : undefined}
+        />
       ) : (
-        <Row gutter={[16, 16]}>
+        <Grid container spacing={2}>
           {filteredComponents.map((component) => (
-            <Col
+            <Grid
+              item
               key={component.id}
-              xs={24}
-              sm={12}
-              md={viewMode === 'grid' ? 8 : 12}
-              lg={viewMode === 'grid' ? 6 : 8}
+              xs={12}
+              sm={6}
+              md={viewMode === 'grid' ? 4 : 6}
+              lg={viewMode === 'grid' ? 3 : 4}
             >
               <ComponentCard
                 component={component}
                 onClick={() => selectComponent(component)}
               />
-            </Col>
+            </Grid>
           ))}
-        </Row>
+        </Grid>
       )}
 
       {/* Detail Modal */}
@@ -452,6 +427,6 @@ export function Components() {
         open={!!selectedComponent}
         onClose={() => selectComponent(null)}
       />
-    </div>
+    </Box>
   );
 }

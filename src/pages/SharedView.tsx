@@ -1,37 +1,34 @@
 import { useState, useEffect, useRef } from 'react';
-import {
-  Typography,
-  Button,
-  Space,
-  Avatar,
-  Input,
-  Badge,
-  Tooltip,
-  Empty,
-  Drawer,
-  Divider,
-  Switch,
-  Tag,
-} from 'antd';
-import {
-  CommentOutlined,
-  SendOutlined,
-  ArrowLeftOutlined,
-  FullscreenOutlined,
-  FullscreenExitOutlined,
-  CheckOutlined,
-  CloseOutlined,
-  DeleteOutlined,
-} from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import TextField from '@mui/material/TextField';
+import Avatar from '@mui/material/Avatar';
+import AvatarGroup from '@mui/material/AvatarGroup';
+import Badge from '@mui/material/Badge';
+import Chip from '@mui/material/Chip';
+import Tooltip from '@mui/material/Tooltip';
+import Drawer from '@mui/material/Drawer';
+import Divider from '@mui/material/Divider';
+import Switch from '@mui/material/Switch';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import CommentIcon from '@mui/icons-material/Comment';
+import SendIcon from '@mui/icons-material/Send';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
+import DeleteIcon from '@mui/icons-material/Delete';
+
+import { EmptyState } from '@/components';
 import {
   useMultiplayerStore,
   formatRelativeTime,
   type Comment,
 } from '@/store/multiplayerStore';
-
-const { Text, Paragraph } = Typography;
-const { TextArea } = Input;
 
 // Comment component for the sidebar
 function CommentItem({
@@ -57,121 +54,122 @@ function CommentItem({
   };
 
   return (
-    <div
-      style={{
-        padding: 12,
-        borderRadius: 8,
-        background: comment.resolved ? '#f6ffed' : '#fafafa',
-        marginBottom: 12,
+    <Box
+      sx={{
+        p: 1.5,
+        borderRadius: 2,
+        bgcolor: comment.resolved ? 'success.lighter' : 'grey.100',
+        mb: 1.5,
         opacity: comment.resolved ? 0.7 : 1,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-        <Space>
-          <Avatar size="small" style={{ backgroundColor: '#1890ff' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Avatar sx={{ width: 24, height: 24, bgcolor: 'primary.main', fontSize: 12 }}>
             {comment.userName.charAt(0).toUpperCase()}
           </Avatar>
-          <div>
-            <Text strong style={{ fontSize: 13 }}>
+          <Box>
+            <Typography variant="body2" fontWeight={600}>
               {comment.userName}
-            </Text>
-            <br />
-            <Text type="secondary" style={{ fontSize: 11 }}>
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
               {formatRelativeTime(comment.createdAt)}
-            </Text>
-          </div>
-        </Space>
-        <Space size={4}>
-          {comment.resolved && <Tag color="success" style={{ margin: 0 }}>Resolved</Tag>}
+            </Typography>
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {comment.resolved && (
+            <Chip label="Resolved" size="small" color="success" sx={{ height: 20 }} />
+          )}
           <Tooltip title={comment.resolved ? 'Reopen' : 'Resolve'}>
-            <Button
-              type="text"
+            <IconButton
               size="small"
-              icon={comment.resolved ? <CloseOutlined /> : <CheckOutlined />}
               onClick={() => resolveComment(comment.id)}
-            />
+            >
+              {comment.resolved ? <CloseIcon fontSize="small" /> : <CheckIcon fontSize="small" />}
+            </IconButton>
           </Tooltip>
           {isOwner && (
             <Tooltip title="Delete">
-              <Button
-                type="text"
+              <IconButton
                 size="small"
-                danger
-                icon={<DeleteOutlined />}
+                color="error"
                 onClick={() => deleteComment(comment.id)}
-              />
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
             </Tooltip>
           )}
-        </Space>
-      </div>
+        </Box>
+      </Box>
 
-      <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: 13 }}>
+      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
         {comment.content}
-      </Paragraph>
+      </Typography>
 
       {/* Position indicator */}
       {comment.position && (
-        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
           📍 Position: ({Math.round(comment.position.x)}, {Math.round(comment.position.y)})
-        </Text>
+        </Typography>
       )}
 
       {/* Replies */}
       {replies.length > 0 && (
-        <div style={{ marginTop: 12, paddingLeft: 12, borderLeft: '2px solid #e8e8e8' }}>
+        <Box sx={{ mt: 1.5, pl: 1.5, borderLeft: '2px solid', borderColor: 'divider' }}>
           {replies.map((reply) => (
-            <div key={reply.id} style={{ marginBottom: 8 }}>
-              <Space size={8}>
-                <Avatar size={20} style={{ backgroundColor: '#52c41a', fontSize: 10 }}>
+            <Box key={reply.id} sx={{ mb: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Avatar sx={{ width: 20, height: 20, bgcolor: 'success.main', fontSize: 10 }}>
                   {reply.userName.charAt(0).toUpperCase()}
                 </Avatar>
-                <div>
-                  <Text strong style={{ fontSize: 12 }}>
-                    {reply.userName}
-                  </Text>
-                  <Text type="secondary" style={{ fontSize: 10, marginLeft: 6 }}>
-                    {formatRelativeTime(reply.createdAt)}
-                  </Text>
-                </div>
-              </Space>
-              <Paragraph style={{ margin: '4px 0 0 28px', fontSize: 12 }}>
+                <Typography variant="caption" fontWeight={600}>
+                  {reply.userName}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {formatRelativeTime(reply.createdAt)}
+                </Typography>
+              </Box>
+              <Typography variant="body2" sx={{ ml: 3.5, fontSize: 12 }}>
                 {reply.content}
-              </Paragraph>
-            </div>
+              </Typography>
+            </Box>
           ))}
-        </div>
+        </Box>
       )}
 
       {/* Reply Input */}
       {isReplying ? (
-        <div style={{ marginTop: 12 }}>
-          <TextArea
+        <Box sx={{ mt: 1.5 }}>
+          <TextField
             placeholder="Write a reply..."
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
-            autoSize={{ minRows: 2 }}
+            multiline
+            minRows={2}
+            fullWidth
+            size="small"
             autoFocus
           />
-          <Space style={{ marginTop: 8 }}>
+          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
             <Button size="small" onClick={() => setIsReplying(false)}>
               Cancel
             </Button>
-            <Button type="primary" size="small" onClick={handleReply}>
+            <Button size="small" variant="contained" onClick={handleReply}>
               Reply
             </Button>
-          </Space>
-        </div>
+          </Box>
+        </Box>
       ) : (
         <Button
-          type="link"
           size="small"
           onClick={() => setIsReplying(true)}
-          style={{ padding: 0, marginTop: 8 }}
+          sx={{ mt: 1, p: 0, minWidth: 0 }}
         >
           Reply
         </Button>
       )}
-    </div>
+    </Box>
   );
 }
 
@@ -215,20 +213,20 @@ export function SharedView() {
 
   if (!prototype) {
     return (
-      <div
-        style={{
+      <Box
+        sx={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           height: '100vh',
         }}
       >
-        <Empty description="Prototype not found">
-          <Button type="primary" onClick={() => navigate('/collaborate')}>
-            Go to Collaborate
-          </Button>
-        </Empty>
-      </div>
+        <EmptyState
+          title="Prototype not found"
+          description="The prototype you're looking for doesn't exist or has been removed."
+          action={{ label: 'Go to Collaborate', onClick: () => navigate('/collaborate') }}
+        />
+      </Box>
     );
   }
 
@@ -271,99 +269,109 @@ export function SharedView() {
   };
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div
-        style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid #f0f0f0',
+      <Box
+        sx={{
+          py: 1.5,
+          px: 2,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          background: 'white',
+          bgcolor: 'background.paper',
         }}
       >
-        <Space>
-          <Button
-            type="text"
-            icon={<ArrowLeftOutlined />}
-            onClick={() => navigate('/collaborate')}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <IconButton onClick={() => navigate('/collaborate')}>
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography fontWeight={600}>{prototype.name}</Typography>
+          <Chip
+            label={prototype.isPublic ? 'Public' : 'Private'}
+            size="small"
+            variant="outlined"
           />
-          <Text strong>{prototype.name}</Text>
-          <Tag>{prototype.isPublic ? 'Public' : 'Private'}</Tag>
-        </Space>
+        </Box>
 
-        <Space>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {/* Online collaborators */}
           {onlineCollaborators.length > 0 && (
-            <Space size={-8}>
-              <Avatar.Group maxCount={5} size="small">
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <AvatarGroup max={5}>
                 {onlineCollaborators.map((collab) => (
                   <Tooltip key={collab.id} title={`${collab.name} (online)`}>
-                    <Badge dot status="success" offset={[-4, 28]}>
-                      <Avatar style={{ backgroundColor: collab.color }} size="small">
+                    <Badge
+                      overlap="circular"
+                      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                      variant="dot"
+                      color="success"
+                    >
+                      <Avatar sx={{ bgcolor: collab.color, width: 28, height: 28, fontSize: 12 }}>
                         {collab.name.charAt(0).toUpperCase()}
                       </Avatar>
                     </Badge>
                   </Tooltip>
                 ))}
-              </Avatar.Group>
-              <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+              </AvatarGroup>
+              <Typography variant="caption" color="text.secondary">
                 {onlineCollaborators.length} online
-              </Text>
-            </Space>
+              </Typography>
+            </Box>
           )}
 
-          <Divider type="vertical" />
+          <Divider orientation="vertical" flexItem />
 
           {prototype.allowComments && (
             <Tooltip title="Click on prototype to add comment">
               <Button
-                type={commentMode ? 'primary' : 'default'}
-                icon={<CommentOutlined />}
+                variant={commentMode ? 'contained' : 'outlined'}
+                startIcon={<CommentIcon />}
                 onClick={() => setCommentMode(!commentMode)}
+                size="small"
               >
                 Add Pin
               </Button>
             </Tooltip>
           )}
 
-          <Button
-            icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
-            onClick={toggleFullscreen}
-          />
+          <IconButton onClick={toggleFullscreen}>
+            {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+          </IconButton>
 
           <Button
-            type={sidebarOpen ? 'primary' : 'default'}
-            icon={<CommentOutlined />}
+            variant={sidebarOpen ? 'contained' : 'outlined'}
+            startIcon={<CommentIcon />}
             onClick={() => setSidebarOpen(!sidebarOpen)}
+            size="small"
           >
             {comments.length}
           </Button>
-        </Space>
-      </div>
+        </Box>
+      </Box>
 
       {/* Main content */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Prototype viewer */}
-        <div
-          style={{
+        <Box
+          sx={{
             flex: 1,
             position: 'relative',
-            background: '#f5f5f5',
+            bgcolor: 'grey.100',
             overflow: 'auto',
           }}
           onClick={handleIframeClick}
         >
           {/* Cursor overlay for comment mode */}
           {commentMode && (
-            <div
-              style={{
+            <Box
+              sx={{
                 position: 'absolute',
                 inset: 0,
                 cursor: 'crosshair',
                 zIndex: 10,
-                background: 'rgba(102, 126, 234, 0.05)',
+                bgcolor: 'rgba(102, 126, 234, 0.05)',
               }}
             />
           )}
@@ -372,9 +380,9 @@ export function SharedView() {
           {onlineCollaborators
             .filter((c) => c.cursor && c.id !== 'user-current')
             .map((collab) => (
-              <div
+              <Box
                 key={collab.id}
-                style={{
+                sx={{
                   position: 'absolute',
                   left: collab.cursor!.x,
                   top: collab.cursor!.y + 60, // Offset for header
@@ -386,20 +394,22 @@ export function SharedView() {
                 <svg width="24" height="24" viewBox="0 0 24 24" fill={collab.color}>
                   <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 01.35-.15h6.87a.5.5 0 00.35-.85L6.35 2.86a.5.5 0 00-.85.35z" />
                 </svg>
-                <span
-                  style={{
-                    background: collab.color,
+                <Box
+                  component="span"
+                  sx={{
+                    bgcolor: collab.color,
                     color: 'white',
-                    padding: '2px 6px',
-                    borderRadius: 4,
+                    px: 0.75,
+                    py: 0.25,
+                    borderRadius: 1,
                     fontSize: 11,
-                    marginLeft: 2,
+                    ml: 0.25,
                     whiteSpace: 'nowrap',
                   }}
                 >
                   {collab.name}
-                </span>
-              </div>
+                </Box>
+              </Box>
             ))}
 
           {/* Comment pins on the prototype */}
@@ -409,25 +419,25 @@ export function SharedView() {
               <Tooltip
                 key={comment.id}
                 title={
-                  <div>
-                    <Text style={{ color: 'white' }} strong>
+                  <Box>
+                    <Typography variant="caption" fontWeight={600}>
                       {comment.userName}
-                    </Text>
+                    </Typography>
                     <br />
                     {comment.content.substring(0, 50)}
                     {comment.content.length > 50 && '...'}
-                  </div>
+                  </Box>
                 }
               >
-                <div
-                  style={{
+                <Box
+                  sx={{
                     position: 'absolute',
                     left: comment.position!.x,
                     top: comment.position!.y + 60,
                     width: 24,
                     height: 24,
                     borderRadius: '50%',
-                    background: '#1890ff',
+                    bgcolor: 'primary.main',
                     color: 'white',
                     display: 'flex',
                     alignItems: 'center',
@@ -435,7 +445,7 @@ export function SharedView() {
                     fontSize: 12,
                     fontWeight: 'bold',
                     cursor: 'pointer',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                    boxShadow: 2,
                     zIndex: 15,
                   }}
                   onClick={(e) => {
@@ -444,7 +454,7 @@ export function SharedView() {
                   }}
                 >
                   {index + 1}
-                </div>
+                </Box>
               </Tooltip>
             ))}
 
@@ -459,78 +469,90 @@ export function SharedView() {
             }}
             title={prototype.name}
           />
-        </div>
+        </Box>
 
         {/* Comments sidebar */}
         <Drawer
-          title={
-            <Space>
-              <CommentOutlined />
-              Comments ({comments.length})
-            </Space>
-          }
-          placement="right"
-          onClose={() => setSidebarOpen(false)}
+          anchor="right"
           open={sidebarOpen}
-          mask={false}
-          width={360}
-          styles={{ body: { padding: 16 } }}
-          extra={
-            <Space>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Show resolved
-              </Text>
-              <Switch
-                size="small"
-                checked={showResolved}
-                onChange={setShowResolved}
-              />
-            </Space>
-          }
+          onClose={() => setSidebarOpen(false)}
+          variant="persistent"
+          sx={{
+            width: 360,
+            flexShrink: 0,
+            '& .MuiDrawer-paper': {
+              width: 360,
+              position: 'relative',
+              height: '100%',
+            },
+          }}
         >
-          {/* New comment input */}
-          {prototype.allowComments && (
-            <div style={{ marginBottom: 16 }}>
-              <TextArea
-                placeholder="Add a comment..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                autoSize={{ minRows: 2, maxRows: 4 }}
+          <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CommentIcon />
+                <Typography fontWeight={600}>Comments ({comments.length})</Typography>
+              </Box>
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={showResolved}
+                    onChange={(e) => setShowResolved(e.target.checked)}
+                  />
+                }
+                label={<Typography variant="caption">Show resolved</Typography>}
               />
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                onClick={handleAddComment}
-                disabled={!newComment.trim()}
-                style={{ marginTop: 8 }}
-                block
-              >
-                Post Comment
-              </Button>
-            </div>
-          )}
+            </Box>
+          </Box>
 
-          <Divider style={{ margin: '12px 0' }} />
+          <Box sx={{ p: 2, flex: 1, overflow: 'auto' }}>
+            {/* New comment input */}
+            {prototype.allowComments && (
+              <Box sx={{ mb: 2 }}>
+                <TextField
+                  placeholder="Add a comment..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  multiline
+                  minRows={2}
+                  maxRows={4}
+                  fullWidth
+                  size="small"
+                />
+                <Button
+                  variant="contained"
+                  startIcon={<SendIcon />}
+                  onClick={handleAddComment}
+                  disabled={!newComment.trim()}
+                  sx={{ mt: 1 }}
+                  fullWidth
+                >
+                  Post Comment
+                </Button>
+              </Box>
+            )}
 
-          {/* Comments list */}
-          {filteredComments.length === 0 ? (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={
-                showResolved ? 'No comments yet' : 'No unresolved comments'
-              }
-            />
-          ) : (
-            filteredComments.map((comment) => (
-              <CommentItem
-                key={comment.id}
-                comment={comment}
-                prototypeId={prototype.id}
+            <Divider sx={{ my: 1.5 }} />
+
+            {/* Comments list */}
+            {filteredComments.length === 0 ? (
+              <EmptyState
+                title={showResolved ? 'No comments yet' : 'No unresolved comments'}
+                description="Be the first to leave feedback"
               />
-            ))
-          )}
+            ) : (
+              filteredComments.map((comment) => (
+                <CommentItem
+                  key={comment.id}
+                  comment={comment}
+                  prototypeId={prototype.id}
+                />
+              ))
+            )}
+          </Box>
         </Drawer>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

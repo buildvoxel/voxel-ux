@@ -3,15 +3,22 @@
  */
 
 import React, { useState } from 'react';
-import { Card, Input, Button, Select, Space, Typography, Tooltip, Alert } from 'antd';
-import {
-  ThunderboltOutlined,
-  FileTextOutlined,
-  QuestionCircleOutlined,
-} from '@ant-design/icons';
-
-const { TextArea } = Input;
-const { Text } = Typography;
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardHeader from '@mui/material/CardHeader';
+import CardContent from '@mui/material/CardContent';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Typography from '@mui/material/Typography';
+import Tooltip from '@mui/material/Tooltip';
+import Alert from '@mui/material/Alert';
+import FlashOnIcon from '@mui/icons-material/FlashOn';
+import DescriptionIcon from '@mui/icons-material/Description';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 
 interface ProductContext {
   id: string;
@@ -47,11 +54,11 @@ export const PromptInputPanel: React.FC<PromptInputPanelProps> = ({
   defaultPrompt = '',
 }) => {
   const [prompt, setPrompt] = useState(defaultPrompt);
-  const [selectedContext, setSelectedContext] = useState<string | undefined>(undefined);
+  const [selectedContext, setSelectedContext] = useState<string>('');
 
   const handleSubmit = () => {
     if (!prompt.trim()) return;
-    onSubmit(prompt.trim(), selectedContext);
+    onSubmit(prompt.trim(), selectedContext || undefined);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -65,113 +72,115 @@ export const PromptInputPanel: React.FC<PromptInputPanelProps> = ({
   };
 
   return (
-    <Card
-      title={
-        <Space>
-          <ThunderboltOutlined />
-          <span>Design Prompt</span>
-          <Tooltip title="Describe how you want the AI to transform your design. Be specific about colors, layout, components, or overall style.">
-            <QuestionCircleOutlined style={{ color: '#999', cursor: 'help' }} />
-          </Tooltip>
-        </Space>
-      }
-      size="small"
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
-        {/* Prompt Input */}
-        <div>
-          <TextArea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            rows={4}
-            disabled={disabled || isLoading}
-            style={{ resize: 'vertical' }}
-          />
-          <div style={{ marginTop: 4, textAlign: 'right' }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Press <kbd style={{ padding: '2px 4px', background: '#f0f0f0', borderRadius: 2 }}>Cmd</kbd> + <kbd style={{ padding: '2px 4px', background: '#f0f0f0', borderRadius: 2 }}>Enter</kbd> to generate
-            </Text>
-          </div>
-        </div>
-
-        {/* Example Prompts */}
-        <div>
-          <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
-            Need inspiration? Try one of these:
-          </Text>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {EXAMPLE_PROMPTS.map((example, i) => (
-              <Button
-                key={i}
-                size="small"
-                type="dashed"
-                onClick={() => insertExample(example)}
-                disabled={disabled || isLoading}
-                style={{ fontSize: 11 }}
-              >
-                {example.length > 30 ? example.slice(0, 30) + '...' : example}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Product Context Selection */}
-        {productContexts.length > 0 && (
-          <div>
-            <Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
-              <FileTextOutlined style={{ marginRight: 4 }} />
-              Include product context (optional)
-            </Text>
-            <Select
-              value={selectedContext}
-              onChange={setSelectedContext}
-              placeholder="Select product context..."
-              allowClear
-              style={{ width: '100%' }}
+    <Card>
+      <CardHeader
+        avatar={<FlashOnIcon />}
+        title={
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="subtitle1" fontWeight={600}>Design Prompt</Typography>
+            <Tooltip title="Describe how you want the AI to transform your design. Be specific about colors, layout, components, or overall style.">
+              <HelpOutlineIcon sx={{ color: 'text.secondary', fontSize: 18, cursor: 'help' }} />
+            </Tooltip>
+          </Box>
+        }
+        sx={{ pb: 0 }}
+      />
+      <CardContent>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {/* Prompt Input */}
+          <Box>
+            <TextField
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              multiline
+              rows={4}
+              fullWidth
               disabled={disabled || isLoading}
-              options={productContexts.map((ctx) => ({
-                value: ctx.id,
-                label: (
-                  <Space>
-                    <span>{ctx.name}</span>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      ({ctx.type})
-                    </Text>
-                  </Space>
-                ),
-              }))}
             />
-          </div>
-        )}
+            <Box sx={{ mt: 0.5, textAlign: 'right' }}>
+              <Typography variant="caption" color="text.secondary">
+                Press <kbd style={{ padding: '2px 4px', background: '#f0f0f0', borderRadius: 2 }}>Cmd</kbd> + <kbd style={{ padding: '2px 4px', background: '#f0f0f0', borderRadius: 2 }}>Enter</kbd> to generate
+              </Typography>
+            </Box>
+          </Box>
 
-        {/* Submit Button */}
-        <Button
-          type="primary"
-          icon={<ThunderboltOutlined />}
-          onClick={handleSubmit}
-          loading={isLoading}
-          disabled={disabled || !prompt.trim()}
-          block
-          size="large"
-        >
-          {isLoading ? 'Generating Plan...' : 'Generate 4 Variants'}
-        </Button>
+          {/* Example Prompts */}
+          <Box>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+              Need inspiration? Try one of these:
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+              {EXAMPLE_PROMPTS.map((example, i) => (
+                <Button
+                  key={i}
+                  size="small"
+                  variant="outlined"
+                  onClick={() => insertExample(example)}
+                  disabled={disabled || isLoading}
+                  sx={{ fontSize: 11, textTransform: 'none' }}
+                >
+                  {example.length > 30 ? example.slice(0, 30) + '...' : example}
+                </Button>
+              ))}
+            </Box>
+          </Box>
 
-        {/* Info Alert */}
-        <Alert
-          type="info"
-          showIcon
-          message={
-            <Text style={{ fontSize: 12 }}>
+          {/* Product Context Selection */}
+          {productContexts.length > 0 && (
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <DescriptionIcon sx={{ fontSize: 14 }} />
+                Include product context (optional)
+              </Typography>
+              <FormControl fullWidth size="small">
+                <InputLabel>Select product context...</InputLabel>
+                <Select
+                  value={selectedContext}
+                  onChange={(e) => setSelectedContext(e.target.value)}
+                  label="Select product context..."
+                  disabled={disabled || isLoading}
+                >
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {productContexts.map((ctx) => (
+                    <MenuItem key={ctx.id} value={ctx.id}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <span>{ctx.name}</span>
+                        <Typography variant="caption" color="text.secondary">
+                          ({ctx.type})
+                        </Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          )}
+
+          {/* Submit Button */}
+          <Button
+            variant="contained"
+            startIcon={<FlashOnIcon />}
+            onClick={handleSubmit}
+            disabled={disabled || !prompt.trim() || isLoading}
+            size="large"
+            fullWidth
+          >
+            {isLoading ? 'Generating Plan...' : 'Generate 4 Variants'}
+          </Button>
+
+          {/* Info Alert */}
+          <Alert severity="info" sx={{ mt: 1 }}>
+            <Typography variant="body2">
               The AI will create 4 different design concepts based on your prompt.
               You'll review them before any code is generated.
-            </Text>
-          }
-          style={{ marginTop: 8 }}
-        />
-      </Space>
+            </Typography>
+          </Alert>
+        </Box>
+      </CardContent>
     </Card>
   );
 };

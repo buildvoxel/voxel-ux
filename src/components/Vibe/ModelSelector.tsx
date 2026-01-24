@@ -3,8 +3,16 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Select, Space, Typography, Tooltip, Tag } from 'antd';
-import { RobotOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import Box from '@mui/material/Box';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import Typography from '@mui/material/Typography';
+import Chip from '@mui/material/Chip';
+import Tooltip from '@mui/material/Tooltip';
+import FormControl from '@mui/material/FormControl';
+import CircularProgress from '@mui/material/CircularProgress';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import BoltIcon from '@mui/icons-material/Bolt';
 import {
   PROVIDER_INFO,
   getApiKeys,
@@ -14,11 +22,9 @@ import {
   type ApiKeyConfig,
 } from '../../services/apiKeysService';
 
-const { Text } = Typography;
-
 interface ModelSelectorProps {
   onChange?: (provider: LLMProvider, model: string) => void;
-  size?: 'small' | 'middle' | 'large';
+  size?: 'small' | 'medium';
   showLabel?: boolean;
   disabled?: boolean;
 }
@@ -65,28 +71,6 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   // Get providers that have API keys configured
   const configuredProviders = apiKeys.map(k => k.provider);
 
-  // Build options for the select
-  const options = Object.entries(PROVIDER_INFO).map(([provider, info]) => {
-    const hasKey = configuredProviders.includes(provider as LLMProvider);
-    return {
-      label: (
-        <Space>
-          <span>{info.name}</span>
-          {!hasKey && (
-            <Tag color="warning" style={{ fontSize: 10, padding: '0 4px', marginLeft: 4 }}>
-              No key
-            </Tag>
-          )}
-        </Space>
-      ),
-      value: provider,
-      disabled: !hasKey,
-      provider: provider as LLMProvider,
-      models: info.models,
-      defaultModel: info.defaultModel,
-    };
-  });
-
   const handleProviderChange = async (provider: LLMProvider) => {
     setSelectedProvider(provider);
     const defaultModel = PROVIDER_INFO[provider].defaultModel;
@@ -114,64 +98,84 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
 
   if (loading) {
     return (
-      <Space size={4}>
-        {showLabel && <Text type="secondary" style={{ fontSize: 12 }}>Model:</Text>}
-        <Select
-          size={size}
-          loading
-          disabled
-          style={{ width: 120 }}
-          placeholder="Loading..."
-        />
-      </Space>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        {showLabel && (
+          <Typography variant="caption" color="text.secondary">
+            Model:
+          </Typography>
+        )}
+        <CircularProgress size={16} />
+      </Box>
     );
   }
 
   if (apiKeys.length === 0) {
     return (
       <Tooltip title="Add an API key in Settings to use AI generation">
-        <Space size={4}>
-          {showLabel && <Text type="secondary" style={{ fontSize: 12 }}>Model:</Text>}
-          <Tag color="warning" icon={<RobotOutlined />}>
-            No API key
-          </Tag>
-        </Space>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {showLabel && (
+            <Typography variant="caption" color="text.secondary">
+              Model:
+            </Typography>
+          )}
+          <Chip
+            icon={<SmartToyIcon />}
+            label="No API key"
+            size="small"
+            color="warning"
+          />
+        </Box>
       </Tooltip>
     );
   }
 
   return (
-    <Space size={4}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
       {showLabel && (
         <Tooltip title="Select AI model for generation">
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            <ThunderboltOutlined style={{ marginRight: 4 }} />
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <BoltIcon sx={{ fontSize: 14 }} />
             Model:
-          </Text>
+          </Typography>
         </Tooltip>
       )}
-      <Select
-        size={size}
-        value={selectedProvider}
-        onChange={handleProviderChange}
-        options={options}
-        disabled={disabled}
-        style={{ width: 110 }}
-        popupMatchSelectWidth={false}
-      />
-      <Select
-        size={size}
-        value={selectedModel}
-        onChange={handleModelChange}
-        disabled={disabled || !selectedProvider}
-        style={{ width: 180 }}
-        options={currentModels.map(model => ({
-          label: model,
-          value: model,
-        }))}
-        popupMatchSelectWidth={false}
-      />
-    </Space>
+      <FormControl size={size} sx={{ minWidth: 110 }}>
+        <Select
+          value={selectedProvider || ''}
+          onChange={(e) => handleProviderChange(e.target.value as LLMProvider)}
+          disabled={disabled}
+          displayEmpty
+        >
+          {Object.entries(PROVIDER_INFO).map(([provider, info]) => {
+            const hasKey = configuredProviders.includes(provider as LLMProvider);
+            return (
+              <MenuItem key={provider} value={provider} disabled={!hasKey}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <span>{info.name}</span>
+                  {!hasKey && (
+                    <Chip label="No key" size="small" color="warning" sx={{ fontSize: 10, height: 18 }} />
+                  )}
+                </Box>
+              </MenuItem>
+            );
+          })}
+        </Select>
+      </FormControl>
+      <FormControl size={size} sx={{ minWidth: 180 }}>
+        <Select
+          value={selectedModel || ''}
+          onChange={(e) => handleModelChange(e.target.value)}
+          disabled={disabled || !selectedProvider}
+          displayEmpty
+        >
+          {currentModels.map(model => (
+            <MenuItem key={model} value={model}>
+              {model}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+    </Box>
   );
 };
 

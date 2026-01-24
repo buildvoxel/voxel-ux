@@ -1,32 +1,44 @@
 import { useState, useEffect } from 'react';
-import {
-  Typography,
-  Card,
-  Form,
-  Input,
-  Select,
-  Button,
-  Space,
-  Table,
-  Tag,
-  Popconfirm,
-  message,
-  Alert,
-  Tabs,
-  Divider,
-  Tooltip,
-  Modal,
-  AutoComplete,
-} from 'antd';
-import {
-  KeyOutlined,
-  DeleteOutlined,
-  PlusOutlined,
-  CheckCircleOutlined,
-  ApiOutlined,
-  SafetyOutlined,
-  RobotOutlined,
-} from '@ant-design/icons';
+import Box from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import TextField from '@mui/material/TextField';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Chip from '@mui/material/Chip';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Alert from '@mui/material/Alert';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import InputAdornment from '@mui/material/InputAdornment';
+import CircularProgress from '@mui/material/CircularProgress';
+import Autocomplete from '@mui/material/Autocomplete';
+import VpnKeyIcon from '@mui/icons-material/VpnKey';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import SecurityIcon from '@mui/icons-material/Security';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import PersonIcon from '@mui/icons-material/Person';
+import GroupIcon from '@mui/icons-material/Group';
+import { useSnackbar } from '@/components/SnackbarProvider';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { EmptyState } from '@/components';
 import {
   getApiKeys,
   saveApiKey,
@@ -39,15 +51,32 @@ import {
 } from '@/services/apiKeysService';
 import { useAuthStore } from '@/store/authStore';
 
-const { Title, Text, Paragraph } = Typography;
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+  return (
+    <div role="tabpanel" hidden={value !== index} {...other}>
+      {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
+    </div>
+  );
+}
 
 function ApiKeysTab() {
+  const { showSuccess, showError } = useSnackbar();
   const [apiKeys, setApiKeys] = useState<ApiKeyConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form] = Form.useForm();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [keyToDelete, setKeyToDelete] = useState<LLMProvider | null>(null);
+
   const [selectedProvider, setSelectedProvider] = useState<LLMProvider>('anthropic');
+  const [apiKey, setApiKey] = useState('');
   const [customModel, setCustomModel] = useState('');
 
   const fetchApiKeys = async () => {
@@ -56,7 +85,7 @@ function ApiKeysTab() {
       const keys = await getApiKeys();
       setApiKeys(keys);
     } catch (error) {
-      message.error('Failed to load API keys');
+      showError('Failed to load API keys');
       console.error(error);
     } finally {
       setIsLoading(false);
@@ -69,362 +98,281 @@ function ApiKeysTab() {
 
   const openModal = () => {
     setSelectedProvider('anthropic');
-    setCustomModel('');
-    form.resetFields();
-    form.setFieldsValue({
-      provider: 'anthropic',
-      model: PROVIDER_INFO['anthropic'].defaultModel,
-    });
+    setApiKey('');
+    setCustomModel(PROVIDER_INFO['anthropic'].defaultModel);
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
-    form.resetFields();
+    setApiKey('');
     setCustomModel('');
   };
 
-  const handleAddKey = async (values: { provider: LLMProvider; apiKey: string; model?: string }) => {
-    // Validate format
-    const validation = validateApiKeyFormat(values.provider, values.apiKey);
+  const handleAddKey = async () => {
+    const validation = validateApiKeyFormat(selectedProvider, apiKey);
     if (!validation.valid) {
-      message.error(validation.error);
+      showError(validation.error || 'Invalid API key format');
       return;
     }
 
     setIsSubmitting(true);
     try {
       await saveApiKey({
-        provider: values.provider,
-        apiKey: values.apiKey,
-        model: values.model || customModel || PROVIDER_INFO[values.provider].defaultModel,
+        provider: selectedProvider,
+        apiKey,
+        model: customModel || PROVIDER_INFO[selectedProvider].defaultModel,
       });
-      message.success(`${PROVIDER_INFO[values.provider].name} API key saved securely`);
+      showSuccess(`${PROVIDER_INFO[selectedProvider].name} API key saved securely`);
       closeModal();
       fetchApiKeys();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : 'Failed to save API key');
+      showError(error instanceof Error ? error.message : 'Failed to save API key');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDeleteKey = async (provider: LLMProvider) => {
+  const handleDeleteKey = async () => {
+    if (!keyToDelete) return;
     try {
-      await deleteApiKey(provider);
-      message.success('API key deleted');
+      await deleteApiKey(keyToDelete);
+      showSuccess('API key deleted');
       fetchApiKeys();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : 'Failed to delete API key');
+      showError(error instanceof Error ? error.message : 'Failed to delete API key');
+    } finally {
+      setDeleteConfirmOpen(false);
+      setKeyToDelete(null);
     }
   };
 
   const handleSetActive = async (provider: LLMProvider) => {
     try {
       await setActiveProvider(provider);
-      message.success(`${PROVIDER_INFO[provider].name} set as active provider`);
+      showSuccess(`${PROVIDER_INFO[provider].name} set as active provider`);
       fetchApiKeys();
     } catch (error) {
-      message.error('Failed to set active provider');
+      showError('Failed to set active provider');
     }
   };
 
   const handleProviderChange = (provider: LLMProvider) => {
     setSelectedProvider(provider);
-    const defaultModel = PROVIDER_INFO[provider].defaultModel;
-    form.setFieldValue('model', defaultModel);
-    setCustomModel(defaultModel);
+    setCustomModel(PROVIDER_INFO[provider].defaultModel);
   };
-
-  const columns = [
-    {
-      title: 'Provider',
-      dataIndex: 'provider',
-      key: 'provider',
-      render: (provider: LLMProvider, record: ApiKeyConfig) => (
-        <Space>
-          <RobotOutlined />
-          <Text strong>{PROVIDER_INFO[provider].name}</Text>
-          {record.isActive && <Tag color="green">Active</Tag>}
-        </Space>
-      ),
-    },
-    {
-      title: 'Model',
-      dataIndex: 'model',
-      key: 'model',
-      render: (model: string | null, record: ApiKeyConfig) => (
-        <Tag>{model || PROVIDER_INFO[record.provider].defaultModel}</Tag>
-      ),
-    },
-    {
-      title: 'Status',
-      key: 'status',
-      render: () => (
-        <Space>
-          <CheckCircleOutlined style={{ color: '#52c41a' }} />
-          <Text type="success">Connected</Text>
-        </Space>
-      ),
-    },
-    {
-      title: 'Added',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date: string) => new Date(date).toLocaleDateString(),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_: unknown, record: ApiKeyConfig) => (
-        <Space>
-          {!record.isActive && (
-            <Tooltip title="Set as active provider">
-              <Button
-                type="text"
-                size="small"
-                onClick={() => handleSetActive(record.provider)}
-              >
-                Set Active
-              </Button>
-            </Tooltip>
-          )}
-          <Popconfirm
-            title="Delete this API key?"
-            description="You'll need to add a new key to use this provider again."
-            onConfirm={() => handleDeleteKey(record.provider)}
-            okText="Delete"
-            cancelText="Cancel"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="text" danger icon={<DeleteOutlined />} size="small" />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
 
   const providerInfo = PROVIDER_INFO[selectedProvider];
 
-  // Create model options for autocomplete
-  const modelOptions = providerInfo.models.map(model => ({
-    value: model,
-    label: model,
-  }));
-
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ marginBottom: 8 }}>
-          <KeyOutlined style={{ marginRight: 8 }} />
+    <Box>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h5" fontWeight={600} gutterBottom>
           LLM API Keys
-        </Title>
-        <Paragraph type="secondary">
-          Configure API keys for AI-powered prototype generation. Keys are encrypted and stored securely using Supabase Vault.
-        </Paragraph>
-      </div>
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Configure API keys for AI-powered prototype generation. Keys are encrypted and stored securely.
+        </Typography>
+      </Box>
 
-      <Alert
-        message="Security Notice"
-        description="Your API keys are encrypted at rest and never exposed in the application. Only the server-side functions can access the decrypted keys."
-        type="info"
-        icon={<SafetyOutlined />}
-        showIcon
-        style={{ marginBottom: 24 }}
-      />
+      <Alert severity="info" icon={<SecurityIcon />} sx={{ mb: 3 }}>
+        Your API keys are encrypted at rest and never exposed in the application. Only server-side functions can access the decrypted keys.
+      </Alert>
 
-      {/* Configured Keys */}
-      <Card
-        title="Configured Providers"
-        style={{ marginBottom: 24 }}
-        extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={openModal}>
+      <Card sx={{ mb: 3 }}>
+        <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="h6">Configured Providers</Typography>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openModal}>
             Add Provider
           </Button>
-        }
-      >
-        <Table
-          columns={columns}
-          dataSource={apiKeys}
-          rowKey="id"
-          loading={isLoading}
-          pagination={false}
-          locale={{
-            emptyText: (
-              <div style={{ padding: 24, textAlign: 'center' }}>
-                <ApiOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
-                <div>
-                  <Text type="secondary">No API keys configured yet.</Text>
-                </div>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  style={{ marginTop: 16 }}
-                  onClick={openModal}
-                >
-                  Add Your First Key
-                </Button>
-              </div>
-            ),
-          }}
-        />
+        </Box>
+        <TableContainer>
+          {isLoading ? (
+            <Box sx={{ p: 4, textAlign: 'center' }}>
+              <CircularProgress />
+            </Box>
+          ) : apiKeys.length === 0 ? (
+            <EmptyState
+              icon={<VpnKeyIcon sx={{ fontSize: 48, color: 'text.disabled' }} />}
+              title="No API keys configured"
+              description="Add your first API key to enable AI-powered features"
+              action={{ label: 'Add Your First Key', onClick: openModal }}
+            />
+          ) : (
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Provider</TableCell>
+                  <TableCell>Model</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Added</TableCell>
+                  <TableCell align="right">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {apiKeys.map((key) => (
+                  <TableRow key={key.id}>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <SmartToyIcon fontSize="small" />
+                        <Typography fontWeight={500}>{PROVIDER_INFO[key.provider].name}</Typography>
+                        {key.isActive && <Chip label="Active" size="small" color="success" />}
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Chip label={key.model || PROVIDER_INFO[key.provider].defaultModel} size="small" variant="outlined" />
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                        <Typography variant="body2" color="success.main">Connected</Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>{new Date(key.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell align="right">
+                      {!key.isActive && (
+                        <Button size="small" onClick={() => handleSetActive(key.provider)}>
+                          Set Active
+                        </Button>
+                      )}
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => {
+                          setKeyToDelete(key.provider);
+                          setDeleteConfirmOpen(true);
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </TableContainer>
       </Card>
 
-      {/* Add Provider Modal */}
-      <Modal
-        title={
-          <Space>
-            <KeyOutlined />
-            <span>Add API Key</span>
-          </Space>
-        }
-        open={isModalOpen}
-        onCancel={closeModal}
-        footer={null}
-        width={500}
-        destroyOnClose
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleAddKey}
-          initialValues={{ provider: 'anthropic', model: PROVIDER_INFO['anthropic'].defaultModel }}
-          style={{ marginTop: 16 }}
-        >
-          <Form.Item
-            name="provider"
-            label="Provider"
-            rules={[{ required: true, message: 'Please select a provider' }]}
-          >
-            <Select
-              size="large"
-              onChange={handleProviderChange}
-              options={[
-                { value: 'anthropic', label: 'Anthropic (Claude)' },
-                { value: 'openai', label: 'OpenAI (GPT)' },
-                { value: 'google', label: 'Google AI (Gemini)' },
-              ]}
-            />
-          </Form.Item>
-
-          <Alert
-            message={providerInfo.description}
-            type="info"
-            style={{ marginBottom: 16 }}
-            action={
-              <Button
-                type="link"
-                size="small"
-                onClick={() => {
-                  const urls: Record<LLMProvider, string> = {
-                    anthropic: 'https://console.anthropic.com/settings/keys',
-                    openai: 'https://platform.openai.com/api-keys',
-                    google: 'https://aistudio.google.com/app/apikey',
-                  };
-                  window.open(urls[selectedProvider], '_blank');
-                }}
-              >
-                Get Key →
-              </Button>
-            }
-          />
-
-          <Form.Item
-            name="apiKey"
-            label="API Key"
-            rules={[{ required: true, message: 'Please enter your API key' }]}
-            extra={
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Key should start with "{providerInfo.keyPrefix}"
-              </Text>
-            }
-          >
-            <Input.Password
-              size="large"
-              placeholder={`${providerInfo.keyPrefix}...`}
-              prefix={<KeyOutlined />}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="model"
-            label="Default Model"
-            extra={
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Select a model or type a custom model name
-              </Text>
-            }
-          >
-            <AutoComplete
-              size="large"
-              options={modelOptions}
-              value={customModel}
-              onChange={setCustomModel}
-              placeholder="Select or enter model name"
-              filterOption={(input, option) =>
-                (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
-              }
-            />
-          </Form.Item>
-
-          <Divider />
-
-          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-            <Space>
-              <Button onClick={closeModal}>Cancel</Button>
-              <Button type="primary" htmlType="submit" loading={isSubmitting} icon={<SafetyOutlined />}>
-                Save Securely
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-
       {/* Provider Info Cards */}
-      <div style={{ marginTop: 24 }}>
-        <Title level={5}>Supported Providers</Title>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-          {(['anthropic', 'openai', 'google'] as LLMProvider[]).map(provider => {
-            const info = PROVIDER_INFO[provider];
-            const urls: Record<LLMProvider, string> = {
-              anthropic: 'https://console.anthropic.com/settings/keys',
-              openai: 'https://platform.openai.com/api-keys',
-              google: 'https://aistudio.google.com/app/apikey',
-            };
-            const hasKey = apiKeys.some(k => k.provider === provider);
+      <Typography variant="h6" gutterBottom>Supported Providers</Typography>
+      <Grid container spacing={2}>
+        {(['anthropic', 'openai', 'google'] as LLMProvider[]).map((provider) => {
+          const info = PROVIDER_INFO[provider];
+          const urls: Record<LLMProvider, string> = {
+            anthropic: 'https://console.anthropic.com/settings/keys',
+            openai: 'https://platform.openai.com/api-keys',
+            google: 'https://aistudio.google.com/app/apikey',
+          };
+          const hasKey = apiKeys.some((k) => k.provider === provider);
 
-            return (
-              <Card
-                size="small"
-                key={provider}
-                style={{ borderColor: hasKey ? '#52c41a' : undefined }}
-              >
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  <Space>
-                    <Text strong>{info.name}</Text>
-                    {hasKey && <Tag color="green" style={{ margin: 0 }}>Configured</Tag>}
-                  </Space>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
+          return (
+            <Grid item xs={12} md={4} key={provider}>
+              <Card sx={{ border: hasKey ? '2px solid' : undefined, borderColor: 'success.main' }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <Typography fontWeight={600}>{info.name}</Typography>
+                    {hasKey && <Chip label="Configured" size="small" color="success" />}
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     {info.description}
-                  </Text>
-                  <Text type="secondary" style={{ fontSize: 11 }}>
+                  </Typography>
+                  <Typography variant="caption" color="text.disabled">
                     Models: {info.models.slice(0, 3).join(', ')}...
-                  </Text>
-                  <Button
-                    type="link"
-                    size="small"
-                    style={{ padding: 0 }}
-                    onClick={() => window.open(urls[provider], '_blank')}
-                  >
-                    Get API Key →
-                  </Button>
-                </Space>
+                  </Typography>
+                  <Box sx={{ mt: 1 }}>
+                    <Button
+                      size="small"
+                      onClick={() => window.open(urls[provider], '_blank')}
+                    >
+                      Get API Key
+                    </Button>
+                  </Box>
+                </CardContent>
               </Card>
-            );
-          })}
-        </div>
-      </div>
-    </div>
+            </Grid>
+          );
+        })}
+      </Grid>
+
+      {/* Add Provider Modal */}
+      <Dialog open={isModalOpen} onClose={closeModal} maxWidth="sm" fullWidth>
+        <DialogTitle>Add API Key</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel>Provider</InputLabel>
+              <Select
+                value={selectedProvider}
+                label="Provider"
+                onChange={(e) => handleProviderChange(e.target.value as LLMProvider)}
+              >
+                <MenuItem value="anthropic">Anthropic (Claude)</MenuItem>
+                <MenuItem value="openai">OpenAI (GPT)</MenuItem>
+                <MenuItem value="google">Google AI (Gemini)</MenuItem>
+              </Select>
+            </FormControl>
+
+            <Alert severity="info">
+              {providerInfo.description}
+            </Alert>
+
+            <TextField
+              fullWidth
+              label="API Key"
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder={`${providerInfo.keyPrefix}...`}
+              helperText={`Key should start with "${providerInfo.keyPrefix}"`}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <VpnKeyIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <Autocomplete
+              freeSolo
+              options={providerInfo.models}
+              value={customModel}
+              onInputChange={(_, value) => setCustomModel(value)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Default Model"
+                  helperText="Select or enter a custom model name"
+                />
+              )}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeModal}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleAddKey}
+            disabled={isSubmitting || !apiKey}
+            startIcon={isSubmitting ? <CircularProgress size={16} /> : <SecurityIcon />}
+          >
+            Save Securely
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteKey}
+        title="Delete API Key"
+        content="Are you sure you want to delete this API key? You'll need to add a new key to use this provider again."
+        confirmText="Delete"
+        confirmColor="error"
+      />
+    </Box>
   );
 }
 
@@ -432,82 +380,137 @@ function AccountTab() {
   const { user } = useAuthStore();
 
   return (
-    <div>
-      <Title level={4} style={{ marginBottom: 24 }}>Account Settings</Title>
+    <Box>
+      <Typography variant="h5" fontWeight={600} gutterBottom>
+        Account Settings
+      </Typography>
 
       <Card>
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
-          <div>
-            <Text type="secondary">Email</Text>
-            <div>
-              <Text strong>{user?.email}</Text>
-            </div>
-          </div>
+        <CardContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box>
+              <Typography variant="caption" color="text.secondary">Email</Typography>
+              <Typography fontWeight={500}>{user?.email}</Typography>
+            </Box>
 
-          <div>
-            <Text type="secondary">Name</Text>
-            <div>
-              <Text strong>{user?.name || 'Not set'}</Text>
-            </div>
-          </div>
+            <Box>
+              <Typography variant="caption" color="text.secondary">Name</Typography>
+              <Typography fontWeight={500}>{user?.name || 'Not set'}</Typography>
+            </Box>
 
-          <div>
-            <Text type="secondary">Role</Text>
-            <div>
-              <Tag color={user?.role === 'admin' ? 'gold' : 'blue'}>
-                {user?.role?.toUpperCase()}
-              </Tag>
-            </div>
-          </div>
+            <Box>
+              <Typography variant="caption" color="text.secondary">Role</Typography>
+              <Box sx={{ mt: 0.5 }}>
+                <Chip
+                  label={user?.role?.toUpperCase()}
+                  color={user?.role === 'admin' ? 'warning' : 'primary'}
+                  size="small"
+                />
+              </Box>
+            </Box>
 
-          <div>
-            <Text type="secondary">Member Since</Text>
-            <div>
-              <Text>{user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}</Text>
-            </div>
-          </div>
-        </Space>
+            <Box>
+              <Typography variant="caption" color="text.secondary">Member Since</Typography>
+              <Typography>
+                {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
+              </Typography>
+            </Box>
+          </Box>
+        </CardContent>
       </Card>
-    </div>
+    </Box>
+  );
+}
+
+function UserManagementTab() {
+  const { isAdmin } = useAuthStore();
+
+  if (!isAdmin()) {
+    return (
+      <Alert severity="warning">
+        User management is only available to administrators.
+      </Alert>
+    );
+  }
+
+  // Mock users data
+  const users = [
+    { id: '1', name: 'John Doe', email: 'john@example.com', role: 'admin', createdAt: '2024-01-01' },
+    { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'user', createdAt: '2024-01-15' },
+  ];
+
+  return (
+    <Box>
+      <Typography variant="h5" fontWeight={600} gutterBottom>
+        User Management
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Manage team members and their permissions.
+      </Typography>
+
+      <Card>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>Role</TableCell>
+                <TableCell>Joined</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {users.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>{user.name}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={user.role}
+                      size="small"
+                      color={user.role === 'admin' ? 'warning' : 'default'}
+                    />
+                  </TableCell>
+                  <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Card>
+    </Box>
   );
 }
 
 export function Settings() {
-  const [activeTab, setActiveTab] = useState('api-keys');
-
-  const items = [
-    {
-      key: 'api-keys',
-      label: (
-        <Space>
-          <KeyOutlined />
-          API Keys
-        </Space>
-      ),
-      children: <ApiKeysTab />,
-    },
-    {
-      key: 'account',
-      label: (
-        <Space>
-          <SafetyOutlined />
-          Account
-        </Space>
-      ),
-      children: <AccountTab />,
-    },
-  ];
+  const [tabValue, setTabValue] = useState(0);
+  const { isAdmin } = useAuthStore();
 
   return (
-    <div>
-      <Title level={3} style={{ marginBottom: 24 }}>Settings</Title>
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        items={items}
-        tabPosition="left"
-        style={{ minHeight: 400 }}
-      />
-    </div>
+    <Box>
+      <Typography variant="h4" fontWeight={600} sx={{ mb: 3 }}>
+        Settings
+      </Typography>
+
+      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
+          <Tab icon={<VpnKeyIcon />} label="API Keys" iconPosition="start" />
+          <Tab icon={<PersonIcon />} label="Account" iconPosition="start" />
+          {isAdmin() && <Tab icon={<GroupIcon />} label="Users" iconPosition="start" />}
+        </Tabs>
+      </Box>
+
+      <TabPanel value={tabValue} index={0}>
+        <ApiKeysTab />
+      </TabPanel>
+      <TabPanel value={tabValue} index={1}>
+        <AccountTab />
+      </TabPanel>
+      {isAdmin() && (
+        <TabPanel value={tabValue} index={2}>
+          <UserManagementTab />
+        </TabPanel>
+      )}
+    </Box>
   );
 }

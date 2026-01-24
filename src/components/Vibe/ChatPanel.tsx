@@ -3,12 +3,18 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Card, Input, Button, Space, Typography, Divider } from 'antd';
-import { SendOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardHeader from '@mui/material/CardHeader';
+import CardContent from '@mui/material/CardContent';
+import TextField from '@mui/material/TextField';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
+import Divider from '@mui/material/Divider';
+import Chip from '@mui/material/Chip';
+import SendIcon from '@mui/icons-material/Send';
+import BoltIcon from '@mui/icons-material/Bolt';
 import { ChatMessage, type ChatMessageData } from './ChatMessage';
-
-const { TextArea } = Input;
-const { Text } = Typography;
 
 // Example prompts for quick input
 const EXAMPLE_PROMPTS = [
@@ -64,125 +70,174 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   return (
     <Card
-      title={
-        <Space>
-          <ThunderboltOutlined style={{ color: '#764ba2' }} />
-          <span>Vibe Chat</span>
-        </Space>
-      }
-      style={{
+      sx={{
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
       }}
-      bodyStyle={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        padding: 0,
-        overflow: 'hidden',
-      }}
     >
-      {/* Messages Area */}
-      <div
-        style={{
+      <CardHeader
+        avatar={<BoltIcon sx={{ color: 'primary.main' }} />}
+        title="Vibe Chat"
+        sx={{ pb: 0 }}
+      />
+
+      <CardContent
+        sx={{
           flex: 1,
-          overflowY: 'auto',
-          padding: '16px',
-          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          p: 0,
+          overflow: 'hidden',
+          '&:last-child': { pb: 0 },
         }}
       >
-        {!hasMessages && (
-          <div style={{ textAlign: 'center', paddingTop: 40 }}>
-            <ThunderboltOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
-            <div>
-              <Text type="secondary">
+        {/* Messages Area */}
+        <Box
+          sx={{
+            flex: 1,
+            overflowY: 'auto',
+            p: 2,
+            minHeight: 0,
+          }}
+        >
+          {!hasMessages && (
+            <Box sx={{ textAlign: 'center', pt: 5 }}>
+              <BoltIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
+              <Typography color="text.secondary">
                 Start by describing how you want to transform the design
-              </Text>
-            </div>
-            <div style={{ marginTop: 16 }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
                 The AI will create 4 different variant concepts based on your prompt
-              </Text>
-            </div>
-          </div>
-        )}
+              </Typography>
+            </Box>
+          )}
 
-        {messages.map((msg) => (
-          <ChatMessage key={msg.id} message={msg} />
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
+          {messages.map((msg) => (
+            <ChatMessage key={msg.id} message={msg} />
+          ))}
+          <div ref={messagesEndRef} />
+        </Box>
 
-      {/* Input Area */}
-      <div
-        style={{
-          borderTop: '1px solid #f0f0f0',
-          padding: '12px 16px',
-          backgroundColor: '#fafafa',
-        }}
-      >
-        {/* Example prompts - only show when no messages */}
-        {!hasMessages && (
-          <>
-            <div style={{ marginBottom: 8 }}>
-              <Text type="secondary" style={{ fontSize: 11 }}>
+        {/* Input Area */}
+        <Box
+          sx={{
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            p: 1.5,
+            bgcolor: 'grey.50',
+          }}
+        >
+          {/* Example prompts - only show when no messages */}
+          {!hasMessages && (
+            <>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
                 Try an example:
-              </Text>
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
-              {EXAMPLE_PROMPTS.map((prompt, i) => (
-                <Button
-                  key={i}
-                  size="small"
-                  type="dashed"
-                  onClick={() => handleExampleClick(prompt)}
-                  disabled={disabled || isLoading}
-                  style={{ fontSize: 11 }}
-                >
-                  {prompt.length > 25 ? prompt.slice(0, 25) + '...' : prompt}
-                </Button>
-              ))}
-            </div>
-            <Divider style={{ margin: '8px 0' }} />
-          </>
-        )}
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1.5 }}>
+                {EXAMPLE_PROMPTS.map((prompt, i) => (
+                  <Chip
+                    key={i}
+                    label={prompt.length > 25 ? prompt.slice(0, 25) + '...' : prompt}
+                    size="small"
+                    variant="outlined"
+                    onClick={() => handleExampleClick(prompt)}
+                    disabled={disabled || isLoading}
+                    sx={{ fontSize: 11 }}
+                  />
+                ))}
+              </Box>
+              <Divider sx={{ my: 1 }} />
+            </>
+          )}
 
-        {/* Input */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-          <TextArea
-            ref={inputRef}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={disabled || isLoading}
-            autoSize={{ minRows: 1, maxRows: 4 }}
-            style={{ flex: 1, resize: 'none' }}
-          />
-          <Button
-            type="primary"
-            icon={<SendOutlined />}
-            onClick={handleSend}
-            loading={isLoading}
-            disabled={disabled || !inputValue.trim()}
-            style={{ height: 'auto', minHeight: 32 }}
-          />
-        </div>
+          {/* Input */}
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
+            <TextField
+              inputRef={inputRef}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              disabled={disabled || isLoading}
+              multiline
+              minRows={1}
+              maxRows={4}
+              fullWidth
+              size="small"
+              sx={{ flex: 1 }}
+            />
+            <IconButton
+              color="primary"
+              onClick={handleSend}
+              disabled={disabled || !inputValue.trim() || isLoading}
+              sx={{
+                bgcolor: 'primary.main',
+                color: 'white',
+                '&:hover': { bgcolor: 'primary.dark' },
+                '&:disabled': { bgcolor: 'action.disabledBackground' },
+              }}
+            >
+              {isLoading ? (
+                <Box
+                  component="span"
+                  sx={{
+                    width: 20,
+                    height: 20,
+                    border: '2px solid currentColor',
+                    borderRightColor: 'transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                    '@keyframes spin': {
+                      '0%': { transform: 'rotate(0deg)' },
+                      '100%': { transform: 'rotate(360deg)' },
+                    },
+                  }}
+                />
+              ) : (
+                <SendIcon />
+              )}
+            </IconButton>
+          </Box>
 
-        <div style={{ marginTop: 4, textAlign: 'right' }}>
-          <Text type="secondary" style={{ fontSize: 10 }}>
-            <kbd style={{ padding: '1px 4px', background: '#fff', borderRadius: 2, border: '1px solid #d9d9d9' }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ mt: 0.5, display: 'block', textAlign: 'right' }}
+          >
+            <Box
+              component="kbd"
+              sx={{
+                px: 0.5,
+                py: 0.25,
+                bgcolor: 'white',
+                borderRadius: 0.5,
+                border: '1px solid',
+                borderColor: 'divider',
+                fontSize: 10,
+              }}
+            >
               ⌘
-            </kbd>
+            </Box>
             {' + '}
-            <kbd style={{ padding: '1px 4px', background: '#fff', borderRadius: 2, border: '1px solid #d9d9d9' }}>
+            <Box
+              component="kbd"
+              sx={{
+                px: 0.5,
+                py: 0.25,
+                bgcolor: 'white',
+                borderRadius: 0.5,
+                border: '1px solid',
+                borderColor: 'divider',
+                fontSize: 10,
+              }}
+            >
               Enter
-            </kbd>
+            </Box>
             {' to send'}
-          </Text>
-        </div>
-      </div>
+          </Typography>
+        </Box>
+      </CardContent>
     </Card>
   );
 };

@@ -1,24 +1,27 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider, App as AntApp, Spin } from 'antd';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import CircularProgress from '@mui/material/CircularProgress';
+import Box from '@mui/material/Box';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AppLayout, AuthLayout } from '@/layouts';
+import { muiTheme } from '@/theme/muiTheme';
+import { SnackbarProvider } from '@/components/SnackbarProvider';
+import { AppLayout, AuthLayout, VibeLayout } from '@/layouts';
 import {
-  Dashboard,
-  Users,
   Login,
   AuthCallback,
-  Admin,
   Settings,
   Screens,
   Components,
-  Editor,
-  Variants,
   VibePrototyping,
   Context,
-  Analytics,
+  Insights,
   Collaborate,
   SharedView,
+  Home,
+  Prototypes,
+  Integrations,
 } from '@/pages';
 import { useAuthStore } from '@/store/authStore';
 
@@ -31,13 +34,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-const theme = {
-  token: {
-    colorPrimary: '#764ba2',
-    borderRadius: 8,
-  },
-};
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -53,7 +49,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
 
   if (isAuthenticated) {
-    return <Navigate to="/screens" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -62,26 +58,33 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 function App() {
   const { initialize, isLoading } = useAuthStore();
 
-  // Initialize auth on app startup
   useEffect(() => {
     initialize();
   }, [initialize]);
 
-  // Show loading while auth initializes
   if (isLoading) {
     return (
-      <ConfigProvider theme={theme}>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-          <Spin size="large" />
-        </div>
-      </ConfigProvider>
+      <ThemeProvider theme={muiTheme}>
+        <CssBaseline />
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100vh',
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      </ThemeProvider>
     );
   }
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ConfigProvider theme={theme}>
-        <AntApp>
+      <ThemeProvider theme={muiTheme}>
+        <CssBaseline />
+        <SnackbarProvider>
           <BrowserRouter>
             <Routes>
               {/* Auth routes */}
@@ -95,7 +98,7 @@ function App() {
                 <Route path="/login" element={<Login />} />
               </Route>
 
-              {/* Protected routes */}
+              {/* Protected routes with AppLayout */}
               <Route
                 element={
                   <ProtectedRoute>
@@ -103,43 +106,70 @@ function App() {
                   </ProtectedRoute>
                 }
               >
-                {/* Redirect root to screens */}
-                <Route path="/" element={<Navigate to="/screens" replace />} />
+                {/* Home */}
+                <Route path="/" element={<Home />} />
 
-                {/* Main Voxel Routes */}
-                <Route path="/screens" element={<Screens />} />
-                <Route path="/components" element={<Components />} />
-                <Route path="/editor/:screenId" element={<Editor />} />
-                <Route path="/variants/:screenId" element={<Variants />} />
-                <Route path="/vibe/:screenId" element={<VibePrototyping />} />
-                <Route path="/vibe/:screenId/:sessionId" element={<VibePrototyping />} />
+                {/* Prototypes list */}
+                <Route path="/prototypes" element={<Prototypes />} />
+
+                {/* Repository */}
+                <Route path="/repository/screens" element={<Screens />} />
+                <Route path="/repository/components" element={<Components />} />
+
+                {/* Product Context */}
                 <Route path="/context" element={<Context />} />
-                <Route path="/collaborate" element={<Collaborate />} />
-                <Route path="/analytics" element={<Analytics />} />
 
-                {/* Admin routes */}
-                <Route path="/admin" element={<Admin />} />
+                {/* Insights (renamed from Analytics) */}
+                <Route path="/insights" element={<Insights />} />
+                <Route path="/insights/:projectId" element={<Insights />} />
+                <Route path="/insights/:projectId/:variantId" element={<Insights />} />
 
-                {/* Settings */}
+                {/* Integrations */}
+                <Route path="/integrations" element={<Integrations />} />
+
+                {/* Settings (includes User Management for admins) */}
                 <Route path="/settings" element={<Settings />} />
-
-                {/* Legacy routes (can be removed) */}
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/users" element={<Users />} />
               </Route>
 
-              {/* Shared view (public) */}
+              {/* Vibe Concepting with VibeLayout */}
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <VibeLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/prototypes/:projectId" element={<VibePrototyping />} />
+              </Route>
+
+              {/* Collaborative view (full-screen) */}
+              <Route
+                path="/collaborate/:shareLink"
+                element={
+                  <ProtectedRoute>
+                    <Collaborate />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Public shared view */}
               <Route path="/view/:shareLink" element={<SharedView />} />
 
               {/* Auth callback for OAuth */}
               <Route path="/auth/callback" element={<AuthCallback />} />
 
+              {/* Legacy routes redirect */}
+              <Route path="/screens" element={<Navigate to="/repository/screens" replace />} />
+              <Route path="/components" element={<Navigate to="/repository/components" replace />} />
+              <Route path="/analytics" element={<Navigate to="/insights" replace />} />
+              <Route path="/admin" element={<Navigate to="/settings" replace />} />
+
               {/* Catch all */}
-              <Route path="*" element={<Navigate to="/screens" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
-        </AntApp>
-      </ConfigProvider>
+        </SnackbarProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

@@ -1,45 +1,51 @@
 import { useState } from 'react';
-import {
-  Typography,
-  Card,
-  Row,
-  Col,
-  Button,
-  Modal,
-  Input,
-  Space,
-  Avatar,
-  Tag,
-  Empty,
-  Dropdown,
-  Switch,
-  Divider,
-  Badge,
-  message,
-  Tooltip,
-  Select,
-} from 'antd';
-import type { MenuProps } from 'antd';
-import {
-  ShareAltOutlined,
-  CopyOutlined,
-  DeleteOutlined,
-  MoreOutlined,
-  EyeOutlined,
-  CommentOutlined,
-  GlobalOutlined,
-  LockOutlined,
-  TeamOutlined,
-} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import Box from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CardActions from '@mui/material/CardActions';
+import CardMedia from '@mui/material/CardMedia';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import TextField from '@mui/material/TextField';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Avatar from '@mui/material/Avatar';
+import AvatarGroup from '@mui/material/AvatarGroup';
+import Chip from '@mui/material/Chip';
+import Switch from '@mui/material/Switch';
+import Divider from '@mui/material/Divider';
+import Badge from '@mui/material/Badge';
+import Tooltip from '@mui/material/Tooltip';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import Menu from '@mui/material/Menu';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import FormControl from '@mui/material/FormControl';
+import ShareIcon from '@mui/icons-material/Share';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import DeleteIcon from '@mui/icons-material/Delete';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import CommentIcon from '@mui/icons-material/Comment';
+import PublicIcon from '@mui/icons-material/Public';
+import LockIcon from '@mui/icons-material/Lock';
+import GroupIcon from '@mui/icons-material/Group';
+
+import { useSnackbar } from '@/components/SnackbarProvider';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { EmptyState } from '@/components';
 import {
   useMultiplayerStore,
   formatRelativeTime,
   type PublishedPrototype,
 } from '@/store/multiplayerStore';
 import { useScreensStore } from '@/store/screensStore';
-
-const { Title, Text } = Typography;
 
 // Publish Modal
 function PublishModal({
@@ -59,61 +65,61 @@ function PublishModal({
 }) {
   const [name, setName] = useState(screenName);
   const { publishPrototype } = useMultiplayerStore();
+  const { showSuccess, showInfo, showError } = useSnackbar();
 
   const handlePublish = () => {
     if (!name.trim()) {
-      message.error('Please provide a name');
+      showError('Please provide a name');
       return;
     }
 
     // Store filePath as html - SharedView will use src instead of srcDoc
     const prototype = publishPrototype(screenId, name, filePath, variantId);
-    message.success('Prototype published!');
+    showSuccess('Prototype published!');
     onClose();
 
     // Copy share link
     const shareUrl = `${window.location.origin}/view/${prototype.shareLink}`;
     navigator.clipboard.writeText(shareUrl);
-    message.info('Share link copied to clipboard');
+    showInfo('Share link copied to clipboard');
   };
 
   return (
-    <Modal
-      open={open}
-      onCancel={onClose}
-      title={
-        <Space>
-          <ShareAltOutlined style={{ color: '#1890ff' }} />
-          Publish Prototype
-        </Space>
-      }
-      onOk={handlePublish}
-      okText="Publish"
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
-        <div>
-          <Text strong>Name</Text>
-          <Input
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <ShareIcon color="primary" />
+        Publish Prototype
+      </DialogTitle>
+      <DialogContent>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <TextField
+            fullWidth
+            label="Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Prototype name"
-            style={{ marginTop: 4 }}
           />
-        </div>
-        <div
-          style={{
-            background: '#f5f5f5',
-            padding: 16,
-            borderRadius: 8,
-          }}
-        >
-          <Text type="secondary">
-            Publishing will create a shareable link that you can send to collaborators.
-            They can view and comment on the prototype.
-          </Text>
-        </div>
-      </Space>
-    </Modal>
+          <Box
+            sx={{
+              bgcolor: 'grey.100',
+              p: 2,
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Publishing will create a shareable link that you can send to collaborators.
+              They can view and comment on the prototype.
+            </Typography>
+          </Box>
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button variant="contained" onClick={handlePublish}>
+          Publish
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -127,6 +133,7 @@ function ShareSettingsModal({
 }) {
   const { updatePrototype, addCollaborator, removeCollaborator, updateCollaboratorRole } =
     useMultiplayerStore();
+  const { showSuccess } = useSnackbar();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'editor' | 'viewer'>('viewer');
 
@@ -136,7 +143,7 @@ function ShareSettingsModal({
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareUrl);
-    message.success('Link copied!');
+    showSuccess('Link copied!');
   };
 
   const handleAddCollaborator = () => {
@@ -149,165 +156,174 @@ function ShareSettingsModal({
       role,
     });
     setEmail('');
-    message.success('Collaborator added');
+    showSuccess('Collaborator added');
   };
 
   return (
-    <Modal
-      open={true}
-      onCancel={onClose}
-      title={
-        <Space>
-          <TeamOutlined style={{ color: '#1890ff' }} />
-          Share Settings
-        </Space>
-      }
-      footer={<Button onClick={onClose}>Done</Button>}
-      width={500}
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
-        {/* Share Link */}
-        <div>
-          <Text strong>Share Link</Text>
-          <Input.Group compact style={{ display: 'flex', marginTop: 4 }}>
-            <Input value={shareUrl} readOnly style={{ flex: 1 }} />
-            <Button icon={<CopyOutlined />} onClick={handleCopyLink}>
-              Copy
-            </Button>
-          </Input.Group>
-        </div>
-
-        {/* Privacy */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Space>
-            {prototype.isPublic ? (
-              <GlobalOutlined style={{ color: '#52c41a' }} />
-            ) : (
-              <LockOutlined style={{ color: '#faad14' }} />
-            )}
-            <div>
-              <Text strong>Public access</Text>
-              <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {prototype.isPublic
-                  ? 'Anyone with the link can view'
-                  : 'Only collaborators can access'}
-              </Text>
-            </div>
-          </Space>
-          <Switch
-            checked={prototype.isPublic}
-            onChange={(checked) => updatePrototype(prototype.id, { isPublic: checked })}
-          />
-        </div>
-
-        {/* Comments */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Space>
-            <CommentOutlined />
-            <div>
-              <Text strong>Allow comments</Text>
-              <br />
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Collaborators can leave feedback
-              </Text>
-            </div>
-          </Space>
-          <Switch
-            checked={prototype.allowComments}
-            onChange={(checked) => updatePrototype(prototype.id, { allowComments: checked })}
-          />
-        </div>
-
-        <Divider style={{ margin: '12px 0' }} />
-
-        {/* Add Collaborator */}
-        <div>
-          <Text strong>Add people</Text>
-          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-            <Input
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{ flex: 1 }}
-            />
-            <Select
-              value={role}
-              onChange={setRole}
-              style={{ width: 100 }}
-              options={[
-                { label: 'Viewer', value: 'viewer' },
-                { label: 'Editor', value: 'editor' },
-              ]}
-            />
-            <Button type="primary" onClick={handleAddCollaborator}>
-              Add
-            </Button>
-          </div>
-        </div>
-
-        {/* Collaborators List */}
-        <div>
-          <Text strong>Collaborators ({prototype.collaborators.length})</Text>
-          <div style={{ marginTop: 8, maxHeight: 200, overflow: 'auto' }}>
-            {prototype.collaborators.map((collab) => (
-              <div
-                key={collab.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '8px 0',
-                  borderBottom: '1px solid #f0f0f0',
-                }}
+    <Dialog open={true} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <GroupIcon color="primary" />
+        Share Settings
+      </DialogTitle>
+      <DialogContent>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          {/* Share Link */}
+          <Box>
+            <Typography variant="subtitle2" gutterBottom>Share Link</Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <TextField
+                fullWidth
+                size="small"
+                value={shareUrl}
+                InputProps={{ readOnly: true }}
+              />
+              <Button
+                variant="outlined"
+                startIcon={<ContentCopyIcon />}
+                onClick={handleCopyLink}
               >
-                <Space>
-                  <Badge dot status={collab.isOnline ? 'success' : 'default'} offset={[-4, 28]}>
-                    <Avatar style={{ backgroundColor: collab.color }}>
-                      {collab.name.charAt(0).toUpperCase()}
-                    </Avatar>
-                  </Badge>
-                  <div>
-                    <Text>{collab.name}</Text>
-                    <br />
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      {collab.email}
-                    </Text>
-                  </div>
-                </Space>
-                <Space>
-                  {collab.role === 'owner' ? (
-                    <Tag>Owner</Tag>
-                  ) : (
-                    <>
-                      <Select
-                        size="small"
-                        value={collab.role}
-                        onChange={(newRole) =>
-                          updateCollaboratorRole(prototype.id, collab.id, newRole)
-                        }
-                        style={{ width: 85 }}
-                        options={[
-                          { label: 'Viewer', value: 'viewer' },
-                          { label: 'Editor', value: 'editor' },
-                        ]}
-                      />
-                      <Button
-                        type="text"
-                        size="small"
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => removeCollaborator(prototype.id, collab.id)}
-                      />
-                    </>
-                  )}
-                </Space>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Space>
-    </Modal>
+                Copy
+              </Button>
+            </Box>
+          </Box>
+
+          {/* Privacy */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              {prototype.isPublic ? (
+                <PublicIcon sx={{ color: 'success.main' }} />
+              ) : (
+                <LockIcon sx={{ color: 'warning.main' }} />
+              )}
+              <Box>
+                <Typography fontWeight={500}>Public access</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {prototype.isPublic
+                    ? 'Anyone with the link can view'
+                    : 'Only collaborators can access'}
+                </Typography>
+              </Box>
+            </Box>
+            <Switch
+              checked={prototype.isPublic}
+              onChange={(e) => updatePrototype(prototype.id, { isPublic: e.target.checked })}
+            />
+          </Box>
+
+          {/* Comments */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <CommentIcon color="action" />
+              <Box>
+                <Typography fontWeight={500}>Allow comments</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Collaborators can leave feedback
+                </Typography>
+              </Box>
+            </Box>
+            <Switch
+              checked={prototype.allowComments}
+              onChange={(e) => updatePrototype(prototype.id, { allowComments: e.target.checked })}
+            />
+          </Box>
+
+          <Divider />
+
+          {/* Add Collaborator */}
+          <Box>
+            <Typography variant="subtitle2" gutterBottom>Add people</Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <TextField
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                size="small"
+                sx={{ flex: 1 }}
+              />
+              <FormControl size="small" sx={{ minWidth: 100 }}>
+                <Select value={role} onChange={(e) => setRole(e.target.value as 'editor' | 'viewer')}>
+                  <MenuItem value="viewer">Viewer</MenuItem>
+                  <MenuItem value="editor">Editor</MenuItem>
+                </Select>
+              </FormControl>
+              <Button variant="contained" onClick={handleAddCollaborator}>
+                Add
+              </Button>
+            </Box>
+          </Box>
+
+          {/* Collaborators List */}
+          <Box>
+            <Typography variant="subtitle2" gutterBottom>
+              Collaborators ({prototype.collaborators.length})
+            </Typography>
+            <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
+              {prototype.collaborators.map((collab) => (
+                <Box
+                  key={collab.id}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    py: 1,
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Badge
+                      overlap="circular"
+                      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                      variant="dot"
+                      color={collab.isOnline ? 'success' : 'default'}
+                    >
+                      <Avatar sx={{ bgcolor: collab.color, width: 32, height: 32 }}>
+                        {collab.name.charAt(0).toUpperCase()}
+                      </Avatar>
+                    </Badge>
+                    <Box>
+                      <Typography variant="body2">{collab.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {collab.email}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {collab.role === 'owner' ? (
+                      <Chip label="Owner" size="small" />
+                    ) : (
+                      <>
+                        <Select
+                          size="small"
+                          value={collab.role}
+                          onChange={(e) =>
+                            updateCollaboratorRole(prototype.id, collab.id, e.target.value as 'editor' | 'viewer')
+                          }
+                          sx={{ minWidth: 85 }}
+                        >
+                          <MenuItem value="viewer">Viewer</MenuItem>
+                          <MenuItem value="editor">Editor</MenuItem>
+                        </Select>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => removeCollaborator(prototype.id, collab.id)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </>
+                    )}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Done</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -315,169 +331,179 @@ function ShareSettingsModal({
 function PrototypeCard({ prototype }: { prototype: PublishedPrototype }) {
   const navigate = useNavigate();
   const { unpublishPrototype, getCommentsForPrototype } = useMultiplayerStore();
+  const { showSuccess } = useSnackbar();
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   const comments = getCommentsForPrototype(prototype.id);
   const onlineCount = prototype.collaborators.filter((c) => c.isOnline).length;
 
-  const menuItems: MenuProps['items'] = [
-    {
-      key: 'view',
-      icon: <EyeOutlined />,
-      label: 'View',
-      onClick: () => navigate(`/view/${prototype.shareLink}`),
-    },
-    {
-      key: 'share',
-      icon: <ShareAltOutlined />,
-      label: 'Share Settings',
-      onClick: () => setShareModalOpen(true),
-    },
-    {
-      key: 'copy',
-      icon: <CopyOutlined />,
-      label: 'Copy Link',
-      onClick: () => {
-        navigator.clipboard.writeText(`${window.location.origin}/view/${prototype.shareLink}`);
-        message.success('Link copied!');
-      },
-    },
-    { type: 'divider' },
-    {
-      key: 'unpublish',
-      icon: <DeleteOutlined />,
-      label: 'Unpublish',
-      danger: true,
-      onClick: () => {
-        Modal.confirm({
-          title: 'Unpublish Prototype',
-          content: 'This will remove the shared link and all comments. Continue?',
-          okText: 'Unpublish',
-          okType: 'danger',
-          onOk: () => unpublishPrototype(prototype.id),
-        });
-      },
-    },
-  ];
+  const handleMenuClose = () => setAnchorEl(null);
 
   return (
     <>
-      <Card
-        hoverable
-        cover={
-          <div
+      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <CardMedia
+          sx={{
+            height: 160,
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            position: 'relative',
+            overflow: 'hidden',
+            cursor: 'pointer',
+          }}
+          onClick={() => navigate(`/view/${prototype.shareLink}`)}
+        >
+          <iframe
+            src={prototype.html}
             style={{
-              height: 160,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              position: 'relative',
-              overflow: 'hidden',
-              cursor: 'pointer',
+              width: '200%',
+              height: '200%',
+              transform: 'scale(0.5)',
+              transformOrigin: 'top left',
+              pointerEvents: 'none',
+              border: 'none',
+              position: 'absolute',
+              top: 0,
+              left: 0,
             }}
-            onClick={() => navigate(`/view/${prototype.shareLink}`)}
-          >
-            <iframe
-              src={prototype.html}
-              style={{
-                width: '200%',
-                height: '200%',
-                transform: 'scale(0.5)',
-                transformOrigin: 'top left',
-                pointerEvents: 'none',
-                border: 'none',
+            title={prototype.name}
+          />
+          {/* Online indicator */}
+          {onlineCount > 1 && (
+            <Box
+              sx={{
                 position: 'absolute',
-                top: 0,
-                left: 0,
+                top: 8,
+                right: 8,
+                bgcolor: 'rgba(0,0,0,0.6)',
+                borderRadius: 3,
+                px: 1,
+                py: 0.25,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
               }}
-              title={prototype.name}
-            />
-            {/* Online indicator */}
-            {onlineCount > 1 && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 8,
-                  right: 8,
-                  background: 'rgba(0,0,0,0.6)',
-                  borderRadius: 12,
-                  padding: '2px 8px',
-                }}
-              >
-                <Badge status="success" />
-                <Text style={{ color: 'white', fontSize: 12, marginLeft: 4 }}>
-                  {onlineCount} online
-                </Text>
-              </div>
+            >
+              <Badge variant="dot" color="success" />
+              <Typography variant="caption" sx={{ color: 'white' }}>
+                {onlineCount} online
+              </Typography>
+            </Box>
+          )}
+        </CardMedia>
+
+        <CardContent sx={{ flex: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+            <Typography variant="subtitle1" fontWeight={600} noWrap sx={{ flex: 1 }}>
+              {prototype.name}
+            </Typography>
+            {prototype.isPublic ? (
+              <PublicIcon sx={{ color: 'success.main', fontSize: 16 }} />
+            ) : (
+              <LockIcon sx={{ color: 'warning.main', fontSize: 16 }} />
             )}
-          </div>
-        }
-        actions={[
-          <Tooltip title="View" key="view">
-            <EyeOutlined onClick={() => navigate(`/view/${prototype.shareLink}`)} />
-          </Tooltip>,
-          <Tooltip title="Share" key="share">
-            <ShareAltOutlined onClick={() => setShareModalOpen(true)} />
-          </Tooltip>,
-          <Dropdown key="more" menu={{ items: menuItems }} trigger={['click']}>
-            <MoreOutlined />
-          </Dropdown>,
-        ]}
-      >
-        <Card.Meta
-          title={
-            <Space>
-              <Text ellipsis style={{ maxWidth: 150 }}>
-                {prototype.name}
-              </Text>
-              {prototype.isPublic ? (
-                <GlobalOutlined style={{ color: '#52c41a', fontSize: 12 }} />
-              ) : (
-                <LockOutlined style={{ color: '#faad14', fontSize: 12 }} />
-              )}
-            </Space>
-          }
-          description={
-            <Space direction="vertical" size={4} style={{ width: '100%' }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Published {formatRelativeTime(prototype.publishedAt)}
-              </Text>
-              <Space size={12}>
-                <Space size={4}>
-                  <TeamOutlined />
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {prototype.collaborators.length}
-                  </Text>
-                </Space>
-                <Space size={4}>
-                  <CommentOutlined />
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {comments.length}
-                  </Text>
-                </Space>
-                <Space size={4}>
-                  <EyeOutlined />
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {prototype.viewCount}
-                  </Text>
-                </Space>
-              </Space>
-              {/* Collaborator avatars */}
-              <Avatar.Group maxCount={4} size="small">
-                {prototype.collaborators.map((collab) => (
-                  <Tooltip key={collab.id} title={collab.name}>
-                    <Avatar style={{ backgroundColor: collab.color }}>
-                      {collab.name.charAt(0).toUpperCase()}
-                    </Avatar>
-                  </Tooltip>
-                ))}
-              </Avatar.Group>
-            </Space>
-          }
-        />
+          </Box>
+
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+            Published {formatRelativeTime(prototype.publishedAt)}
+          </Typography>
+
+          <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <GroupIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+              <Typography variant="caption" color="text.secondary">
+                {prototype.collaborators.length}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <CommentIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+              <Typography variant="caption" color="text.secondary">
+                {comments.length}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <VisibilityIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+              <Typography variant="caption" color="text.secondary">
+                {prototype.viewCount}
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Collaborator avatars */}
+          <AvatarGroup max={4} sx={{ justifyContent: 'flex-start' }}>
+            {prototype.collaborators.map((collab) => (
+              <Tooltip key={collab.id} title={collab.name}>
+                <Avatar sx={{ bgcolor: collab.color, width: 24, height: 24, fontSize: 12 }}>
+                  {collab.name.charAt(0).toUpperCase()}
+                </Avatar>
+              </Tooltip>
+            ))}
+          </AvatarGroup>
+        </CardContent>
+
+        <CardActions>
+          <Tooltip title="View">
+            <IconButton size="small" onClick={() => navigate(`/view/${prototype.shareLink}`)}>
+              <VisibilityIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Share">
+            <IconButton size="small" onClick={() => setShareModalOpen(true)}>
+              <ShareIcon />
+            </IconButton>
+          </Tooltip>
+          <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)}>
+            <MoreVertIcon />
+          </IconButton>
+        </CardActions>
       </Card>
+
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+        <MenuItem onClick={() => { navigate(`/view/${prototype.shareLink}`); handleMenuClose(); }}>
+          <ListItemIcon><VisibilityIcon fontSize="small" /></ListItemIcon>
+          <ListItemText>View</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => { setShareModalOpen(true); handleMenuClose(); }}>
+          <ListItemIcon><ShareIcon fontSize="small" /></ListItemIcon>
+          <ListItemText>Share Settings</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            navigator.clipboard.writeText(`${window.location.origin}/view/${prototype.shareLink}`);
+            showSuccess('Link copied!');
+            handleMenuClose();
+          }}
+        >
+          <ListItemIcon><ContentCopyIcon fontSize="small" /></ListItemIcon>
+          <ListItemText>Copy Link</ListItemText>
+        </MenuItem>
+        <Divider />
+        <MenuItem
+          onClick={() => { setDeleteConfirmOpen(true); handleMenuClose(); }}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+          <ListItemText>Unpublish</ListItemText>
+        </MenuItem>
+      </Menu>
 
       {shareModalOpen && (
         <ShareSettingsModal prototype={prototype} onClose={() => setShareModalOpen(false)} />
       )}
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={() => {
+          unpublishPrototype(prototype.id);
+          setDeleteConfirmOpen(false);
+        }}
+        title="Unpublish Prototype"
+        content="This will remove the shared link and all comments. Continue?"
+        confirmText="Unpublish"
+        confirmColor="error"
+      />
     </>
   );
 }
@@ -485,7 +511,8 @@ function PrototypeCard({ prototype }: { prototype: PublishedPrototype }) {
 export function Collaborate() {
   const { publishedPrototypes } = useMultiplayerStore();
   const { screens } = useScreensStore();
-  const [publishModalOpen, setPublishModalOpen] = useState(false);
+  const { showInfo } = useSnackbar();
+  const [selectScreenOpen, setSelectScreenOpen] = useState(false);
   const [selectedScreen, setSelectedScreen] = useState<{
     id: string;
     name: string;
@@ -494,138 +521,136 @@ export function Collaborate() {
 
   const handlePublishClick = () => {
     if (screens.length === 0) {
-      message.info('No screens available. Capture some screens first.');
+      showInfo('No screens available. Capture some screens first.');
       return;
     }
-    // For now, show a selection modal or use first screen
-    // In production, this would come from the editor or screens page
-    setPublishModalOpen(true);
+    setSelectScreenOpen(true);
   };
 
   return (
-    <div>
+    <Box>
       {/* Header */}
-      <div
-        style={{
+      <Box
+        sx={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          mb: 3,
         }}
       >
-        <div>
-          <Title level={3} style={{ margin: 0 }}>
+        <Box>
+          <Typography variant="h4" fontWeight={600}>
             Collaborate
-          </Title>
-          <Text type="secondary">
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
             {publishedPrototypes.length} published prototype
             {publishedPrototypes.length !== 1 ? 's' : ''}
-          </Text>
-        </div>
-        <Button type="primary" icon={<ShareAltOutlined />} onClick={handlePublishClick}>
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<ShareIcon />}
+          onClick={handlePublishClick}
+        >
           Publish Prototype
         </Button>
-      </div>
+      </Box>
 
       {/* Info Card */}
       <Card
-        size="small"
-        style={{
-          marginBottom: 24,
-          background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)',
+        sx={{
+          mb: 3,
+          background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
         }}
       >
-        <Space>
-          <TeamOutlined style={{ color: '#764ba2', fontSize: 18 }} />
-          <div>
-            <Text strong>Real-time collaboration:</Text>
-            <Text style={{ marginLeft: 8 }}>
+        <CardContent sx={{ py: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <GroupIcon sx={{ color: 'primary.main', fontSize: 24 }} />
+          <Box>
+            <Typography variant="body2">
+              <strong>Real-time collaboration:</strong>{' '}
               Publish prototypes to share with your team. Collaborators can view, comment, and
               provide feedback in real-time.
-            </Text>
-          </div>
-        </Space>
+            </Typography>
+          </Box>
+        </CardContent>
       </Card>
 
       {/* Published Prototypes */}
       {publishedPrototypes.length === 0 ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="No published prototypes"
-        >
-          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-            Publish a prototype to start collaborating with your team
-          </Text>
-          <Button type="primary" icon={<ShareAltOutlined />} onClick={handlePublishClick}>
-            Publish Your First Prototype
-          </Button>
-        </Empty>
+        <EmptyState
+          title="No published prototypes"
+          description="Publish a prototype to start collaborating with your team"
+          action={{ label: 'Publish Your First Prototype', onClick: handlePublishClick }}
+        />
       ) : (
-        <Row gutter={[16, 16]}>
+        <Grid container spacing={2}>
           {publishedPrototypes.map((prototype) => (
-            <Col key={prototype.id} xs={24} sm={12} md={8} lg={6}>
+            <Grid item key={prototype.id} xs={12} sm={6} md={4} lg={3}>
               <PrototypeCard prototype={prototype} />
-            </Col>
+            </Grid>
           ))}
-        </Row>
+        </Grid>
       )}
 
-      {/* Publish Modal - simplified for demo */}
-      <Modal
-        open={publishModalOpen}
-        onCancel={() => setPublishModalOpen(false)}
-        title="Select Screen to Publish"
-        footer={null}
-      >
-        {screens.length === 0 ? (
-          <Empty description="No screens available" />
-        ) : (
-          <div style={{ maxHeight: 400, overflow: 'auto' }}>
-            {screens.map((screen) => (
-              <Card
-                key={screen.id}
-                size="small"
-                hoverable
-                style={{ marginBottom: 8, cursor: 'pointer' }}
-                onClick={() => {
-                  setSelectedScreen({
-                    id: screen.id,
-                    name: screen.name,
-                    filePath: screen.filePath,
-                  });
-                  setPublishModalOpen(false);
-                }}
-              >
-                <Space>
-                  <div
-                    style={{
-                      width: 60,
-                      height: 40,
-                      background: '#f0f0f0',
-                      borderRadius: 4,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <iframe
-                      src={screen.filePath}
-                      style={{
-                        width: '200%',
-                        height: '200%',
-                        transform: 'scale(0.25)',
-                        transformOrigin: 'top left',
-                        pointerEvents: 'none',
-                        border: 'none',
+      {/* Select Screen Modal */}
+      <Dialog open={selectScreenOpen} onClose={() => setSelectScreenOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Select Screen to Publish</DialogTitle>
+        <DialogContent>
+          {screens.length === 0 ? (
+            <EmptyState title="No screens available" description="Capture some screens first" />
+          ) : (
+            <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
+              {screens.map((screen) => (
+                <Card
+                  key={screen.id}
+                  sx={{
+                    mb: 1,
+                    cursor: 'pointer',
+                    '&:hover': { bgcolor: 'action.hover' },
+                  }}
+                  onClick={() => {
+                    setSelectedScreen({
+                      id: screen.id,
+                      name: screen.name,
+                      filePath: screen.filePath,
+                    });
+                    setSelectScreenOpen(false);
+                  }}
+                >
+                  <CardContent sx={{ py: 1.5, display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box
+                      sx={{
+                        width: 60,
+                        height: 40,
+                        bgcolor: 'grey.200',
+                        borderRadius: 1,
+                        overflow: 'hidden',
                       }}
-                      title={screen.name}
-                    />
-                  </div>
-                  <Text>{screen.name}</Text>
-                </Space>
-              </Card>
-            ))}
-          </div>
-        )}
-      </Modal>
+                    >
+                      <iframe
+                        src={screen.filePath}
+                        style={{
+                          width: '200%',
+                          height: '200%',
+                          transform: 'scale(0.25)',
+                          transformOrigin: 'top left',
+                          pointerEvents: 'none',
+                          border: 'none',
+                        }}
+                        title={screen.name}
+                      />
+                    </Box>
+                    <Typography>{screen.name}</Typography>
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectScreenOpen(false)}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
 
       {selectedScreen && (
         <PublishModal
@@ -636,6 +661,6 @@ export function Collaborate() {
           filePath={selectedScreen.filePath}
         />
       )}
-    </div>
+    </Box>
   );
 }

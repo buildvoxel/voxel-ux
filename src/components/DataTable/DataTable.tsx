@@ -1,77 +1,114 @@
-import { Table, Input, Space, Button } from 'antd';
-import type { TableProps, TablePaginationConfig } from 'antd';
-import { SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useState } from 'react';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import InputAdornment from '@mui/material/InputAdornment';
+import SearchIcon from '@mui/icons-material/Search';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import { DataGrid, type GridColDef, type GridRowsProp } from '@mui/x-data-grid';
 
-export interface DataTableProps<T> extends Omit<TableProps<T>, 'title'> {
+export interface DataTableProps {
   title?: string;
+  columns: GridColDef[];
+  rows: GridRowsProp;
   searchPlaceholder?: string;
   onSearch?: (value: string) => void;
   onRefresh?: () => void;
   showSearch?: boolean;
   showRefresh?: boolean;
+  loading?: boolean;
+  pageSize?: number;
+  onRowClick?: (params: { row: unknown }) => void;
 }
 
-export function DataTable<T extends object>({
+export function DataTable({
   title,
+  columns,
+  rows,
   searchPlaceholder = 'Search...',
   onSearch,
   onRefresh,
   showSearch = true,
   showRefresh = true,
-  pagination,
-  ...tableProps
-}: DataTableProps<T>) {
+  loading = false,
+  pageSize = 10,
+  onRowClick,
+}: DataTableProps) {
   const [searchValue, setSearchValue] = useState('');
+  const [paginationModel, setPaginationModel] = useState({
+    pageSize,
+    page: 0,
+  });
 
   const handleSearch = (value: string) => {
     setSearchValue(value);
     onSearch?.(value);
   };
 
-  const defaultPagination: TablePaginationConfig = {
-    showSizeChanger: true,
-    showQuickJumper: true,
-    showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
-    pageSizeOptions: ['10', '20', '50', '100'],
-    ...pagination,
-  };
-
   return (
-    <div>
-      <div
-        style={{
+    <Box>
+      <Box
+        sx={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 16,
+          mb: 2,
         }}
       >
         {title && (
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{title}</h2>
+          <Typography variant="h6" fontWeight={600}>
+            {title}
+          </Typography>
         )}
-        <Space>
+        <Box sx={{ display: 'flex', gap: 1 }}>
           {showSearch && (
-            <Input
+            <TextField
               placeholder={searchPlaceholder}
-              prefix={<SearchOutlined />}
               value={searchValue}
               onChange={(e) => handleSearch(e.target.value)}
-              style={{ width: 250 }}
-              allowClear
+              size="small"
+              sx={{ width: 250 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
             />
           )}
           {showRefresh && (
-            <Button icon={<ReloadOutlined />} onClick={onRefresh}>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={onRefresh}
+            >
               Refresh
             </Button>
           )}
-        </Space>
-      </div>
-      <Table<T>
-        pagination={pagination === false ? false : defaultPagination}
-        {...tableProps}
+        </Box>
+      </Box>
+      <DataGrid
+        rows={rows}
+        columns={columns}
+        loading={loading}
+        paginationModel={paginationModel}
+        onPaginationModelChange={setPaginationModel}
+        pageSizeOptions={[10, 20, 50, 100]}
+        onRowClick={onRowClick}
+        disableRowSelectionOnClick
+        autoHeight
+        sx={{
+          border: 'none',
+          '& .MuiDataGrid-cell:focus': {
+            outline: 'none',
+          },
+          '& .MuiDataGrid-row:hover': {
+            cursor: onRowClick ? 'pointer' : 'default',
+          },
+        }}
       />
-    </div>
+    </Box>
   );
 }

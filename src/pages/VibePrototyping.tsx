@@ -9,27 +9,27 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Typography,
-  Button,
-  Space,
-  Spin,
-  message,
-  Alert,
-  Result,
-  Collapse,
-  Badge,
-  Tag,
-} from 'antd';
-import {
-  ArrowLeftOutlined,
-  ThunderboltOutlined,
-  SettingOutlined,
-  CheckCircleOutlined,
-  AppstoreOutlined,
-  FileSearchOutlined,
-} from '@ant-design/icons';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import Chip from '@mui/material/Chip';
+import CircularProgress from '@mui/material/CircularProgress';
+import Alert from '@mui/material/Alert';
+import Accordion from '@mui/material/Accordion';
+import AccordionSummary from '@mui/material/AccordionSummary';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import Badge from '@mui/material/Badge';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import BoltIcon from '@mui/icons-material/Bolt';
+import SettingsIcon from '@mui/icons-material/Settings';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AppsIcon from '@mui/icons-material/Apps';
+import FindInPageIcon from '@mui/icons-material/FindInPage';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 
+import { useSnackbar } from '@/components/SnackbarProvider';
 import { useScreensStore } from '@/store/screensStore';
 import { useVibeStore, type ChatMessage } from '@/store/vibeStore';
 import { useContextStore } from '@/store/contextStore';
@@ -64,12 +64,41 @@ import {
   type SelectedTab,
 } from '@/components/Vibe';
 
-const { Title, Text } = Typography;
-const { Panel } = Collapse;
+// Result component for not found state
+function NotFoundResult({
+  onBack,
+}: {
+  onBack: () => void;
+}) {
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '80vh',
+        textAlign: 'center',
+      }}
+    >
+      <ErrorOutlineIcon sx={{ fontSize: 64, color: 'warning.main', mb: 2 }} />
+      <Typography variant="h5" gutterBottom>
+        Screen Not Found
+      </Typography>
+      <Typography color="text.secondary" sx={{ mb: 3 }}>
+        The screen you're looking for doesn't exist.
+      </Typography>
+      <Button variant="contained" onClick={onBack}>
+        Go to Screens
+      </Button>
+    </Box>
+  );
+}
 
 export const VibePrototyping: React.FC = () => {
   const { screenId, sessionId } = useParams<{ screenId: string; sessionId?: string }>();
   const navigate = useNavigate();
+  const { showSuccess, showError } = useSnackbar();
 
   // External stores
   const { getScreenById, initializeScreens, screens } = useScreensStore();
@@ -179,10 +208,10 @@ export const VibePrototyping: React.FC = () => {
     (
       role: ChatMessage['role'],
       content: string,
-      status?: ChatMessage['status'],
+      msgStatus?: ChatMessage['status'],
       metadata?: ChatMessage['metadata']
     ) => {
-      return addMessage({ role, content, status, metadata });
+      return addMessage({ role, content, status: msgStatus, metadata });
     },
     [addMessage]
   );
@@ -211,7 +240,7 @@ export const VibePrototyping: React.FC = () => {
         addChatMessage('user', prompt);
 
         // Update URL with session ID
-        navigate(`/vibe/${screenId}/${session.id}`, { replace: true });
+        navigate(`/prototypes/${screenId}/${session.id}`, { replace: true });
 
         // Add analyzing message
         const analyzingMsgId = addChatMessage(
@@ -295,7 +324,7 @@ export const VibePrototyping: React.FC = () => {
         const errorMsg = err instanceof Error ? err.message : 'Failed to generate plan';
         setError(errorMsg);
         addChatMessage('assistant', `Error: ${errorMsg}`, 'error');
-        message.error('Failed to generate variant plan');
+        showError('Failed to generate variant plan');
       }
     },
     [screen, screenId, sourceMetadata, contexts]
@@ -374,13 +403,13 @@ export const VibePrototyping: React.FC = () => {
       // Collapse plans section
       setExpandedSections([]);
 
-      message.success('All variants generated successfully!');
+      showSuccess('All variants generated successfully!');
     } catch (err) {
       console.error('Error generating variants:', err);
       const errorMsg = err instanceof Error ? err.message : 'Failed to generate variants';
       setError(errorMsg);
       addChatMessage('assistant', `Error generating variants: ${errorMsg}`, 'error');
-      message.error('Failed to generate variant code');
+      showError('Failed to generate variant code');
     }
   }, [currentSession, plan, screen, sourceMetadata]);
 
@@ -395,7 +424,7 @@ export const VibePrototyping: React.FC = () => {
         updatePlanItem(variantIndex, updates);
       } catch (err) {
         console.error('Error updating plan:', err);
-        message.error('Failed to update plan');
+        showError('Failed to update plan');
       }
     },
     [getPlanByIndex]
@@ -422,10 +451,10 @@ export const VibePrototyping: React.FC = () => {
           'complete',
           { variantIndex: index }
         );
-        message.success(`Variant ${index} selected as winner!`);
+        showSuccess(`Variant ${index} selected as winner!`);
       } catch (err) {
         console.error('Error selecting variant:', err);
-        message.error('Failed to select variant');
+        showError('Failed to select variant');
       }
     },
     [currentSession]
@@ -439,52 +468,48 @@ export const VibePrototyping: React.FC = () => {
     [setPreviewTab]
   );
 
+  // Handle section expansion
+  const handleSectionChange = (section: string) => (_: React.SyntheticEvent, isExpanded: boolean) => {
+    setExpandedSections((prev) =>
+      isExpanded ? [...prev, section] : prev.filter((s) => s !== section)
+    );
+  };
+
   // Loading state
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-        <Spin size="large" />
-      </div>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+        <CircularProgress size={48} />
+      </Box>
     );
   }
 
   // No screen found
   if (!screen) {
-    return (
-      <Result
-        status="404"
-        title="Screen Not Found"
-        subTitle="The screen you're looking for doesn't exist."
-        extra={
-          <Button type="primary" onClick={() => navigate('/screens')}>
-            Go to Screens
-          </Button>
-        }
-      />
-    );
+    return <NotFoundResult onBack={() => navigate('/repository/screens')} />;
   }
 
   // Preview modal variant
   const previewPlan = previewVariantIndex ? getPlanByIndex(previewVariantIndex) : null;
   const previewVariant = previewVariantIndex ? getVariantByIndex(previewVariantIndex) : null;
 
-  // Status badge
-  const getStatusBadge = () => {
+  // Status chip
+  const getStatusChip = () => {
     switch (status) {
       case 'analyzing':
-        return <Tag color="processing">Analyzing</Tag>;
+        return <Chip label="Analyzing" color="primary" size="small" />;
       case 'planning':
-        return <Tag color="processing">Planning</Tag>;
+        return <Chip label="Planning" color="primary" size="small" />;
       case 'plan_ready':
-        return <Tag color="warning">Review Plan</Tag>;
+        return <Chip label="Review Plan" color="warning" size="small" />;
       case 'generating':
-        return <Tag color="processing">Generating</Tag>;
+        return <Chip label="Generating" color="primary" size="small" />;
       case 'complete':
-        return <Tag color="success" icon={<CheckCircleOutlined />}>Complete</Tag>;
+        return <Chip label="Complete" color="success" size="small" icon={<CheckCircleIcon />} />;
       case 'failed':
-        return <Tag color="error">Failed</Tag>;
+        return <Chip label="Failed" color="error" size="small" />;
       default:
-        return <Tag>Ready</Tag>;
+        return <Chip label="Ready" size="small" variant="outlined" />;
     }
   };
 
@@ -493,84 +518,93 @@ export const VibePrototyping: React.FC = () => {
   const isGenerating = status === 'analyzing' || status === 'planning' || status === 'generating';
 
   return (
-    <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div
-        style={{
-          padding: '12px 24px',
-          borderBottom: '1px solid #f0f0f0',
+      <Box
+        sx={{
+          py: 1.5,
+          px: 3,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          backgroundColor: '#fff',
+          bgcolor: 'background.paper',
         }}
       >
-        <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/screens')}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate('/repository/screens')}
+          >
             Back
           </Button>
-          <div>
-            <Space align="center">
-              <ThunderboltOutlined style={{ fontSize: 20, color: '#764ba2' }} />
-              <Title level={4} style={{ marginBottom: 0 }}>
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <BoltIcon sx={{ fontSize: 20, color: 'primary.main' }} />
+              <Typography variant="h6" sx={{ mb: 0 }}>
                 Vibe Prototyping
-              </Title>
-              {getStatusBadge()}
-            </Space>
-            <div>
-              <Text type="secondary">{screen.name}</Text>
-            </div>
-          </div>
-        </Space>
+              </Typography>
+              {getStatusChip()}
+            </Box>
+            <Typography variant="body2" color="text.secondary">
+              {screen.name}
+            </Typography>
+          </Box>
+        </Box>
 
-        <Space>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <ModelSelector size="small" />
           {selectedVariantIndex && (
-            <Tag color="gold" icon={<CheckCircleOutlined />}>
-              Winner: Variant {selectedVariantIndex}
-            </Tag>
+            <Chip
+              label={`Winner: Variant ${selectedVariantIndex}`}
+              color="warning"
+              icon={<CheckCircleIcon />}
+            />
           )}
-          <Button icon={<SettingOutlined />} type="text" />
-        </Space>
-      </div>
+          <IconButton>
+            <SettingsIcon />
+          </IconButton>
+        </Box>
+      </Box>
 
       {/* Error Alert */}
       {error && (
         <Alert
-          type="error"
-          message="Error"
-          description={error}
-          showIcon
-          closable
+          severity="error"
           onClose={() => setError(null)}
-          style={{ margin: '8px 24px' }}
-        />
+          sx={{ mx: 3, mt: 1 }}
+        >
+          {error}
+        </Alert>
       )}
 
       {/* Variant Plans Section - Prominent when plans are ready */}
       {status === 'plan_ready' && plan && (
-        <div
-          style={{
-            padding: '12px 24px',
-            borderBottom: '1px solid #f0f0f0',
-            backgroundColor: '#fffbe6',
+        <Box
+          sx={{
+            py: 1.5,
+            px: 3,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'warning.lighter',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <Space>
-              <AppstoreOutlined style={{ color: '#faad14' }} />
-              <Text strong>Review Variant Plans</Text>
-              <Badge count={plan.plans.length} style={{ backgroundColor: '#1890ff' }} />
-              <Tag color="warning">Awaiting Approval</Tag>
-            </Space>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <AppsIcon sx={{ color: 'warning.main' }} />
+              <Typography fontWeight={600}>Review Variant Plans</Typography>
+              <Badge badgeContent={plan.plans.length} color="primary" />
+              <Chip label="Awaiting Approval" color="warning" size="small" />
+            </Box>
             <Button
-              type="primary"
+              variant="contained"
               onClick={handleApprovePlan}
-              icon={<ThunderboltOutlined />}
+              startIcon={<BoltIcon />}
             >
               Approve & Generate All
             </Button>
-          </div>
+          </Box>
           <PlanReviewGrid
             plans={plan.plans}
             onUpdatePlan={handleUpdatePlan}
@@ -580,14 +614,14 @@ export const VibePrototyping: React.FC = () => {
             modelInfo={{ model: plan.model, provider: plan.provider }}
             compact
           />
-        </div>
+        </Box>
       )}
 
       {/* Main Content - Split Panel */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Left - Screen Preview */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ flex: 1, padding: 16, overflow: 'hidden' }}>
+        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ flex: 1, p: 2, overflow: 'hidden' }}>
             <ScreenPreview
               sourceHtml={screen.editedHtml || null}
               variants={variants}
@@ -602,19 +636,20 @@ export const VibePrototyping: React.FC = () => {
               isGenerating={isGenerating}
               currentGeneratingIndex={progress?.variantIndex}
             />
-          </div>
-        </div>
+          </Box>
+        </Box>
 
         {/* Right - Chat Panel */}
-        <div
-          style={{
+        <Box
+          sx={{
             width: 400,
-            borderLeft: '1px solid #f0f0f0',
+            borderLeft: '1px solid',
+            borderColor: 'divider',
             display: 'flex',
             flexDirection: 'column',
           }}
         >
-          <div style={{ flex: 1, padding: 16, overflow: 'hidden' }}>
+          <Box sx={{ flex: 1, p: 2, overflow: 'hidden' }}>
             <ChatPanel
               messages={messages}
               onSendMessage={handleSendMessage}
@@ -626,73 +661,74 @@ export const VibePrototyping: React.FC = () => {
                   : 'Describe your design changes...'
               }
             />
-          </div>
-        </div>
-      </div>
+          </Box>
+        </Box>
+      </Box>
 
       {/* Bottom - Expandable Sections */}
-      <div style={{ borderTop: '1px solid #f0f0f0', backgroundColor: '#fafafa' }}>
-        <Collapse
-          activeKey={expandedSections}
-          onChange={(keys) => setExpandedSections(keys as string[])}
-          ghost
-          style={{ borderRadius: 0 }}
-        >
-          {/* Variant Plans - Only show in collapsed section after approval */}
-          {plan && status !== 'plan_ready' && (
-            <Panel
-              key="plans"
-              header={
-                <Space>
-                  <AppstoreOutlined />
-                  <span>Variant Plans</span>
-                  <Badge count={plan.plans.length} style={{ backgroundColor: '#1890ff' }} />
-                  {currentSession?.plan_approved && (
-                    <Tag color="success" icon={<CheckCircleOutlined />}>Approved</Tag>
-                  )}
-                </Space>
-              }
-            >
-              <div style={{ padding: '8px 0' }}>
-                <PlanReviewGrid
-                  plans={plan.plans}
-                  onUpdatePlan={handleUpdatePlan}
-                  onApprove={handleApprovePlan}
-                  onRegenerate={handleRegeneratePlan}
-                  isApproved={currentSession?.plan_approved}
-                  modelInfo={{ model: plan.model, provider: plan.provider }}
-                  compact
-                />
-              </div>
-            </Panel>
-          )}
-
-          {/* Source Analysis */}
-          <Panel
-            key="analysis"
-            header={
-              <Space>
-                <FileSearchOutlined />
-                <span>Source Analysis</span>
-                {sourceMetadata && (
-                  <Tag color="green">
-                    {sourceMetadata.components.length} components
-                  </Tag>
-                )}
-              </Space>
-            }
+      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', bgcolor: 'grey.50' }}>
+        {/* Variant Plans - Only show in collapsed section after approval */}
+        {plan && status !== 'plan_ready' && (
+          <Accordion
+            expanded={expandedSections.includes('plans')}
+            onChange={handleSectionChange('plans')}
+            disableGutters
+            sx={{ '&:before': { display: 'none' } }}
           >
-            <div style={{ padding: '8px 0', maxHeight: 300, overflow: 'auto' }}>
-              <SourceAnalysisPanel
-                sourceHtml={screen.editedHtml || null}
-                metadata={sourceMetadata}
-                isAnalyzing={status === 'analyzing'}
-                analysisMessage={progress?.message}
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <AppsIcon />
+                <Typography>Variant Plans</Typography>
+                <Badge badgeContent={plan.plans.length} color="primary" />
+                {currentSession?.plan_approved && (
+                  <Chip label="Approved" color="success" size="small" icon={<CheckCircleIcon />} />
+                )}
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails sx={{ py: 1 }}>
+              <PlanReviewGrid
+                plans={plan.plans}
+                onUpdatePlan={handleUpdatePlan}
+                onApprove={handleApprovePlan}
+                onRegenerate={handleRegeneratePlan}
+                isApproved={currentSession?.plan_approved}
+                modelInfo={{ model: plan.model, provider: plan.provider }}
+                compact
               />
-            </div>
-          </Panel>
-        </Collapse>
-      </div>
+            </AccordionDetails>
+          </Accordion>
+        )}
+
+        {/* Source Analysis */}
+        <Accordion
+          expanded={expandedSections.includes('analysis')}
+          onChange={handleSectionChange('analysis')}
+          disableGutters
+          sx={{ '&:before': { display: 'none' } }}
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <FindInPageIcon />
+              <Typography>Source Analysis</Typography>
+              {sourceMetadata && (
+                <Chip
+                  label={`${sourceMetadata.components.length} components`}
+                  color="success"
+                  size="small"
+                />
+              )}
+            </Box>
+          </AccordionSummary>
+          <AccordionDetails sx={{ py: 1, maxHeight: 300, overflow: 'auto' }}>
+            <SourceAnalysisPanel
+              sourceHtml={screen.editedHtml || null}
+              metadata={sourceMetadata}
+              isAnalyzing={status === 'analyzing'}
+              analysisMessage={progress?.message}
+            />
+          </AccordionDetails>
+        </Accordion>
+      </Box>
 
       {/* Preview Modal */}
       <VariantPreviewModal
@@ -703,7 +739,7 @@ export const VibePrototyping: React.FC = () => {
         onSelect={() => previewVariantIndex && handleSelectVariant(previewVariantIndex)}
         isSelected={selectedVariantIndex === previewVariantIndex}
       />
-    </div>
+    </Box>
   );
 };
 

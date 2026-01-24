@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Spin } from 'antd';
+import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
+import Typography from '@mui/material/Typography';
 import { supabase } from '@/services/supabase';
 
 export function AuthCallback() {
@@ -25,16 +27,18 @@ export function AuthCallback() {
   }, [navigate]);
 
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      height: '100vh',
-      flexDirection: 'column',
-      gap: 16
-    }}>
-      <Spin size="large" />
-      <span>Completing sign in...</span>
-    </div>
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        flexDirection: 'column',
+        gap: 2,
+      }}
+    >
+      <CircularProgress size={48} />
+      <Typography color="text.secondary">Completing sign in...</Typography>
+    </Box>
   );
 }
