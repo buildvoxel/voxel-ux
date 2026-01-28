@@ -4,13 +4,15 @@ import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
-import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
-import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
-import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
-import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
-import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
-import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import {
+  House,
+  Flask,
+  Folder,
+  Brain,
+  ChartLine,
+  Plug,
+  Gear,
+} from '@phosphor-icons/react';
 import { useThemeStore, useBackgroundStyle } from '@/store/themeStore';
 
 const SIDEBAR_WIDTH = 48;
@@ -22,13 +24,13 @@ interface SidebarItem {
 }
 
 const sidebarItems: SidebarItem[] = [
-  { icon: <HomeOutlinedIcon />, label: 'Home', path: '/' },
-  { icon: <ScienceOutlinedIcon />, label: 'Prototypes', path: '/prototypes' },
-  { icon: <FolderOutlinedIcon />, label: 'Repository', path: '/repository/screens' },
-  { icon: <DescriptionOutlinedIcon />, label: 'Context', path: '/context' },
-  { icon: <InsightsOutlinedIcon />, label: 'Insights', path: '/insights' },
-  { icon: <ExtensionOutlinedIcon />, label: 'Integrations', path: '/integrations' },
-  { icon: <SettingsOutlinedIcon />, label: 'Settings', path: '/settings' },
+  { icon: <House size={20} />, label: 'Home', path: '/' },
+  { icon: <Flask size={20} />, label: 'Prototypes', path: '/prototypes' },
+  { icon: <Folder size={20} />, label: 'Repository', path: '/repository/screens' },
+  { icon: <Brain size={20} />, label: 'Context', path: '/context' },
+  { icon: <ChartLine size={20} />, label: 'Insights', path: '/insights' },
+  { icon: <Plug size={20} />, label: 'Integrations', path: '/integrations' },
+  { icon: <Gear size={20} />, label: 'Settings', path: '/settings' },
 ];
 
 export function VibeLayout() {
@@ -81,7 +83,7 @@ export function VibeLayout() {
           }}
           onClick={() => navigate('/')}
         >
-          <ScienceOutlinedIcon sx={{ color: 'white', fontSize: 18 }} />
+          <Flask size={18} color="white" weight="duotone" />
         </Box>
         <Divider sx={{ width: '80%', borderColor: 'rgba(255,255,255,0.1)', mb: 1 }} />
 

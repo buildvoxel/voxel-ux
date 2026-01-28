@@ -2,7 +2,7 @@ import { Outlet } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
-import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
+import { Flask } from '@phosphor-icons/react';
 import { useThemeStore, useBackgroundStyle } from '@/store/themeStore';
 
 export function AuthLayout() {
@@ -24,9 +24,9 @@ export function AuthLayout() {
         elevation={0}
         sx={{
           width: '100%',
-          maxWidth: 400,
-          p: 4,
-          borderRadius: 3,
+          maxWidth: 380,
+          p: 3,
+          borderRadius: 1.5,
           border: `1px solid ${config.colors.border}`,
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
         }}
@@ -48,7 +48,7 @@ export function AuthLayout() {
               mb: 2,
             }}
           >
-            <ScienceOutlinedIcon sx={{ color: 'white', fontSize: 24 }} />
+            <Flask size={24} color="white" weight="duotone" />
           </Box>
           <Typography
             variant="h4"

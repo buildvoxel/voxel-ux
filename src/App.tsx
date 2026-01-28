@@ -2,10 +2,10 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import CircularProgress from '@mui/material/CircularProgress';
+import Skeleton from '@mui/material/Skeleton';
 import Box from '@mui/material/Box';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SnackbarProvider } from '@/components/SnackbarProvider';
+import { SnackbarProvider, CommandPalette } from '@/components';
 import { AppLayout, AuthLayout, VibeLayout } from '@/layouts';
 import {
   Login,
@@ -67,15 +67,36 @@ function App() {
     return (
       <ThemeProvider theme={config.muiTheme}>
         <CssBaseline />
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '100vh',
-          }}
-        >
-          <CircularProgress />
+        <Box sx={{ display: 'flex', height: '100vh' }}>
+          {/* Sidebar skeleton */}
+          <Box sx={{ width: 220, bgcolor: 'grey.900', p: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+              <Skeleton variant="rounded" width={32} height={32} sx={{ bgcolor: 'grey.800' }} />
+              <Skeleton variant="text" width={80} height={24} sx={{ bgcolor: 'grey.800' }} />
+            </Box>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Skeleton
+                key={i}
+                variant="rounded"
+                width="100%"
+                height={36}
+                sx={{ mb: 1, bgcolor: 'grey.800' }}
+              />
+            ))}
+          </Box>
+          {/* Main content skeleton */}
+          <Box sx={{ flex: 1, p: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+              <Skeleton variant="text" width={200} height={40} />
+              <Skeleton variant="rounded" width={36} height={36} />
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} variant="rounded" width="25%" height={80} />
+              ))}
+            </Box>
+            <Skeleton variant="rounded" width="100%" height={300} />
+          </Box>
         </Box>
       </ThemeProvider>
     );
@@ -87,6 +108,7 @@ function App() {
         <CssBaseline />
         <SnackbarProvider>
           <BrowserRouter>
+            <CommandPalette />
             <Routes>
               {/* Auth routes */}
               <Route

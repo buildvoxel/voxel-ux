@@ -93,7 +93,7 @@ export const muiTheme = createTheme({
     },
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: 4,
   },
   typography: {
     fontFamily: voxelFonts.body,
@@ -188,6 +188,10 @@ export const muiTheme = createTheme({
           `,
           backgroundSize: '24px 24px',
         },
+        // Global smooth transitions (Linear-style)
+        '*, *::before, *::after': {
+          transition: 'background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease, transform 150ms ease',
+        },
       },
     },
     MuiButton: {
@@ -195,13 +199,23 @@ export const muiTheme = createTheme({
         root: {
           textTransform: 'none',
           fontWeight: 500,
-          borderRadius: 8,
-          padding: '0.625rem 1.25rem',
+          borderRadius: 6,
+          padding: '6px 12px',
+          fontSize: '0.8125rem',
+          transition: 'all 150ms ease',
+        },
+        sizeSmall: {
+          padding: '4px 10px',
+          fontSize: '0.75rem',
         },
         contained: {
           boxShadow: 'none',
           '&:hover': {
             boxShadow: 'none',
+            transform: 'translateY(-1px)',
+          },
+          '&:active': {
+            transform: 'translateY(0)',
           },
         },
         containedPrimary: {
@@ -217,18 +231,18 @@ export const muiTheme = createTheme({
           },
         },
         outlined: {
-          borderColor: voxelColors.border,
+          borderColor: 'rgba(0, 0, 0, 0.12)',
           color: voxelColors.textPrimary,
           '&:hover': {
-            borderColor: voxelColors.primary,
-            backgroundColor: voxelColors.bgSecondary,
+            borderColor: 'rgba(0, 0, 0, 0.24)',
+            backgroundColor: 'rgba(0, 0, 0, 0.04)',
           },
         },
         text: {
-          color: voxelColors.primary,
+          color: voxelColors.textSecondary,
           '&:hover': {
-            backgroundColor: voxelColors.bgPrimary,
-            color: voxelColors.primaryDark,
+            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+            color: voxelColors.textPrimary,
           },
         },
       },
@@ -240,9 +254,33 @@ export const muiTheme = createTheme({
       styleOverrides: {
         root: {
           backgroundColor: voxelColors.surface,
-          border: `1px solid ${voxelColors.border}`,
-          borderRadius: 12,
-          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+          borderRadius: 8,
+          boxShadow: 'none',
+          transition: 'border-color 150ms ease, box-shadow 150ms ease',
+          '&:hover': {
+            borderColor: 'rgba(0, 0, 0, 0.16)',
+          },
+        },
+      },
+    },
+    MuiCardActionArea: {
+      styleOverrides: {
+        root: {
+          transition: 'background-color 150ms ease',
+          '&:hover': {
+            backgroundColor: 'rgba(0, 0, 0, 0.02)',
+          },
+        },
+      },
+    },
+    MuiCardContent: {
+      styleOverrides: {
+        root: {
+          padding: '16px',
+          '&:last-child': {
+            paddingBottom: '16px',
+          },
         },
       },
     },
@@ -303,15 +341,19 @@ export const muiTheme = createTheme({
         root: {
           '& .MuiOutlinedInput-root': {
             backgroundColor: voxelColors.surface,
+            borderRadius: 6,
+            transition: 'all 150ms ease',
             '& fieldset': {
-              borderColor: voxelColors.border,
+              borderColor: 'rgba(0, 0, 0, 0.12)',
+              transition: 'border-color 150ms ease',
             },
             '&:hover fieldset': {
-              borderColor: voxelColors.primary,
+              borderColor: 'rgba(0, 0, 0, 0.24)',
             },
             '&.Mui-focused fieldset': {
               borderColor: voxelColors.primary,
-              boxShadow: `0 0 0 3px rgba(184, 134, 11, 0.1)`,
+              borderWidth: 1,
+              boxShadow: `0 0 0 3px rgba(184, 134, 11, 0.08)`,
             },
           },
         },
@@ -320,14 +362,16 @@ export const muiTheme = createTheme({
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
+          borderRadius: 6,
           '& fieldset': {
-            borderColor: voxelColors.border,
+            borderColor: 'rgba(0, 0, 0, 0.12)',
           },
           '&:hover fieldset': {
-            borderColor: voxelColors.primary,
+            borderColor: 'rgba(0, 0, 0, 0.24)',
           },
           '&.Mui-focused fieldset': {
             borderColor: voxelColors.primary,
+            borderWidth: 1,
           },
         },
       },
@@ -336,20 +380,81 @@ export const muiTheme = createTheme({
       styleOverrides: {
         paper: {
           borderRadius: 12,
-          border: `1px solid ${voxelColors.border}`,
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 16px 70px rgba(0, 0, 0, 0.15)',
           backgroundImage: 'none',
+        },
+      },
+    },
+    MuiDialogTitle: {
+      styleOverrides: {
+        root: {
+          padding: '16px 20px 12px',
+          fontSize: '1rem',
+          fontWeight: 600,
+        },
+      },
+    },
+    MuiDialogContent: {
+      styleOverrides: {
+        root: {
+          padding: '12px 20px',
+        },
+      },
+    },
+    MuiDialogActions: {
+      styleOverrides: {
+        root: {
+          padding: '12px 20px 16px',
+          gap: 8,
         },
       },
     },
     MuiListItemButton: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 6,
+          padding: '6px 12px',
+          transition: 'background-color 150ms ease',
+          '&:hover': {
+            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+          },
           '&.Mui-selected': {
-            backgroundColor: 'rgba(184, 134, 11, 0.15)',
+            backgroundColor: 'rgba(184, 134, 11, 0.1)',
             '&:hover': {
-              backgroundColor: 'rgba(184, 134, 11, 0.2)',
+              backgroundColor: 'rgba(184, 134, 11, 0.15)',
             },
+          },
+        },
+      },
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          borderRadius: 4,
+          margin: '2px 4px',
+          padding: '6px 8px',
+          fontSize: '0.875rem',
+          transition: 'background-color 150ms ease',
+          '&:hover': {
+            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+          },
+          '&.Mui-selected': {
+            backgroundColor: 'rgba(184, 134, 11, 0.1)',
+            '&:hover': {
+              backgroundColor: 'rgba(184, 134, 11, 0.15)',
+            },
+          },
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 6,
+          transition: 'background-color 150ms ease, color 150ms ease',
+          '&:hover': {
+            backgroundColor: 'rgba(0, 0, 0, 0.04)',
           },
         },
       },
@@ -386,9 +491,20 @@ export const muiTheme = createTheme({
     MuiMenu: {
       styleOverrides: {
         paper: {
-          border: `1px solid ${voxelColors.border}`,
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          borderRadius: 8,
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 4px 24px rgba(0, 0, 0, 0.12)',
           backgroundImage: 'none',
+          padding: '4px',
+        },
+      },
+    },
+    MuiPopover: {
+      styleOverrides: {
+        paper: {
+          borderRadius: 8,
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 4px 24px rgba(0, 0, 0, 0.12)',
         },
       },
     },

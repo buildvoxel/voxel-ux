@@ -7,8 +7,7 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
-import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
-import CheckOutlinedIcon from '@mui/icons-material/CheckOutlined';
+import { Palette, Check } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { useThemeStore } from '@/store/themeStore';
 import type { ThemeMode } from '@/store/themeStore';
@@ -56,7 +55,7 @@ export function ThemeToggle() {
             '&:hover': { color: config.colors.primary },
           }}
         >
-          <PaletteOutlinedIcon />
+          <Palette size={20} />
         </IconButton>
       </Tooltip>
       <Menu
@@ -89,9 +88,9 @@ export function ThemeToggle() {
           >
             <ListItemIcon>
               {mode === option.mode ? (
-                <CheckOutlinedIcon fontSize="small" color="primary" />
+                <Check size={18} color={config.colors.primary} weight="bold" />
               ) : (
-                <Box sx={{ width: 20 }} />
+                <Box sx={{ width: 18 }} />
               )}
             </ListItemIcon>
             <ListItemText

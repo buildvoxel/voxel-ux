@@ -20,14 +20,16 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
-import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
-import MoreVertOutlinedIcon from '@mui/icons-material/MoreVertOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
-import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
-import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
-import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
+import {
+  Plus,
+  MagnifyingGlass,
+  DotsThreeVertical,
+  PencilSimple,
+  Trash,
+  ShareNetwork,
+  Copy,
+  Flask,
+} from '@phosphor-icons/react';
 import { EmptyState } from '@/components';
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { useThemeStore } from '@/store/themeStore';
@@ -159,7 +161,7 @@ export function Prototypes() {
         </Typography>
         <Button
           variant="contained"
-          startIcon={<AddOutlinedIcon />}
+          startIcon={<Plus size={18} />}
           onClick={() => setCreateDialogOpen(true)}
         >
           New Prototype
@@ -177,7 +179,7 @@ export function Prototypes() {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchOutlinedIcon fontSize="small" sx={{ color: config.colors.textSecondary }} />
+                <MagnifyingGlass size={18} color={config.colors.textSecondary} />
               </InputAdornment>
             ),
           }}
@@ -218,7 +220,7 @@ export function Prototypes() {
                       position: 'relative',
                     }}
                   >
-                    <ScienceOutlinedIcon sx={{ fontSize: 48, color: config.colors.primary, opacity: 0.6 }} />
+                    <Flask size={48} color={config.colors.primary} style={{ opacity: 0.6 }} />
                     <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
                       <Chip
                         label={prototype.status}
@@ -246,7 +248,7 @@ export function Prototypes() {
                       onClick={(e) => handleMenuOpen(e, prototype)}
                       sx={{ color: config.colors.textSecondary }}
                     >
-                      <MoreVertOutlinedIcon fontSize="small" />
+                      <DotsThreeVertical size={18} />
                     </IconButton>
                   </Box>
                 </CardContent>
@@ -263,19 +265,19 @@ export function Prototypes() {
         onClose={handleMenuClose}
       >
         <MenuItem onClick={() => { handleMenuClose(); navigate(`/prototypes/${selectedPrototype?.id}`); }}>
-          <ListItemIcon><EditOutlinedIcon fontSize="small" sx={{ color: config.colors.textSecondary }} /></ListItemIcon>
+          <ListItemIcon><PencilSimple size={18} color={config.colors.textSecondary} /></ListItemIcon>
           Edit
         </MenuItem>
         <MenuItem onClick={handleMenuClose}>
-          <ListItemIcon><ContentCopyOutlinedIcon fontSize="small" sx={{ color: config.colors.textSecondary }} /></ListItemIcon>
+          <ListItemIcon><Copy size={18} color={config.colors.textSecondary} /></ListItemIcon>
           Duplicate
         </MenuItem>
         <MenuItem onClick={handleMenuClose}>
-          <ListItemIcon><ShareOutlinedIcon fontSize="small" sx={{ color: config.colors.textSecondary }} /></ListItemIcon>
+          <ListItemIcon><ShareNetwork size={18} color={config.colors.textSecondary} /></ListItemIcon>
           Share
         </MenuItem>
         <MenuItem onClick={handleMenuClose} sx={{ color: config.colors.error }}>
-          <ListItemIcon><DeleteOutlinedIcon fontSize="small" sx={{ color: config.colors.error }} /></ListItemIcon>
+          <ListItemIcon><Trash size={18} color={config.colors.error} /></ListItemIcon>
           Delete
         </MenuItem>
       </Menu>

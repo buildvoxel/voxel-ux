@@ -16,21 +16,23 @@ import Avatar from '@mui/material/Avatar';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Collapse from '@mui/material/Collapse';
-import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
-import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
-import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
-import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
-import WidgetsOutlinedIcon from '@mui/icons-material/WidgetsOutlined';
-import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
-import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
-import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
-import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined';
-import ChevronLeftOutlinedIcon from '@mui/icons-material/ChevronLeftOutlined';
-import ExpandLessOutlinedIcon from '@mui/icons-material/ExpandLessOutlined';
-import ExpandMoreOutlinedIcon from '@mui/icons-material/ExpandMoreOutlined';
-import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
-import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
+import {
+  House,
+  Flask,
+  Folder,
+  Browser,
+  SquaresFour,
+  Brain,
+  ChartLine,
+  Plug,
+  Gear,
+  List as ListIcon,
+  CaretLeft,
+  CaretUp,
+  CaretDown,
+  SignOut,
+  User,
+} from '@phosphor-icons/react';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore, useBackgroundStyle } from '@/store/themeStore';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -46,20 +48,20 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Home', path: '/', icon: <HomeOutlinedIcon /> },
-  { label: 'Prototypes', path: '/prototypes', icon: <ScienceOutlinedIcon /> },
+  { label: 'Home', path: '/', icon: <House size={20} /> },
+  { label: 'Prototypes', path: '/prototypes', icon: <Flask size={20} /> },
   {
     label: 'Repository',
-    icon: <FolderOutlinedIcon />,
+    icon: <Folder size={20} />,
     children: [
-      { label: 'Screens', path: '/repository/screens', icon: <ImageOutlinedIcon /> },
-      { label: 'Components', path: '/repository/components', icon: <WidgetsOutlinedIcon /> },
+      { label: 'Screens', path: '/repository/screens', icon: <Browser size={18} /> },
+      { label: 'Components', path: '/repository/components', icon: <SquaresFour size={18} /> },
     ],
   },
-  { label: 'Product Context', path: '/context', icon: <DescriptionOutlinedIcon /> },
-  { label: 'Insights', path: '/insights', icon: <InsightsOutlinedIcon /> },
-  { label: 'Integrations', path: '/integrations', icon: <ExtensionOutlinedIcon /> },
-  { label: 'Settings', path: '/settings', icon: <SettingsOutlinedIcon /> },
+  { label: 'Product Context', path: '/context', icon: <Brain size={20} /> },
+  { label: 'Insights', path: '/insights', icon: <ChartLine size={20} /> },
+  { label: 'Integrations', path: '/integrations', icon: <Plug size={20} /> },
+  { label: 'Settings', path: '/settings', icon: <Gear size={20} /> },
 ];
 
 export function AppLayout() {
@@ -150,7 +152,7 @@ export function AppLayout() {
               flexShrink: 0,
             }}
           >
-            <ScienceOutlinedIcon sx={{ color: 'white', fontSize: 18 }} />
+            <Flask size={18} color="white" weight="duotone" />
           </Box>
           {!collapsed && (
             <Typography
@@ -215,7 +217,7 @@ export function AppLayout() {
                             }}
                           />
                           <Box sx={{ color: navTextColor }}>
-                            {repositoryOpen ? <ExpandLessOutlinedIcon fontSize="small" /> : <ExpandMoreOutlinedIcon fontSize="small" />}
+                            {repositoryOpen ? <CaretUp size={16} /> : <CaretDown size={16} />}
                           </Box>
                         </>
                       )}
@@ -317,7 +319,7 @@ export function AppLayout() {
             size="small"
             sx={{ color: navTextColor, '&:hover': { color: navActiveTextColor } }}
           >
-            {collapsed ? <MenuOutlinedIcon /> : <ChevronLeftOutlinedIcon />}
+            {collapsed ? <ListIcon size={20} /> : <CaretLeft size={20} />}
           </IconButton>
         </Box>
       </Drawer>
@@ -376,13 +378,13 @@ export function AppLayout() {
               <Divider />
               <MenuItem onClick={() => { handleUserMenuClose(); navigate('/settings'); }}>
                 <ListItemIcon>
-                  <PersonOutlinedIcon fontSize="small" sx={{ color: config.colors.textSecondary }} />
+                  <User size={18} color={config.colors.textSecondary} />
                 </ListItemIcon>
                 Settings
               </MenuItem>
               <MenuItem onClick={handleLogout}>
                 <ListItemIcon>
-                  <LogoutOutlinedIcon fontSize="small" sx={{ color: config.colors.textSecondary }} />
+                  <SignOut size={18} color={config.colors.textSecondary} />
                 </ListItemIcon>
                 Logout
               </MenuItem>

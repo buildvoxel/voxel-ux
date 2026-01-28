@@ -111,7 +111,7 @@ export const modernGradientTheme = createTheme({
     },
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: 4,
   },
   typography: {
     fontFamily: modernFonts.body,
@@ -204,6 +204,10 @@ export const modernGradientTheme = createTheme({
           // Gradient mesh background
           backgroundImage: modernGradients.meshSubtle,
         },
+        // Global smooth transitions (Linear-style)
+        '*, *::before, *::after': {
+          transition: 'background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease, transform 150ms ease, box-shadow 150ms ease',
+        },
       },
     },
     MuiButton: {
@@ -211,14 +215,23 @@ export const modernGradientTheme = createTheme({
         root: {
           textTransform: 'none',
           fontWeight: 600,
-          borderRadius: 8,
-          padding: '0.75rem 1.5rem',
+          borderRadius: 6,
+          padding: '6px 12px',
+          fontSize: '0.8125rem',
+          transition: 'all 150ms ease',
+        },
+        sizeSmall: {
+          padding: '4px 10px',
+          fontSize: '0.75rem',
         },
         contained: {
-          boxShadow: `0 2px 8px rgba(13, 148, 136, 0.3)`,
+          boxShadow: 'none',
           '&:hover': {
-            boxShadow: `0 4px 16px rgba(13, 148, 136, 0.4)`,
+            boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)',
             transform: 'translateY(-1px)',
+          },
+          '&:active': {
+            transform: 'translateY(0)',
           },
         },
         containedPrimary: {
@@ -229,27 +242,26 @@ export const modernGradientTheme = createTheme({
         },
         containedSecondary: {
           background: modernGradients.violet,
-          boxShadow: `0 2px 8px rgba(124, 58, 237, 0.3)`,
           '&:hover': {
             background: `linear-gradient(135deg, ${modernColors.secondaryBright} 0%, ${modernColors.secondaryLight} 100%)`,
-            boxShadow: `0 4px 16px rgba(124, 58, 237, 0.4)`,
+            boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)',
           },
         },
         outlined: {
-          borderColor: modernColors.border,
-          borderWidth: 2,
+          borderColor: 'rgba(0, 0, 0, 0.12)',
+          borderWidth: 1,
           color: modernColors.textPrimary,
           '&:hover': {
-            borderColor: modernColors.primary,
-            backgroundColor: modernColors.bgSecondary,
-            borderWidth: 2,
+            borderColor: 'rgba(0, 0, 0, 0.24)',
+            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+            borderWidth: 1,
           },
         },
         text: {
-          color: modernColors.primary,
+          color: modernColors.textSecondary,
           '&:hover': {
-            backgroundColor: `rgba(20, 184, 166, 0.1)`,
-            color: modernColors.primaryDark,
+            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+            color: modernColors.textPrimary,
           },
         },
       },
@@ -261,13 +273,32 @@ export const modernGradientTheme = createTheme({
       styleOverrides: {
         root: {
           backgroundColor: modernColors.surface,
-          border: `1px solid ${modernColors.border}`,
-          borderRadius: 16,
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-          transition: 'all 0.2s ease',
+          border: '1px solid rgba(0, 0, 0, 0.06)',
+          borderRadius: 8,
+          boxShadow: 'none',
+          transition: 'border-color 150ms ease, box-shadow 150ms ease',
           '&:hover': {
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
-            transform: 'translateY(-2px)',
+            borderColor: 'rgba(0, 0, 0, 0.12)',
+          },
+        },
+      },
+    },
+    MuiCardActionArea: {
+      styleOverrides: {
+        root: {
+          transition: 'background-color 150ms ease',
+          '&:hover': {
+            backgroundColor: 'rgba(0, 0, 0, 0.02)',
+          },
+        },
+      },
+    },
+    MuiCardContent: {
+      styleOverrides: {
+        root: {
+          padding: '16px',
+          '&:last-child': {
+            paddingBottom: '16px',
           },
         },
       },
@@ -283,7 +314,12 @@ export const modernGradientTheme = createTheme({
       styleOverrides: {
         root: {
           fontWeight: 600,
-          borderRadius: 9999,
+          borderRadius: 4,
+          height: '24px',
+        },
+        sizeSmall: {
+          height: '20px',
+          fontSize: '0.6875rem',
         },
         colorPrimary: {
           background: `linear-gradient(135deg, rgba(20, 184, 166, 0.15) 0%, rgba(45, 212, 191, 0.15) 100%)`,
@@ -333,16 +369,20 @@ export const modernGradientTheme = createTheme({
         root: {
           '& .MuiOutlinedInput-root': {
             backgroundColor: modernColors.surface,
+            borderRadius: 6,
+            transition: 'all 150ms ease',
             '& fieldset': {
-              borderColor: modernColors.border,
-              borderWidth: 2,
+              borderColor: 'rgba(0, 0, 0, 0.12)',
+              borderWidth: 1,
+              transition: 'border-color 150ms ease',
             },
             '&:hover fieldset': {
-              borderColor: modernColors.primary,
+              borderColor: 'rgba(0, 0, 0, 0.24)',
             },
             '&.Mui-focused fieldset': {
               borderColor: modernColors.primary,
-              boxShadow: `0 0 0 4px rgba(20, 184, 166, 0.15)`,
+              borderWidth: 1,
+              boxShadow: `0 0 0 3px rgba(20, 184, 166, 0.1)`,
             },
           },
         },
@@ -351,15 +391,17 @@ export const modernGradientTheme = createTheme({
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
+          borderRadius: 6,
           '& fieldset': {
-            borderColor: modernColors.border,
-            borderWidth: 2,
+            borderColor: 'rgba(0, 0, 0, 0.12)',
+            borderWidth: 1,
           },
           '&:hover fieldset': {
-            borderColor: modernColors.primary,
+            borderColor: 'rgba(0, 0, 0, 0.24)',
           },
           '&.Mui-focused fieldset': {
             borderColor: modernColors.primary,
+            borderWidth: 1,
           },
         },
       },
@@ -367,21 +409,82 @@ export const modernGradientTheme = createTheme({
     MuiDialog: {
       styleOverrides: {
         paper: {
-          borderRadius: 16,
-          border: `1px solid ${modernColors.border}`,
+          borderRadius: 12,
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 16px 70px rgba(0, 0, 0, 0.15)',
           backgroundImage: 'none',
+        },
+      },
+    },
+    MuiDialogTitle: {
+      styleOverrides: {
+        root: {
+          padding: '16px 20px 12px',
+          fontSize: '1rem',
+          fontWeight: 600,
+        },
+      },
+    },
+    MuiDialogContent: {
+      styleOverrides: {
+        root: {
+          padding: '12px 20px',
+        },
+      },
+    },
+    MuiDialogActions: {
+      styleOverrides: {
+        root: {
+          padding: '12px 20px 16px',
+          gap: 8,
         },
       },
     },
     MuiListItemButton: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 6,
+          padding: '6px 12px',
+          transition: 'background-color 150ms ease',
+          '&:hover': {
+            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+          },
           '&.Mui-selected': {
-            backgroundColor: 'rgba(20, 184, 166, 0.2)',
+            backgroundColor: 'rgba(20, 184, 166, 0.1)',
             '&:hover': {
-              backgroundColor: 'rgba(20, 184, 166, 0.25)',
+              backgroundColor: 'rgba(20, 184, 166, 0.15)',
             },
+          },
+        },
+      },
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          borderRadius: 4,
+          margin: '2px 4px',
+          padding: '6px 8px',
+          fontSize: '0.875rem',
+          transition: 'background-color 150ms ease',
+          '&:hover': {
+            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+          },
+          '&.Mui-selected': {
+            backgroundColor: 'rgba(20, 184, 166, 0.1)',
+            '&:hover': {
+              backgroundColor: 'rgba(20, 184, 166, 0.15)',
+            },
+          },
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 6,
+          transition: 'background-color 150ms ease, color 150ms ease',
+          '&:hover': {
+            backgroundColor: 'rgba(0, 0, 0, 0.04)',
           },
         },
       },
@@ -422,9 +525,20 @@ export const modernGradientTheme = createTheme({
     MuiMenu: {
       styleOverrides: {
         paper: {
-          border: `1px solid ${modernColors.border}`,
-          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+          borderRadius: 8,
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 4px 24px rgba(0, 0, 0, 0.12)',
           backgroundImage: 'none',
+          padding: '4px',
+        },
+      },
+    },
+    MuiPopover: {
+      styleOverrides: {
+        paper: {
+          borderRadius: 8,
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+          boxShadow: '0 4px 24px rgba(0, 0, 0, 0.12)',
         },
       },
     },

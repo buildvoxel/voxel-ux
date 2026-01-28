@@ -8,11 +8,7 @@ import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
-import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
-import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
-import RocketLaunchOutlinedIcon from '@mui/icons-material/RocketLaunchOutlined';
-import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import { Plus, TrendUp, Rocket, Flask, Eye } from '@phosphor-icons/react';
 import { StatCard } from '@/components';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
@@ -126,7 +122,7 @@ export function Home() {
           <StatCard
             title="Total Prototypes"
             value={12}
-            icon={<ScienceOutlinedIcon />}
+            icon={<Flask size={20} />}
             trend={{ direction: 'up', value: 8 }}
           />
         </Grid>
@@ -134,7 +130,7 @@ export function Home() {
           <StatCard
             title="Total Views"
             value="2.4K"
-            icon={<VisibilityOutlinedIcon />}
+            icon={<Eye size={20} />}
             trend={{ direction: 'up', value: 12.5 }}
           />
         </Grid>
@@ -142,14 +138,14 @@ export function Home() {
           <StatCard
             title="Shared"
             value={5}
-            icon={<TrendingUpOutlinedIcon />}
+            icon={<TrendUp size={20} />}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Deployed"
             value={3}
-            icon={<RocketLaunchOutlinedIcon />}
+            icon={<Rocket size={20} />}
             color={config.colors.success}
           />
         </Grid>
@@ -173,7 +169,7 @@ export function Home() {
                 </Typography>
                 <Button
                   variant="contained"
-                  startIcon={<AddOutlinedIcon />}
+                  startIcon={<Plus size={18} />}
                   size="small"
                   onClick={() => navigate('/prototypes')}
                 >
@@ -198,7 +194,7 @@ export function Home() {
                               justifyContent: 'center',
                             }}
                           >
-                            <ScienceOutlinedIcon sx={{ color: config.colors.primary }} />
+                            <Flask size={20} color={config.colors.primary} />
                           </Box>
                           <Box>
                             <Typography variant="subtitle1" fontWeight={500}>
@@ -268,7 +264,7 @@ export function Home() {
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <TrendingUpOutlinedIcon sx={{ fontSize: 16, color: config.colors.success }} />
+                      <TrendUp size={16} color={config.colors.success} />
                       <Typography variant="body2" sx={{ color: config.colors.success, fontWeight: 600 }}>
                         {insight.value}
                       </Typography>

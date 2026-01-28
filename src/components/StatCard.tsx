@@ -2,8 +2,7 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
-import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
-import TrendingDownOutlinedIcon from '@mui/icons-material/TrendingDownOutlined';
+import { TrendUp, TrendDown } from '@phosphor-icons/react';
 import { useThemeStore } from '@/store/themeStore';
 
 interface StatCardProps {
@@ -22,8 +21,8 @@ export function StatCard({ title, value, icon, trend, color }: StatCardProps) {
   const iconColor = color || config.colors.primary;
 
   return (
-    <Card>
-      <CardContent>
+    <Card sx={{ height: '100%' }}>
+      <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Box>
             <Typography
@@ -54,9 +53,9 @@ export function StatCard({ title, value, icon, trend, color }: StatCardProps) {
             {trend && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1 }}>
                 {trend.direction === 'up' ? (
-                  <TrendingUpOutlinedIcon sx={{ fontSize: 16, color: config.colors.success }} />
+                  <TrendUp size={16} color={config.colors.success} />
                 ) : (
-                  <TrendingDownOutlinedIcon sx={{ fontSize: 16, color: config.colors.error }} />
+                  <TrendDown size={16} color={config.colors.error} />
                 )}
                 <Typography
                   variant="caption"
