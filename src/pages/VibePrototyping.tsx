@@ -55,6 +55,8 @@ import {
   Download,
   Brain,
   Info,
+  X,
+  Robot,
 } from '@phosphor-icons/react';
 
 import { useSnackbar } from '@/components/SnackbarProvider';
@@ -80,6 +82,12 @@ import {
   generateAllVariants,
   getVariants,
 } from '@/services/variantCodeService';
+import {
+  getApiKeys,
+  PROVIDER_INFO,
+  type LLMProvider,
+  type ApiKeyConfig,
+} from '@/services/apiKeysService';
 
 // ============== Types ==============
 
@@ -463,9 +471,24 @@ export const VibePrototyping: React.FC = () => {
   const [contextFiles, setContextFiles] = useState<ContextFile[]>([]);
   const [contextPanelOpen, setContextPanelOpen] = useState(false);
 
-  // Load context files on mount
+  // LLM model selector
+  const [availableKeys, setAvailableKeys] = useState<ApiKeyConfig[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<LLMProvider | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [llmMenuAnchorEl, setLlmMenuAnchorEl] = useState<null | HTMLElement>(null);
+
+  // Load context files and API keys on mount
   useEffect(() => {
     getContextFiles().then(setContextFiles).catch(console.error);
+    getApiKeys().then((keys) => {
+      setAvailableKeys(keys);
+      // Set default to first active key
+      const activeKey = keys.find(k => k.isActive) || keys[0];
+      if (activeKey) {
+        setSelectedProvider(activeKey.provider);
+        setSelectedModel(activeKey.model || PROVIDER_INFO[activeKey.provider].defaultModel);
+      }
+    }).catch(console.error);
   }, []);
 
   // Initialize screen data
@@ -826,22 +849,80 @@ export const VibePrototyping: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           bgcolor: 'background.paper',
+          flexShrink: 0,
         }}
       >
-        {/* Left: Share button */}
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<ShareNetwork size={16} />}
-          onClick={handleShare}
-          sx={{
-            textTransform: 'none',
-            transition: 'all 0.2s ease',
-            '&:hover': { transform: 'translateY(-1px)' },
-          }}
-        >
-          Share
-        </Button>
+        {/* Left: Project breadcrumb with editable name */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 200 }}>
+          {isEditingName ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <TextField
+                size="small"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveName();
+                  if (e.key === 'Escape') setIsEditingName(false);
+                }}
+                autoFocus
+                sx={{
+                  width: 180,
+                  '& .MuiOutlinedInput-root': {
+                    fontFamily: config.fonts.body,
+                    fontSize: '0.875rem',
+                  },
+                  '& .MuiOutlinedInput-input': {
+                    py: 0.5,
+                    px: 1,
+                  },
+                }}
+              />
+              <Tooltip title="Save">
+                <IconButton size="small" onClick={handleSaveName} color="primary">
+                  <Check size={16} weight="bold" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Cancel">
+                <IconButton size="small" onClick={() => setIsEditingName(false)}>
+                  <X size={16} />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          ) : (
+            <Typography
+              variant="subtitle2"
+              sx={{
+                fontWeight: 500,
+                color: 'text.secondary',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+              }}
+            >
+              {focusedVariantIndex && focusedPlan ? (
+                <>
+                  <span
+                    style={{ cursor: 'pointer', color: config.colors.primary }}
+                    onClick={handleBackToGrid}
+                  >
+                    {projectName}
+                  </span>
+                  <CaretRight size={14} />
+                  {focusedPlan.title}
+                </>
+              ) : (
+                <Tooltip title="Click to rename">
+                  <span
+                    style={{ cursor: 'pointer' }}
+                    onClick={handleStartEditName}
+                  >
+                    {projectName}
+                  </span>
+                </Tooltip>
+              )}
+            </Typography>
+          )}
+        </Box>
 
         {/* Center: Edit mode tools + Undo/Redo + Pages dropdown */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -854,7 +935,7 @@ export const VibePrototyping: React.FC = () => {
               p: 0.25,
             }}
           >
-            <Tooltip title="Select (V)">
+            <Tooltip title="Preview Mode (V)">
               <IconButton
                 size="small"
                 onClick={() => setEditMode('cursor')}
@@ -942,7 +1023,7 @@ export const VibePrototyping: React.FC = () => {
 
           <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-          {/* Pages dropdown */}
+          {/* Pages dropdown - shows current screen name */}
           <Button
             size="small"
             endIcon={<CaretDown size={14} />}
@@ -953,86 +1034,69 @@ export const VibePrototyping: React.FC = () => {
               border: '1px solid',
               borderColor: 'divider',
               borderRadius: 1,
+              maxWidth: 200,
             }}
           >
-            Pages /
+            <Typography noWrap sx={{ fontSize: 'inherit' }}>
+              {projectName}
+            </Typography>
           </Button>
           <Menu
             anchorEl={pagesAnchorEl}
             open={Boolean(pagesAnchorEl)}
             onClose={() => setPagesAnchorEl(null)}
             TransitionComponent={Fade}
+            slotProps={{
+              paper: {
+                sx: { maxHeight: 300, minWidth: 200 },
+              },
+            }}
           >
-            <MenuItem onClick={() => setPagesAnchorEl(null)}>
-              {projectName}
+            <MenuItem disabled sx={{ opacity: 0.6 }}>
+              <Typography variant="caption" fontWeight={600}>
+                All Screens
+              </Typography>
             </MenuItem>
+            <Divider />
+            {screens.map((s) => (
+              <MenuItem
+                key={s.id}
+                selected={s.id === screenId}
+                onClick={() => {
+                  setPagesAnchorEl(null);
+                  if (s.id !== screenId) {
+                    navigate(`/prototypes/${s.id}`);
+                  }
+                }}
+              >
+                <Typography noWrap sx={{ maxWidth: 180 }}>
+                  {s.name}
+                </Typography>
+              </MenuItem>
+            ))}
           </Menu>
         </Box>
 
-        {/* Right: Project breadcrumb with editable name */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          {isEditingName ? (
-            <TextField
-              size="small"
-              value={editedName}
-              onChange={(e) => setEditedName(e.target.value)}
-              onBlur={handleSaveName}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSaveName();
-                if (e.key === 'Escape') setIsEditingName(false);
-              }}
-              autoFocus
-              sx={{
-                width: 200,
-                '& .MuiOutlinedInput-root': {
-                  fontFamily: config.fonts.body,
-                  fontSize: '0.875rem',
-                },
-                '& .MuiOutlinedInput-input': {
-                  py: 0.5,
-                  px: 1,
-                },
-              }}
-            />
-          ) : (
-            <Typography
-              variant="subtitle2"
-              sx={{
-                fontWeight: 500,
-                color: 'text.secondary',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-              }}
-            >
-              {focusedVariantIndex && focusedPlan ? (
-                <>
-                  <span
-                    style={{ cursor: 'pointer', color: config.colors.primary }}
-                    onClick={handleBackToGrid}
-                  >
-                    {projectName}
-                  </span>
-                  <CaretRight size={14} />
-                  {focusedPlan.title}
-                </>
-              ) : (
-                <Tooltip title="Click to rename">
-                  <span
-                    style={{ cursor: 'pointer' }}
-                    onClick={handleStartEditName}
-                  >
-                    {projectName}
-                  </span>
-                </Tooltip>
-              )}
-            </Typography>
-          )}
+        {/* Right: Share button */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 100, justifyContent: 'flex-end' }}>
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<ShareNetwork size={16} />}
+            onClick={handleShare}
+            sx={{
+              textTransform: 'none',
+              transition: 'all 0.2s ease',
+              '&:hover': { transform: 'translateY(-1px)' },
+            }}
+          >
+            Share
+          </Button>
         </Box>
       </Box>
 
       {/* Main content area */}
-      <Box ref={containerRef} sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <Box ref={containerRef} sx={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         {/* Left Panel - Resizable Chat Panel */}
         <Box
           sx={{
@@ -1043,10 +1107,11 @@ export const VibePrototyping: React.FC = () => {
             display: 'flex',
             flexDirection: 'column',
             position: 'relative',
+            minHeight: 0,
           }}
         >
           {/* AI Phases and Variant Cards */}
-          <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+          <Box sx={{ flex: 1, overflow: 'auto', p: 2, minHeight: 0 }}>
             {/* Initial empty state */}
             {status === 'idle' && !plan && (
               <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1111,7 +1176,7 @@ export const VibePrototyping: React.FC = () => {
           </Box>
 
           {/* Prompt Input at bottom */}
-          <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
             {/* Context indicator */}
             {contextFiles.length > 0 && (
               <Box sx={{ mb: 1.5 }}>
@@ -1232,10 +1297,91 @@ export const VibePrototyping: React.FC = () => {
               }}
             />
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
-              <Box sx={{ display: 'flex', gap: 0.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {/* LLM Model Selector */}
+                {availableKeys.length > 0 ? (
+                  <>
+                    <Tooltip title="Select AI Model">
+                      <Button
+                        size="small"
+                        startIcon={<Robot size={16} />}
+                        endIcon={<CaretDown size={12} />}
+                        onClick={(e) => setLlmMenuAnchorEl(e.currentTarget)}
+                        sx={{
+                          textTransform: 'none',
+                          fontSize: '0.75rem',
+                          color: 'text.secondary',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 1,
+                          px: 1,
+                          minWidth: 0,
+                        }}
+                      >
+                        {selectedProvider ? (
+                          <Typography noWrap sx={{ maxWidth: 100, fontSize: 'inherit' }}>
+                            {PROVIDER_INFO[selectedProvider]?.name}: {selectedModel?.split('-').slice(0, 2).join('-')}
+                          </Typography>
+                        ) : (
+                          'Select Model'
+                        )}
+                      </Button>
+                    </Tooltip>
+                    <Menu
+                      anchorEl={llmMenuAnchorEl}
+                      open={Boolean(llmMenuAnchorEl)}
+                      onClose={() => setLlmMenuAnchorEl(null)}
+                      TransitionComponent={Fade}
+                      slotProps={{
+                        paper: {
+                          sx: { maxHeight: 400, minWidth: 250 },
+                        },
+                      }}
+                    >
+                      {availableKeys.map((key) => (
+                        <Box key={key.provider}>
+                          <MenuItem disabled sx={{ opacity: 0.7, py: 0.5 }}>
+                            <Typography variant="caption" fontWeight={600}>
+                              {PROVIDER_INFO[key.provider]?.name}
+                            </Typography>
+                          </MenuItem>
+                          {PROVIDER_INFO[key.provider]?.models.map((model) => (
+                            <MenuItem
+                              key={model}
+                              selected={selectedProvider === key.provider && selectedModel === model}
+                              onClick={() => {
+                                setSelectedProvider(key.provider);
+                                setSelectedModel(model);
+                                setLlmMenuAnchorEl(null);
+                              }}
+                              sx={{ pl: 3 }}
+                            >
+                              <Typography variant="body2" noWrap>
+                                {model}
+                              </Typography>
+                            </MenuItem>
+                          ))}
+                          <Divider sx={{ my: 0.5 }} />
+                        </Box>
+                      ))}
+                    </Menu>
+                  </>
+                ) : (
+                  <Tooltip title="Configure API keys in Settings">
+                    <Chip
+                      icon={<Warning size={14} />}
+                      label="No API keys"
+                      size="small"
+                      color="warning"
+                      variant="outlined"
+                      onClick={() => navigate('/settings')}
+                      sx={{ cursor: 'pointer', fontSize: '0.7rem' }}
+                    />
+                  </Tooltip>
+                )}
                 <Tooltip title="Voice input">
                   <IconButton size="small">
-                    <Microphone size={20} />
+                    <Microphone size={18} />
                   </IconButton>
                 </Tooltip>
               </Box>
@@ -1260,7 +1406,7 @@ export const VibePrototyping: React.FC = () => {
                   variant="contained"
                   size="small"
                   onClick={handleBuild}
-                  disabled={!promptValue.trim() || isAnalyzing || isPlanning || isGenerating}
+                  disabled={!promptValue.trim() || isAnalyzing || isPlanning || isGenerating || availableKeys.length === 0}
                   sx={{
                     textTransform: 'none',
                     minWidth: 70,
@@ -1307,60 +1453,174 @@ export const VibePrototyping: React.FC = () => {
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
+            minHeight: 0,
+            minWidth: 0,
           }}
         >
-          {/* Initial state - show the selected screen */}
+          {/* Initial state - show the selected screen with edit mode support */}
           {status === 'idle' && !hasVariants && (
             <Box
               sx={{
                 flex: 1,
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                flexDirection: 'column',
                 p: 2,
+                minHeight: 0, // Prevent flex item from growing beyond container
               }}
             >
               {screen?.editedHtml ? (
                 <Card
                   variant="outlined"
                   sx={{
-                    width: '100%',
-                    height: '100%',
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
                     borderRadius: 2,
                     overflow: 'hidden',
+                    minHeight: 0,
                   }}
                 >
                   <Box
                     sx={{
-                      width: '100%',
-                      height: '100%',
+                      flex: 1,
                       position: 'relative',
-                      backgroundColor: '#fafafa',
+                      backgroundColor: editMode === 'code' ? '#1e1e1e' : '#fafafa',
+                      minHeight: 0,
+                      overflow: 'hidden',
                     }}
                   >
-                    <iframe
-                      srcDoc={screen.editedHtml}
-                      title={screen.name || 'Screen Preview'}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        border: 'none',
-                      }}
-                    />
+                    {/* Preview Mode (cursor) */}
+                    {editMode === 'cursor' && (
+                      <iframe
+                        srcDoc={screen.editedHtml}
+                        title={screen.name || 'Screen Preview'}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          border: 'none',
+                        }}
+                      />
+                    )}
+
+                    {/* Code Editor Mode */}
+                    {editMode === 'code' && (
+                      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                        <Box
+                          sx={{
+                            px: 2,
+                            py: 1,
+                            borderBottom: '1px solid',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Typography variant="caption" sx={{ color: '#9cdcfe', fontFamily: 'monospace' }}>
+                            {screen.name?.toLowerCase().replace(/\s+/g, '-') || 'screen'}.html
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Tooltip title="Copy code">
+                              <IconButton size="small" sx={{ color: 'grey.400' }}>
+                                <Copy size={16} />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Download">
+                              <IconButton size="small" sx={{ color: 'grey.400' }}>
+                                <Download size={16} />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </Box>
+                        <Box
+                          sx={{
+                            flex: 1,
+                            overflow: 'auto',
+                            p: 2,
+                            fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+                            fontSize: '13px',
+                            lineHeight: 1.6,
+                            color: '#d4d4d4',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                          }}
+                        >
+                          <code>{screen.editedHtml}</code>
+                        </Box>
+                      </Box>
+                    )}
+
+                    {/* WYSIWYG Editor Mode */}
+                    {editMode === 'wysiwyg' && (
+                      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                        <Box
+                          sx={{
+                            px: 2,
+                            py: 1,
+                            borderBottom: '1px solid',
+                            borderColor: 'divider',
+                            bgcolor: 'grey.50',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Chip
+                            label="WYSIWYG Mode"
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            icon={<PencilSimple size={14} />}
+                          />
+                          <Typography variant="caption" color="text.secondary">
+                            Click on elements to edit them directly
+                          </Typography>
+                        </Box>
+                        <Box sx={{ flex: 1, position: 'relative', minHeight: 0 }}>
+                          <iframe
+                            srcDoc={screen.editedHtml}
+                            title={screen.name || 'Screen Preview'}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              border: 'none',
+                            }}
+                          />
+                          {/* WYSIWYG overlay indicator */}
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              pointerEvents: 'none',
+                              border: '2px dashed',
+                              borderColor: 'primary.main',
+                              opacity: 0.3,
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                    )}
                   </Box>
                 </Card>
               ) : (
-                <Typography color="text.secondary">
-                  Describe what you want to build to get started
-                </Typography>
+                <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Typography color="text.secondary">
+                    Describe what you want to build to get started
+                  </Typography>
+                </Box>
               )}
             </Box>
           )}
 
           {/* Loading/Planning state - 2x2 grid with loading indicators */}
           {(isAnalyzing || isPlanning || isGenerating) && !focusedVariantIndex && (
-            <Box sx={{ flex: 1, p: 2, overflow: 'auto' }}>
-              <Grid container spacing={2} sx={{ height: '100%' }}>
+            <Box sx={{ flex: 1, p: 2, overflow: 'auto', minHeight: 0 }}>
+              <Grid container spacing={2} sx={{ height: '100%', minHeight: 0 }}>
                 {['Variant A', 'Variant B', 'Variant C', 'Variant D'].map((label, idx) => {
                   const variant = variants.find((v) => v.variant_index === idx + 1);
                   const variantProgress = getVariantProgress(idx + 1);
@@ -1383,8 +1643,8 @@ export const VibePrototyping: React.FC = () => {
 
           {/* Complete state - 2x2 grid with variants */}
           {isComplete && !focusedVariantIndex && (
-            <Box sx={{ flex: 1, p: 2, overflow: 'auto' }}>
-              <Grid container spacing={2} sx={{ height: '100%' }}>
+            <Box sx={{ flex: 1, p: 2, overflow: 'auto', minHeight: 0 }}>
+              <Grid container spacing={2} sx={{ height: '100%', minHeight: 0 }}>
                 {['Variant A', 'Variant B', 'Variant C', 'Variant D'].map((label, idx) => {
                   const variant = getVariantByIndex(idx + 1);
                   return (
@@ -1401,47 +1661,216 @@ export const VibePrototyping: React.FC = () => {
             </Box>
           )}
 
-          {/* Focused variant - single full preview */}
+          {/* Focused variant - single full preview with edit mode support */}
           {focusedVariantIndex && focusedVariant && (
-            <Box sx={{ flex: 1, p: 2, overflow: 'hidden' }}>
+            <Box sx={{ flex: 1, p: 2, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               <Card
                 variant="outlined"
                 sx={{
-                  height: '100%',
+                  flex: 1,
                   display: 'flex',
                   flexDirection: 'column',
                   borderRadius: 2,
+                  overflow: 'hidden',
                 }}
               >
                 <Box
                   sx={{
                     flex: 1,
                     position: 'relative',
-                    backgroundColor: '#fafafa',
+                    backgroundColor: editMode === 'code' ? '#1e1e1e' : '#fafafa',
+                    overflow: 'hidden',
                   }}
                 >
-                  {focusedVariant.html_url ? (
-                    <iframe
-                      src={focusedVariant.html_url}
-                      title={`Preview Variant ${focusedVariantIndex}`}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        border: 'none',
-                      }}
-                    />
-                  ) : (
-                    <Box
-                      sx={{
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Typography color="text.secondary">
-                        Preview Variant {String.fromCharCode(64 + focusedVariantIndex)}
-                      </Typography>
+                  {/* Preview Mode (cursor) */}
+                  {editMode === 'cursor' && (
+                    focusedVariant.html_url ? (
+                      <iframe
+                        src={focusedVariant.html_url}
+                        title={`Preview Variant ${focusedVariantIndex}`}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          border: 'none',
+                        }}
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Typography color="text.secondary">
+                          Preview Variant {String.fromCharCode(64 + focusedVariantIndex)}
+                        </Typography>
+                      </Box>
+                    )
+                  )}
+
+                  {/* Code Editor Mode */}
+                  {editMode === 'code' && (
+                    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                      <Box
+                        sx={{
+                          px: 2,
+                          py: 1,
+                          borderBottom: '1px solid',
+                          borderColor: 'rgba(255,255,255,0.1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ color: '#9cdcfe', fontFamily: 'monospace' }}>
+                          variant-{String.fromCharCode(96 + focusedVariantIndex)}.html
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Tooltip title="Copy code">
+                            <IconButton size="small" sx={{ color: 'grey.400' }}>
+                              <Copy size={16} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Download">
+                            <IconButton size="small" sx={{ color: 'grey.400' }}>
+                              <Download size={16} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </Box>
+                      <Box
+                        sx={{
+                          flex: 1,
+                          overflow: 'auto',
+                          p: 2,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 2,
+                        }}
+                      >
+                        {focusedVariant.html_url ? (
+                          <>
+                            <Box sx={{ textAlign: 'center' }}>
+                              <Code size={48} color="#9cdcfe" weight="light" />
+                              <Typography color="grey.400" sx={{ mt: 2, mb: 1 }}>
+                                Variant {String.fromCharCode(64 + focusedVariantIndex)} HTML Code
+                              </Typography>
+                              <Typography variant="caption" color="grey.500">
+                                View the generated HTML code or download it to edit locally
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<LinkSimple size={16} />}
+                                onClick={() => window.open(focusedVariant.html_url!, '_blank')}
+                                sx={{
+                                  borderColor: 'grey.600',
+                                  color: 'grey.300',
+                                  '&:hover': { borderColor: 'grey.400', bgcolor: 'rgba(255,255,255,0.05)' },
+                                }}
+                              >
+                                Open in New Tab
+                              </Button>
+                              <Button
+                                variant="contained"
+                                size="small"
+                                startIcon={<Download size={16} />}
+                                onClick={() => {
+                                  const link = document.createElement('a');
+                                  link.href = focusedVariant.html_url!;
+                                  link.download = `variant-${String.fromCharCode(96 + focusedVariantIndex)}.html`;
+                                  link.click();
+                                }}
+                                sx={{
+                                  bgcolor: '#4fc3f7',
+                                  '&:hover': { bgcolor: '#29b6f6' },
+                                }}
+                              >
+                                Download HTML
+                              </Button>
+                            </Box>
+                          </>
+                        ) : (
+                          <Typography color="grey.500" fontStyle="italic">
+                            Code not available. Generate a variant to see the code here.
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* WYSIWYG Editor Mode */}
+                  {editMode === 'wysiwyg' && (
+                    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                      <Box
+                        sx={{
+                          px: 2,
+                          py: 1,
+                          borderBottom: '1px solid',
+                          borderColor: 'divider',
+                          bgcolor: 'grey.50',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                        }}
+                      >
+                        <Chip
+                          label="WYSIWYG Mode"
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                          icon={<PencilSimple size={14} />}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          Click on elements to edit them directly
+                        </Typography>
+                      </Box>
+                      <Box sx={{ flex: 1, position: 'relative' }}>
+                        {focusedVariant.html_url ? (
+                          <iframe
+                            src={focusedVariant.html_url}
+                            title={`Edit Variant ${focusedVariantIndex}`}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              border: 'none',
+                            }}
+                          />
+                        ) : (
+                          <Box
+                            sx={{
+                              height: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Typography color="text.secondary">
+                              No content to edit
+                            </Typography>
+                          </Box>
+                        )}
+                        {/* WYSIWYG overlay indicator */}
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            pointerEvents: 'none',
+                            border: '2px dashed',
+                            borderColor: 'primary.main',
+                            opacity: 0.3,
+                          }}
+                        />
+                      </Box>
                     </Box>
                   )}
                 </Box>
