@@ -78,6 +78,7 @@ export const PROVIDER_INFO: Record<LLMProvider, { name: string; models: string[]
  */
 export async function getApiKeys(): Promise<ApiKeyConfig[]> {
   if (!isSupabaseConfigured()) {
+    console.warn('[ApiKeysService] Supabase not configured, using localStorage');
     // Return from localStorage for development
     const stored = localStorage.getItem('voxel-api-keys');
     if (stored) {
@@ -91,7 +92,12 @@ export async function getApiKeys(): Promise<ApiKeyConfig[]> {
   }
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+  if (!user) {
+    console.warn('[ApiKeysService] No authenticated user');
+    return [];
+  }
+
+  console.log('[ApiKeysService] Fetching API keys for user:', user.id);
 
   const { data, error } = await supabase
     .from('user_api_key_refs')
@@ -99,9 +105,11 @@ export async function getApiKeys(): Promise<ApiKeyConfig[]> {
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Error fetching API keys:', error);
+    console.error('[ApiKeysService] Error fetching API keys:', error);
     throw new Error(`Failed to fetch API keys: ${error.message}`);
   }
+
+  console.log('[ApiKeysService] Fetched API keys count:', data?.length || 0);
 
   return (data || []).map(row => ({
     id: row.id,

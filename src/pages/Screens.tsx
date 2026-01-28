@@ -28,12 +28,9 @@ import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import UploadOutlinedIcon from '@mui/icons-material/UploadOutlined';
 import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
 import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import MoreVertOutlinedIcon from '@mui/icons-material/MoreVertOutlined';
-import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined';
 import CheckBoxOutlinedIcon from '@mui/icons-material/CheckBoxOutlined';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
@@ -52,10 +49,6 @@ export function Screens() {
   const { showSuccess, showError, showWarning } = useSnackbar();
   const {
     screens,
-    isPreviewOpen,
-    previewScreen,
-    openPreview,
-    closePreview,
     removeScreen,
     removeScreens,
     duplicateScreen,
@@ -232,7 +225,7 @@ export function Screens() {
       if (isSelectionMode) {
         toggleSelectScreen(screen.id);
       } else {
-        openPreview(screen);
+        navigate(`/prototypes/${screen.id}`);
       }
     };
 
@@ -294,7 +287,7 @@ export function Screens() {
                 '&:hover': { opacity: 1 },
               }}
             >
-              <VisibilityOutlinedIcon sx={{ fontSize: 32, color: 'white' }} />
+              <AutoFixHighOutlinedIcon sx={{ fontSize: 32, color: 'white' }} />
             </Box>
           )}
         </Box>
@@ -317,14 +310,9 @@ export function Screens() {
 
         {!isSelectionMode && (
           <CardActions sx={{ px: 2, py: 1 }}>
-            <Tooltip title="Preview">
-              <IconButton size="small" onClick={() => openPreview(screen)}>
-                <VisibilityOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Edit">
-              <IconButton size="small" onClick={() => navigate(`/editor/${screen.id}`)}>
-                <EditOutlinedIcon fontSize="small" />
+            <Tooltip title="Open in Vibe Editor">
+              <IconButton size="small" onClick={() => navigate(`/prototypes/${screen.id}`)}>
+                <AutoFixHighOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <IconButton size="small" onClick={(e) => handleMenuOpen(e, screen)}>
@@ -459,21 +447,9 @@ export function Screens() {
 
       {/* Context Menu */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-        <MenuItem onClick={() => { handleMenuClose(); menuScreen && openPreview(menuScreen); }}>
-          <ListItemIcon><VisibilityOutlinedIcon fontSize="small" /></ListItemIcon>
-          Preview
-        </MenuItem>
-        <MenuItem onClick={() => { handleMenuClose(); menuScreen && navigate(`/editor/${menuScreen.id}`); }}>
-          <ListItemIcon><EditOutlinedIcon fontSize="small" /></ListItemIcon>
-          Edit in WYSIWYG
-        </MenuItem>
-        <MenuItem onClick={() => { handleMenuClose(); menuScreen && navigate(`/variants/${menuScreen.id}`); }}>
-          <ListItemIcon><ScienceOutlinedIcon fontSize="small" /></ListItemIcon>
-          Create Variants
-        </MenuItem>
-        <MenuItem onClick={() => { handleMenuClose(); menuScreen && navigate(`/vibe/${menuScreen.id}`); }}>
+        <MenuItem onClick={() => { handleMenuClose(); menuScreen && navigate(`/prototypes/${menuScreen.id}`); }}>
           <ListItemIcon><AutoFixHighOutlinedIcon fontSize="small" /></ListItemIcon>
-          Vibe Prototype
+          Open in Vibe Editor
         </MenuItem>
         <MenuItem onClick={() => { handleMenuClose(); menuScreen && duplicateScreen(menuScreen.id); }}>
           <ListItemIcon><ContentCopyOutlinedIcon fontSize="small" /></ListItemIcon>
@@ -533,67 +509,6 @@ export function Screens() {
             disabled={uploadingFiles.length === 0 || isUploading}
           >
             {isUploading ? <CircularProgress size={20} /> : `Upload (${uploadingFiles.length})`}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Preview Modal */}
-      <Dialog
-        open={isPreviewOpen}
-        onClose={closePreview}
-        maxWidth="xl"
-        fullWidth
-        PaperProps={{ sx: { height: '90vh' } }}
-      >
-        <DialogTitle>{previewScreen?.name}</DialogTitle>
-        <DialogContent sx={{ p: 0 }}>
-          {previewScreen && (
-            <Box sx={{ height: 'calc(100% - 20px)', border: '1px solid', borderColor: 'divider' }}>
-              {previewScreen.editedHtml ? (
-                <iframe
-                  srcDoc={previewScreen.editedHtml}
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                  title={previewScreen.name}
-                />
-              ) : (
-                <iframe
-                  src={previewScreen.filePath}
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                  title={previewScreen.name}
-                />
-              )}
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closePreview}>Close</Button>
-          <Button
-            startIcon={<ContentCopyOutlinedIcon />}
-            onClick={() => {
-              previewScreen && duplicateScreen(previewScreen.id);
-              closePreview();
-            }}
-          >
-            Duplicate
-          </Button>
-          <Button
-            startIcon={<AutoFixHighOutlinedIcon />}
-            onClick={() => {
-              previewScreen && navigate(`/vibe/${previewScreen.id}`);
-              closePreview();
-            }}
-          >
-            Vibe Prototype
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<EditOutlinedIcon />}
-            onClick={() => {
-              previewScreen && navigate(`/editor/${previewScreen.id}`);
-              closePreview();
-            }}
-          >
-            Edit in WYSIWYG
           </Button>
         </DialogActions>
       </Dialog>

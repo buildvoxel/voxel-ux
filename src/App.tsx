@@ -162,7 +162,8 @@ function App() {
                   </ProtectedRoute>
                 }
               >
-                <Route path="/prototypes/:projectId" element={<VibePrototyping />} />
+                <Route path="/prototypes/:screenId" element={<VibePrototyping />} />
+                <Route path="/prototypes/:screenId/:sessionId" element={<VibePrototyping />} />
               </Route>
 
               {/* Collaborative view (full-screen) */}

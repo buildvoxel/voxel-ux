@@ -85,16 +85,19 @@ export const useScreensStore = create<ScreensState>()(
 
       fetchFromSupabase: async () => {
         if (!isSupabaseConfigured()) {
+          console.warn('[ScreensStore] Supabase not configured, using empty state');
           set({ screens: [] });
           return;
         }
 
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          // Not logged in, empty state
+          console.warn('[ScreensStore] No authenticated user, using empty state');
           set({ screens: [] });
           return;
         }
+
+        console.log('[ScreensStore] Fetching screens for user:', user.id);
 
         // Fetch screens with their versions
         const { data, error } = await supabase
@@ -103,9 +106,11 @@ export const useScreensStore = create<ScreensState>()(
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('Error fetching screens:', error);
+          console.error('[ScreensStore] Error fetching screens:', error);
           throw error;
         }
+
+        console.log('[ScreensStore] Fetched screens count:', data?.length || 0);
 
         // Map Supabase data to CapturedScreen format
         const screens: CapturedScreen[] = (data || []).map((row) => ({
