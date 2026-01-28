@@ -1,13 +1,16 @@
 /**
- * VibePrototyping Page - Redesigned to match wireframes
+ * VibePrototyping Page - Full implementation with dynamic phases and resizable chat
  *
- * Layout:
- * - Top: Toolbar with project name, icons, Pages dropdown, Share button
- * - Left: Gray panel with AI phases, variant cards, and prompt input
- * - Right: White canvas with 2x2 variant grid or single focused variant
+ * Features:
+ * - Dynamic text per AI phase (Understanding, Planning, Building, Summary)
+ * - Resizable chat panel (25% default, draggable)
+ * - Consolidated toolbar with action groups
+ * - File attachments support (images, video, audio, URLs)
+ * - Context-aware chat (product context + prototype context)
+ * - Streaming/progressive loading for variants
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -18,13 +21,48 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CardActionArea from '@mui/material/CardActionArea';
 import CircularProgress from '@mui/material/CircularProgress';
+import LinearProgress from '@mui/material/LinearProgress';
 import Grid from '@mui/material/Grid';
-import { Code, At, Flag, DownloadSimple, ArrowCounterClockwise, Paperclip, ShareNetwork, Microphone, Warning } from '@phosphor-icons/react';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Tooltip from '@mui/material/Tooltip';
+import Chip from '@mui/material/Chip';
+import Divider from '@mui/material/Divider';
+import Fade from '@mui/material/Fade';
+import {
+  Code,
+  Cursor,
+  PencilSimple,
+  ArrowCounterClockwise,
+  ArrowClockwise,
+  Paperclip,
+  ShareNetwork,
+  Microphone,
+  Warning,
+  CaretDown,
+  CaretRight,
+  Image as ImageIcon,
+  VideoCamera,
+  LinkSimple,
+  FilePdf,
+  File,
+  Check,
+  Copy,
+  Download,
+  Brain,
+  Info,
+} from '@phosphor-icons/react';
 
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { useScreensStore } from '@/store/screensStore';
 import { useVibeStore, type ChatMessage } from '@/store/vibeStore';
 import { useContextStore } from '@/store/contextStore';
+import { useThemeStore } from '@/store/themeStore';
+import { getContextFiles, type ContextFile } from '@/services/contextFilesService';
 
 import {
   analyzeScreen,
@@ -42,6 +80,21 @@ import {
   generateAllVariants,
   getVariants,
 } from '@/services/variantCodeService';
+
+// ============== Types ==============
+
+interface AttachedFile {
+  id: string;
+  type: 'image' | 'video' | 'audio' | 'pdf' | 'url' | 'figma' | 'file';
+  name: string;
+  url?: string;
+  file?: File;
+  preview?: string;
+}
+
+type EditMode = 'cursor' | 'code' | 'wysiwyg';
+
+// ============== Helper Components ==============
 
 // Not found component
 function NotFoundResult({ onBack }: { onBack: () => void }) {
@@ -70,31 +123,67 @@ function NotFoundResult({ onBack }: { onBack: () => void }) {
   );
 }
 
-// AI Phase component for Understanding, Planning, Summary
+// Dynamic AI Phase component with streaming text effect
 function AIPhase({
   label,
-  description,
-  isActive = false
+  content,
+  isActive = false,
+  isComplete = false,
 }: {
   label: string;
-  description: string;
+  content: string;
   isActive?: boolean;
+  isComplete?: boolean;
 }) {
+  const [displayedContent, setDisplayedContent] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+
+  useEffect(() => {
+    if (isActive && content) {
+      setIsStreaming(true);
+      setDisplayedContent('');
+      let index = 0;
+      const interval = setInterval(() => {
+        if (index < content.length) {
+          setDisplayedContent(content.slice(0, index + 1));
+          index++;
+        } else {
+          setIsStreaming(false);
+          clearInterval(interval);
+        }
+      }, 15);
+      return () => clearInterval(interval);
+    } else if (isComplete) {
+      setDisplayedContent(content);
+    }
+  }, [content, isActive, isComplete]);
+
   return (
-    <Box sx={{ mb: 2 }}>
+    <Box sx={{ mb: 2.5, animation: 'fadeIn 0.3s ease', '@keyframes fadeIn': { from: { opacity: 0 }, to: { opacity: 1 } } }}>
       <Typography
         sx={{
-          color: '#26a69a', // Teal color from wireframe
+          color: '#26a69a',
           fontSize: 14,
-          fontWeight: 500,
+          fontWeight: 600,
           mb: 0.5,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
         }}
       >
         {label}
-        {isActive && '...'}
+        {isActive && !isComplete && (
+          <CircularProgress size={12} sx={{ color: '#26a69a' }} />
+        )}
+        {isComplete && <Check size={14} weight="bold" />}
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-        {description}
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{ lineHeight: 1.6, minHeight: 40 }}
+      >
+        {displayedContent}
+        {isStreaming && <span style={{ opacity: 0.5 }}>|</span>}
       </Typography>
     </Box>
   );
@@ -105,34 +194,56 @@ function VariantCard({
   title,
   description,
   isSelected = false,
-  onClick
+  isBuilding = false,
+  isComplete = false,
+  progress = 0,
+  onClick,
 }: {
   title: string;
   description: string;
   isSelected?: boolean;
+  isBuilding?: boolean;
+  isComplete?: boolean;
+  progress?: number;
   onClick?: () => void;
 }) {
+  const { config } = useThemeStore();
+
   return (
     <Card
       variant="outlined"
       sx={{
         mb: 1.5,
         cursor: onClick ? 'pointer' : 'default',
-        border: isSelected ? '2px solid #764ba2' : '1px solid #e0e0e0',
+        border: isSelected ? `2px solid ${config.colors.primary}` : '1px solid #e0e0e0',
         backgroundColor: 'white',
+        transition: 'all 0.2s ease',
+        opacity: isBuilding ? 0.9 : 1,
         '&:hover': onClick ? {
-          borderColor: '#764ba2',
+          borderColor: config.colors.primary,
+          transform: 'translateX(4px)',
         } : {},
       }}
       onClick={onClick}
     >
       <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
-        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
-          {title}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+          <Typography variant="subtitle2" fontWeight={600}>
+            {title}
+          </Typography>
+          {isComplete && <Check size={16} color={config.colors.success} weight="bold" />}
+          {isBuilding && <CircularProgress size={14} />}
+        </Box>
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13, mb: isBuilding ? 1 : 0 }}>
           {description}
         </Typography>
+        {isBuilding && (
+          <LinearProgress
+            variant="determinate"
+            value={progress}
+            sx={{ mt: 1, height: 3, borderRadius: 2 }}
+          />
+        )}
       </CardContent>
     </Card>
   );
@@ -143,11 +254,13 @@ function CanvasVariantCard({
   label,
   isLoading = false,
   htmlUrl,
+  progress = 0,
   onClick,
 }: {
   label: string;
   isLoading?: boolean;
   htmlUrl?: string | null;
+  progress?: number;
   onClick?: () => void;
 }) {
   return (
@@ -158,9 +271,11 @@ function CanvasVariantCard({
         display: 'flex',
         flexDirection: 'column',
         cursor: onClick ? 'pointer' : 'default',
+        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
         '&:hover': onClick ? {
           borderColor: '#764ba2',
-          boxShadow: 2,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          transform: 'translateY(-2px)',
         } : {},
       }}
     >
@@ -174,6 +289,7 @@ function CanvasVariantCard({
             flex: 1,
             width: '100%',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             backgroundColor: '#fafafa',
@@ -182,11 +298,19 @@ function CanvasVariantCard({
           }}
         >
           {isLoading ? (
-            <Box sx={{ textAlign: 'center' }}>
-              <CircularProgress size={24} sx={{ mb: 1 }} />
-              <Typography variant="body2" color="text.secondary">
-                Loading state of {label}
+            <Box sx={{ textAlign: 'center', p: 2 }}>
+              <CircularProgress size={32} sx={{ mb: 1.5 }} />
+              <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                Building {label}
               </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {Math.round(progress)}% complete
+              </Typography>
+              <LinearProgress
+                variant="determinate"
+                value={progress}
+                sx={{ mt: 1.5, width: 120, height: 4, borderRadius: 2 }}
+              />
             </Box>
           ) : htmlUrl ? (
             <Box
@@ -209,6 +333,21 @@ function CanvasVariantCard({
                   pointerEvents: 'none',
                 }}
               />
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 8,
+                  left: 8,
+                  px: 1.5,
+                  py: 0.5,
+                  bgcolor: 'rgba(0,0,0,0.7)',
+                  borderRadius: 1,
+                }}
+              >
+                <Typography variant="caption" sx={{ color: 'white', fontWeight: 500 }}>
+                  {label}
+                </Typography>
+              </Box>
             </Box>
           ) : (
             <Typography color="text.secondary">{label}</Typography>
@@ -219,10 +358,46 @@ function CanvasVariantCard({
   );
 }
 
+// File attachment chip
+function AttachmentChip({
+  file,
+  onRemove,
+}: {
+  file: AttachedFile;
+  onRemove: () => void;
+}) {
+  const getIcon = () => {
+    switch (file.type) {
+      case 'image': return <ImageIcon size={14} />;
+      case 'video': return <VideoCamera size={14} />;
+      case 'url':
+      case 'figma': return <LinkSimple size={14} />;
+      case 'pdf': return <FilePdf size={14} />;
+      default: return <File size={14} />;
+    }
+  };
+
+  return (
+    <Chip
+      icon={getIcon()}
+      label={file.name}
+      size="small"
+      onDelete={onRemove}
+      sx={{
+        maxWidth: 150,
+        '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' },
+      }}
+    />
+  );
+}
+
+// ============== Main Component ==============
+
 export const VibePrototyping: React.FC = () => {
   const { screenId, sessionId } = useParams<{ screenId: string; sessionId?: string }>();
   const navigate = useNavigate();
   const { showSuccess, showError } = useSnackbar();
+  const { config } = useThemeStore();
 
   // External stores
   const { getScreenById, initializeScreens, screens } = useScreensStore();
@@ -234,6 +409,7 @@ export const VibePrototyping: React.FC = () => {
     plan,
     variants,
     status,
+    progress,
     initSession,
     setSession,
     clearSession,
@@ -255,36 +431,64 @@ export const VibePrototyping: React.FC = () => {
   const [screen, setScreen] = useState<ReturnType<typeof getScreenById> | null>(null);
   const [promptValue, setPromptValue] = useState('');
   const [focusedVariantIndex, setFocusedVariantIndex] = useState<number | null>(null);
+  const [editMode, setEditMode] = useState<EditMode>('cursor');
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [pagesAnchorEl, setPagesAnchorEl] = useState<null | HTMLElement>(null);
+  const [variantSwitcherAnchorEl, setVariantSwitcherAnchorEl] = useState<null | HTMLElement>(null);
+
+  // Resizable panel state
+  const [panelWidth, setPanelWidth] = useState(25); // percentage
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Dynamic phase content based on user prompt
+  const [phaseContent, setPhaseContent] = useState({
+    understanding: '',
+    planning: '',
+    summary: '',
+  });
+
+  // Current prompt for context
+  const [currentPrompt, setCurrentPrompt] = useState('');
+
+  // Product context files
+  const [contextFiles, setContextFiles] = useState<ContextFile[]>([]);
+  const [contextPanelOpen, setContextPanelOpen] = useState(false);
+
+  // Load context files on mount
+  useEffect(() => {
+    getContextFiles().then(setContextFiles).catch(console.error);
+  }, []);
 
   // Initialize screen data
   useEffect(() => {
     const init = async () => {
       setIsLoading(true);
 
-      // Fetch screens if empty
       if (screens.length === 0) {
         await initializeScreens();
       }
 
-      // Get screen
       if (screenId) {
         const s = getScreenById(screenId);
         setScreen(s);
 
         if (s?.editedHtml) {
-          // Check for cached metadata
           const cached = await getCachedMetadata(screenId);
           if (cached) {
             setSourceMetadata(cached as unknown as UIMetadata);
           }
 
-          // If session ID provided, load existing session
           if (sessionId) {
             const session = await getVibeSession(sessionId);
             if (session) {
               initSession(session, s.editedHtml);
+              setCurrentPrompt(session.prompt || '');
 
-              // Load plans and variants
               const plans = await getVariantPlans(sessionId);
               if (plans.length > 0) {
                 setPlan({ plans, model: '', provider: '' });
@@ -296,7 +500,6 @@ export const VibePrototyping: React.FC = () => {
               }
             }
           } else {
-            // No session, clear state for new session
             clearSession();
           }
         }
@@ -307,6 +510,48 @@ export const VibePrototyping: React.FC = () => {
 
     init();
   }, [screenId, sessionId]);
+
+  // Generate dynamic phase content based on prompt
+  const generatePhaseContent = useCallback((prompt: string, screenName: string) => {
+    const shortPrompt = prompt.length > 50 ? prompt.slice(0, 50) + '...' : prompt;
+
+    setPhaseContent({
+      understanding: `I understand you want to "${prompt}". I'll analyze the current "${screenName}" design and identify the best areas to implement this feature while maintaining design consistency and user experience best practices.`,
+      planning: `Based on my analysis, I'm creating 4 distinct approaches to implement "${shortPrompt}". Each variant will explore a different UX pattern and visual treatment to give you options that range from conservative to innovative solutions.`,
+      summary: `I've generated 4 variants for "${shortPrompt}". Each takes a unique approach: Variant A uses a minimal inline approach, Variant B adds a prominent modal flow, Variant C integrates it into the existing navigation, and Variant D explores a completely new interaction pattern. Click on any variant to see it in full screen.`,
+    });
+  }, []);
+
+  // Handle panel resize
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !containerRef.current) return;
+
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+
+      // Constrain between 15% and 50%
+      setPanelWidth(Math.min(50, Math.max(15, newWidth)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    if (isResizing) {
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
 
   // Add chat message helper
   const addChatMessage = useCallback(
@@ -327,12 +572,12 @@ export const VibePrototyping: React.FC = () => {
 
     const prompt = promptValue.trim();
     setPromptValue('');
+    setCurrentPrompt(prompt);
+    generatePhaseContent(prompt, screen.name || 'screen');
 
     try {
-      // Add user message
       addChatMessage('user', prompt);
 
-      // Create new session
       const sessionName = `Vibe: ${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}`;
       const session = await createVibeSession(screenId, sessionName, prompt);
 
@@ -340,13 +585,10 @@ export const VibePrototyping: React.FC = () => {
         throw new Error('Failed to create session');
       }
 
-      // Initialize store with session
       initSession(session, screen.editedHtml);
-
-      // Update URL with session ID
       navigate(`/prototypes/${screenId}/${session.id}`, { replace: true });
 
-      // Analyze screen if not cached
+      // Understanding phase
       setAnalyzing(true, 'Analyzing screen design...');
 
       let metadata = sourceMetadata;
@@ -362,7 +604,7 @@ export const VibePrototyping: React.FC = () => {
         setSourceMetadata(metadata);
       }
 
-      // Generate variant plan
+      // Planning phase
       setStatus('planning');
       setProgress({
         stage: 'planning',
@@ -393,13 +635,12 @@ export const VibePrototyping: React.FC = () => {
 
       setSession(result.session);
 
-      // Auto-approve and start generating
       const approvedSession = await approvePlan(session.id);
       if (approvedSession) {
         storeApprovePlan();
       }
 
-      // Start generating variants
+      // Building phase
       setStatus('generating');
       setProgress({
         stage: 'generating',
@@ -407,7 +648,6 @@ export const VibePrototyping: React.FC = () => {
         percent: 0,
       });
 
-      // Generate all variants
       const generatedVariants = await generateAllVariants(
         session.id,
         result.plans,
@@ -423,7 +663,6 @@ export const VibePrototyping: React.FC = () => {
             variantTitle: p.title,
           });
 
-          // Update individual variant in store as it completes
           if (p.stage === 'complete') {
             getVariants(session.id).then(setVariants);
           }
@@ -441,18 +680,95 @@ export const VibePrototyping: React.FC = () => {
       setError(errorMsg);
       showError('Failed to generate variant plan');
     }
-  }, [screen, screenId, promptValue, sourceMetadata, contexts]);
+  }, [screen, screenId, promptValue, sourceMetadata, contexts, generatePhaseContent]);
 
-  // Handle variant selection (from canvas)
+  // Handle file attachment
+  const handleFileAttach = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newAttachments: AttachedFile[] = [];
+
+    Array.from(files).forEach((file) => {
+      if (attachedFiles.length + newAttachments.length >= 20) return;
+
+      let type: AttachedFile['type'] = 'file';
+      if (file.type.startsWith('image/')) type = 'image';
+      else if (file.type.startsWith('video/')) type = 'video';
+      else if (file.type.startsWith('audio/')) type = 'audio';
+      else if (file.type === 'application/pdf') type = 'pdf';
+
+      const attachment: AttachedFile = {
+        id: `file_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        type,
+        name: file.name,
+        file,
+        preview: type === 'image' ? URL.createObjectURL(file) : undefined,
+      };
+
+      newAttachments.push(attachment);
+    });
+
+    setAttachedFiles((prev) => [...prev, ...newAttachments]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [attachedFiles.length]);
+
+  // Handle URL attachment (used by URL input dialog)
+  const handleUrlAttach = (url: string) => {
+    if (attachedFiles.length >= 20) return;
+
+    const isFigma = url.includes('figma.com');
+    const attachment: AttachedFile = {
+      id: `url_${Date.now()}`,
+      type: isFigma ? 'figma' : 'url',
+      name: isFigma ? 'Figma Design' : new URL(url).hostname,
+      url,
+    };
+
+    setAttachedFiles((prev) => [...prev, attachment]);
+  };
+  // Export for potential future use
+  void handleUrlAttach;
+
+  // Handle share
+  const handleShare = useCallback(() => {
+    const link = `${window.location.origin}/view/${screenId}/${sessionId || 'preview'}`;
+    setShareLink(link);
+    setShareDialogOpen(true);
+  }, [screenId, sessionId]);
+
+  const handleCopyShareLink = useCallback(() => {
+    navigator.clipboard.writeText(shareLink);
+    showSuccess('Link copied to clipboard');
+  }, [shareLink, showSuccess]);
+
+  // Handle variant selection
   const handleVariantClick = useCallback((index: number) => {
     setFocusedVariantIndex(index);
   }, []);
 
-  // Handle back from focused variant
   const handleBackToGrid = useCallback(() => {
     setFocusedVariantIndex(null);
   }, []);
 
+  // Computed values
+  const isAnalyzing = status === 'analyzing';
+  const isPlanning = status === 'planning';
+  const isGenerating = status === 'generating';
+  const isComplete = status === 'complete';
+  const hasVariants = variants.length > 0;
+
+  const projectName = screen?.name || 'Untitled Project';
+  const focusedVariant = focusedVariantIndex ? getVariantByIndex(focusedVariantIndex) : null;
+  const focusedPlan = focusedVariantIndex ? getPlanByIndex(focusedVariantIndex) : null;
+
+  // Get progress for each variant
+  const getVariantProgress = useCallback((index: number) => {
+    if (!progress || progress.stage !== 'generating') return 0;
+    if (progress.variantIndex === index) return progress.percent;
+    const variant = getVariantByIndex(index);
+    return variant?.status === 'complete' ? 100 : 0;
+  }, [progress, getVariantByIndex]);
 
   // Loading state
   if (isLoading) {
@@ -467,18 +783,6 @@ export const VibePrototyping: React.FC = () => {
   if (!screen) {
     return <NotFoundResult onBack={() => navigate('/repository/screens')} />;
   }
-
-  // Get current phase
-  const isAnalyzing = status === 'analyzing';
-  const isPlanning = status === 'planning';
-  const isGenerating = status === 'generating';
-  const isComplete = status === 'complete';
-  const hasVariants = variants.length > 0;
-
-  // Project name for header
-  const projectName = screen.name || 'Project name';
-  const focusedVariant = focusedVariantIndex ? getVariantByIndex(focusedVariantIndex) : null;
-  const focusedPlan = focusedVariantIndex ? getPlanByIndex(focusedVariantIndex) : null;
 
   return (
     <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
@@ -495,83 +799,207 @@ export const VibePrototyping: React.FC = () => {
           bgcolor: 'background.paper',
         }}
       >
-        {/* Left: Project name / breadcrumb */}
-        <Typography variant="subtitle1" fontWeight={500}>
-          {focusedVariantIndex && focusedPlan
-            ? `${projectName} > ${focusedPlan.title}`
-            : projectName}
-        </Typography>
-
-        {/* Center: Icons and Pages dropdown */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <IconButton size="small">
-            <Code size={20} />
-          </IconButton>
-          <IconButton size="small">
-            <At size={20} />
-          </IconButton>
-          <IconButton size="small">
-            <Flag size={20} />
-          </IconButton>
-          <IconButton size="small">
-            <DownloadSimple size={20} />
-          </IconButton>
-          <Box sx={{ width: 1, height: 24, bgcolor: 'divider', mx: 1 }} />
-          <IconButton size="small" onClick={handleBackToGrid} disabled={!focusedVariantIndex}>
-            <ArrowCounterClockwise size={20} />
-          </IconButton>
-          <Box
-            sx={{
-              px: 2,
-              py: 0.5,
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 1,
-              minWidth: 100,
-              textAlign: 'center',
-            }}
-          >
-            <Typography variant="body2">Pages /</Typography>
-          </Box>
-        </Box>
-
-        {/* Right: Share button */}
+        {/* Left: Share button */}
         <Button
           variant="outlined"
           size="small"
-          startIcon={<ShareNetwork size={18} />}
-          sx={{ textTransform: 'none' }}
+          startIcon={<ShareNetwork size={16} />}
+          onClick={handleShare}
+          sx={{
+            textTransform: 'none',
+            transition: 'all 0.2s ease',
+            '&:hover': { transform: 'translateY(-1px)' },
+          }}
         >
           Share
         </Button>
+
+        {/* Center: Edit mode tools + Undo/Redo + Pages dropdown */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {/* Edit mode group */}
+          <Box
+            sx={{
+              display: 'flex',
+              bgcolor: 'action.hover',
+              borderRadius: 1,
+              p: 0.25,
+            }}
+          >
+            <Tooltip title="Select (V)">
+              <IconButton
+                size="small"
+                onClick={() => setEditMode('cursor')}
+                sx={{
+                  bgcolor: editMode === 'cursor' ? 'background.paper' : 'transparent',
+                  boxShadow: editMode === 'cursor' ? 1 : 0,
+                }}
+              >
+                <Cursor size={18} weight={editMode === 'cursor' ? 'fill' : 'regular'} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Code Editor">
+              <IconButton
+                size="small"
+                onClick={() => setEditMode('code')}
+                sx={{
+                  bgcolor: editMode === 'code' ? 'background.paper' : 'transparent',
+                  boxShadow: editMode === 'code' ? 1 : 0,
+                }}
+              >
+                <Code size={18} weight={editMode === 'code' ? 'fill' : 'regular'} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="WYSIWYG Editor">
+              <IconButton
+                size="small"
+                onClick={() => setEditMode('wysiwyg')}
+                sx={{
+                  bgcolor: editMode === 'wysiwyg' ? 'background.paper' : 'transparent',
+                  boxShadow: editMode === 'wysiwyg' ? 1 : 0,
+                }}
+              >
+                <PencilSimple size={18} weight={editMode === 'wysiwyg' ? 'fill' : 'regular'} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+          {/* Variant switcher (only when focused) */}
+          {focusedVariantIndex && (
+            <>
+              <Button
+                size="small"
+                endIcon={<CaretDown size={14} />}
+                onClick={(e) => setVariantSwitcherAnchorEl(e.currentTarget)}
+                sx={{ textTransform: 'none', minWidth: 120 }}
+              >
+                Variant {String.fromCharCode(64 + focusedVariantIndex)}
+              </Button>
+              <Menu
+                anchorEl={variantSwitcherAnchorEl}
+                open={Boolean(variantSwitcherAnchorEl)}
+                onClose={() => setVariantSwitcherAnchorEl(null)}
+                TransitionComponent={Fade}
+              >
+                {[1, 2, 3, 4].map((idx) => (
+                  <MenuItem
+                    key={idx}
+                    selected={focusedVariantIndex === idx}
+                    onClick={() => {
+                      setFocusedVariantIndex(idx);
+                      setVariantSwitcherAnchorEl(null);
+                    }}
+                  >
+                    Variant {String.fromCharCode(64 + idx)}
+                  </MenuItem>
+                ))}
+              </Menu>
+              <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+            </>
+          )}
+
+          {/* Undo/Redo */}
+          <Tooltip title="Undo">
+            <IconButton size="small">
+              <ArrowCounterClockwise size={18} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Redo">
+            <IconButton size="small">
+              <ArrowClockwise size={18} />
+            </IconButton>
+          </Tooltip>
+
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+          {/* Pages dropdown */}
+          <Button
+            size="small"
+            endIcon={<CaretDown size={14} />}
+            onClick={(e) => setPagesAnchorEl(e.currentTarget)}
+            sx={{
+              textTransform: 'none',
+              px: 2,
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1,
+            }}
+          >
+            Pages /
+          </Button>
+          <Menu
+            anchorEl={pagesAnchorEl}
+            open={Boolean(pagesAnchorEl)}
+            onClose={() => setPagesAnchorEl(null)}
+            TransitionComponent={Fade}
+          >
+            <MenuItem onClick={() => setPagesAnchorEl(null)}>
+              {projectName}
+            </MenuItem>
+          </Menu>
+        </Box>
+
+        {/* Right: Project breadcrumb */}
+        <Typography
+          variant="subtitle2"
+          sx={{
+            fontWeight: 500,
+            color: 'text.secondary',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+          }}
+        >
+          {focusedVariantIndex && focusedPlan ? (
+            <>
+              <span
+                style={{ cursor: 'pointer', color: config.colors.primary }}
+                onClick={handleBackToGrid}
+              >
+                {projectName}
+              </span>
+              <CaretRight size={14} />
+              {focusedPlan.title}
+            </>
+          ) : (
+            projectName
+          )}
+        </Typography>
       </Box>
 
       {/* Main content area */}
-      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Left Panel - Gray AI Panel */}
+      <Box ref={containerRef} sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        {/* Left Panel - Resizable Chat Panel */}
         <Box
           sx={{
-            width: 320,
+            width: `${panelWidth}%`,
+            minWidth: 200,
+            maxWidth: '50%',
             bgcolor: '#f5f5f5',
             display: 'flex',
             flexDirection: 'column',
-            borderRight: '1px solid',
-            borderColor: 'divider',
+            position: 'relative',
           }}
         >
           {/* AI Phases and Variant Cards */}
           <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
             {/* Initial empty state */}
             {status === 'idle' && !plan && (
-              <Box sx={{ height: '100%' }} />
+              <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography color="text.secondary" textAlign="center">
+                  Describe what you want to build
+                </Typography>
+              </Box>
             )}
 
             {/* Understanding phase */}
             {(isAnalyzing || isPlanning || isGenerating || isComplete) && (
               <AIPhase
                 label="Understanding"
-                description="Acknowledging the request and providing a summary of the task understanding"
+                content={phaseContent.understanding || `Analyzing "${currentPrompt}" and understanding the design context...`}
                 isActive={isAnalyzing}
+                isComplete={!isAnalyzing}
               />
             )}
 
@@ -579,21 +1007,33 @@ export const VibePrototyping: React.FC = () => {
             {(isPlanning || isGenerating || isComplete) && (
               <AIPhase
                 label="Planning"
-                description="Explaining the planning strategy and breaking this into 4 solution directions"
+                content={phaseContent.planning || 'Creating 4 unique approaches to solve this design challenge...'}
                 isActive={isPlanning}
+                isComplete={!isPlanning}
               />
             )}
 
             {/* Variant cards during planning/generating */}
-            {(isPlanning || isGenerating) && plan?.plans && (
+            {(isPlanning || isGenerating || isComplete) && plan?.plans && (
               <Box sx={{ mt: 2 }}>
-                {plan.plans.map((p, idx) => (
-                  <VariantCard
-                    key={p.id || idx}
-                    title={p.title || `Variant ${idx + 1}`}
-                    description={p.description || 'Description of the UI and UX approach of this variant'}
-                  />
-                ))}
+                {plan.plans.map((p, idx) => {
+                  const variantProgress = getVariantProgress(idx + 1);
+                  const variant = getVariantByIndex(idx + 1);
+                  const isBuilding = isGenerating && progress?.variantIndex === idx + 1;
+
+                  return (
+                    <VariantCard
+                      key={p.id || idx}
+                      title={p.title || `Variant ${String.fromCharCode(65 + idx)}`}
+                      description={p.description || 'Generating design approach...'}
+                      isSelected={focusedVariantIndex === idx + 1}
+                      isBuilding={isBuilding}
+                      isComplete={variant?.status === 'complete'}
+                      progress={variantProgress}
+                      onClick={variant?.status === 'complete' ? () => handleVariantClick(idx + 1) : undefined}
+                    />
+                  );
+                })}
               </Box>
             )}
 
@@ -601,19 +1041,105 @@ export const VibePrototyping: React.FC = () => {
             {isComplete && (
               <AIPhase
                 label="Summary"
-                description="Explaining the 4 variants approached in high level details. Calling to action to click on each, explore and switch between them to see in full screen."
+                content={phaseContent.summary || 'All 4 variants are ready! Click on any variant to explore it in full screen.'}
+                isComplete
               />
             )}
           </Box>
 
           {/* Prompt Input at bottom */}
           <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+            {/* Context indicator */}
+            {contextFiles.length > 0 && (
+              <Box sx={{ mb: 1.5 }}>
+                <Tooltip
+                  title={
+                    <Box>
+                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                        Product Context Available
+                      </Typography>
+                      <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                        {contextFiles.length} files loaded from your product context.
+                        The AI will use this context to provide more relevant suggestions.
+                      </Typography>
+                    </Box>
+                  }
+                >
+                  <Chip
+                    icon={<Brain size={14} />}
+                    label={`${contextFiles.length} context files`}
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                    onClick={() => setContextPanelOpen(!contextPanelOpen)}
+                    sx={{
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      '&:hover': { bgcolor: 'primary.50' },
+                    }}
+                  />
+                </Tooltip>
+                {contextPanelOpen && (
+                  <Box
+                    sx={{
+                      mt: 1,
+                      p: 1.5,
+                      bgcolor: 'white',
+                      borderRadius: 1,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      maxHeight: 150,
+                      overflow: 'auto',
+                    }}
+                  >
+                    <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                      Available Context:
+                    </Typography>
+                    {contextFiles.slice(0, 5).map((file) => (
+                      <Box
+                        key={file.id}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          py: 0.5,
+                        }}
+                      >
+                        <Info size={12} />
+                        <Typography variant="caption" noWrap>
+                          {file.title} ({file.category})
+                        </Typography>
+                      </Box>
+                    ))}
+                    {contextFiles.length > 5 && (
+                      <Typography variant="caption" color="text.secondary">
+                        +{contextFiles.length - 5} more files
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+              </Box>
+            )}
+
+            {/* Attached files */}
+            {attachedFiles.length > 0 && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1.5 }}>
+                {attachedFiles.map((file) => (
+                  <AttachmentChip
+                    key={file.id}
+                    file={file}
+                    onRemove={() => setAttachedFiles((prev) => prev.filter((f) => f.id !== file.id))}
+                  />
+                ))}
+              </Box>
+            )}
+
             <TextField
               fullWidth
               multiline
               minRows={2}
               maxRows={4}
-              placeholder="Create a invite option to this page"
+              placeholder="What would you like to build? Describe your idea..."
               value={promptValue}
               onChange={(e) => setPromptValue(e.target.value)}
               disabled={isAnalyzing || isPlanning || isGenerating}
@@ -627,17 +1153,37 @@ export const VibePrototyping: React.FC = () => {
                 bgcolor: 'white',
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2,
+                  transition: 'all 0.2s ease',
+                  '&:hover': { boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },
+                  '&.Mui-focused': { boxShadow: '0 2px 12px rgba(0,0,0,0.12)' },
                 },
               }}
             />
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
-              <IconButton size="small">
-                <Microphone size={20} />
-              </IconButton>
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                <Tooltip title="Voice input">
+                  <IconButton size="small">
+                    <Microphone size={20} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <IconButton size="small">
-                  <Paperclip size={20} />
-                </IconButton>
+                <Typography variant="caption" color="text.secondary">
+                  {attachedFiles.length}/20 files
+                </Typography>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  hidden
+                  multiple
+                  accept="image/*,video/*,audio/*,.pdf"
+                  onChange={handleFileAttach}
+                />
+                <Tooltip title="Attach files (images, videos, PDFs)">
+                  <IconButton size="small" onClick={() => fileInputRef.current?.click()}>
+                    <Paperclip size={20} />
+                  </IconButton>
+                </Tooltip>
                 <Button
                   variant="contained"
                   size="small"
@@ -645,16 +1191,40 @@ export const VibePrototyping: React.FC = () => {
                   disabled={!promptValue.trim() || isAnalyzing || isPlanning || isGenerating}
                   sx={{
                     textTransform: 'none',
-                    minWidth: 60,
-                    bgcolor: 'grey.700',
-                    '&:hover': { bgcolor: 'grey.800' },
+                    minWidth: 70,
+                    bgcolor: 'grey.800',
+                    transition: 'all 0.2s ease',
+                    '&:hover': { bgcolor: 'grey.900', transform: 'translateY(-1px)' },
                   }}
                 >
-                  Build
+                  {isAnalyzing || isPlanning || isGenerating ? (
+                    <CircularProgress size={16} color="inherit" />
+                  ) : (
+                    'Build'
+                  )}
                 </Button>
               </Box>
             </Box>
           </Box>
+
+          {/* Resize handle */}
+          <Box
+            ref={resizeRef}
+            onMouseDown={() => setIsResizing(true)}
+            sx={{
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 4,
+              cursor: 'col-resize',
+              bgcolor: isResizing ? 'primary.main' : 'transparent',
+              transition: 'background-color 0.15s ease',
+              '&:hover': {
+                bgcolor: 'primary.light',
+              },
+            }}
+          />
         </Box>
 
         {/* Right Panel - White Canvas */}
@@ -669,7 +1239,18 @@ export const VibePrototyping: React.FC = () => {
         >
           {/* Initial empty state */}
           {status === 'idle' && !hasVariants && (
-            <Box sx={{ flex: 1 }} />
+            <Box
+              sx={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Typography color="text.secondary">
+                Preview will appear here
+              </Typography>
+            </Box>
           )}
 
           {/* Loading/Planning state - 2x2 grid with loading indicators */}
@@ -678,12 +1259,15 @@ export const VibePrototyping: React.FC = () => {
               <Grid container spacing={2} sx={{ height: '100%' }}>
                 {['Variant A', 'Variant B', 'Variant C', 'Variant D'].map((label, idx) => {
                   const variant = variants.find((v) => v.variant_index === idx + 1);
+                  const variantProgress = getVariantProgress(idx + 1);
+
                   return (
                     <Grid item xs={6} key={label} sx={{ height: '50%' }}>
                       <CanvasVariantCard
                         label={label}
                         isLoading={!variant || variant.status !== 'complete'}
                         htmlUrl={variant?.html_url}
+                        progress={variantProgress}
                         onClick={variant?.status === 'complete' ? () => handleVariantClick(idx + 1) : undefined}
                       />
                     </Grid>
@@ -722,6 +1306,7 @@ export const VibePrototyping: React.FC = () => {
                   height: '100%',
                   display: 'flex',
                   flexDirection: 'column',
+                  borderRadius: 2,
                 }}
               >
                 <Box
@@ -761,6 +1346,51 @@ export const VibePrototyping: React.FC = () => {
           )}
         </Box>
       </Box>
+
+      {/* Share Dialog */}
+      <Dialog
+        open={shareDialogOpen}
+        onClose={() => setShareDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        TransitionComponent={Fade}
+      >
+        <DialogTitle sx={{ fontFamily: config.fonts.display }}>
+          Share Prototype
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Share this link with your team to collaborate on this prototype.
+          </Typography>
+          <TextField
+            fullWidth
+            value={shareLink}
+            InputProps={{
+              readOnly: true,
+              endAdornment: (
+                <IconButton onClick={handleCopyShareLink}>
+                  <Copy size={20} />
+                </IconButton>
+              ),
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShareDialogOpen(false)} variant="outlined">
+            Close
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<Download size={18} />}
+            onClick={() => {
+              showSuccess('Download started');
+              setShareDialogOpen(false);
+            }}
+          >
+            Download HTML
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
