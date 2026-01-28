@@ -1,69 +1,63 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
-import CardActionArea from '@mui/material/CardActionArea';
+import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
-import TextField from '@mui/material/TextField';
 import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
-import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
+import LinearProgress from '@mui/material/LinearProgress';
+import Tooltip from '@mui/material/Tooltip';
 import Alert from '@mui/material/Alert';
+import Skeleton from '@mui/material/Skeleton';
 import FlagIcon from '@mui/icons-material/Flag';
 import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
-import MoreVertOutlinedIcon from '@mui/icons-material/MoreVertOutlined';
-import DescriptionIcon from '@mui/icons-material/Description';
-import LinkIcon from '@mui/icons-material/Link';
+import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
+import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
+import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
+import SlideshowOutlinedIcon from '@mui/icons-material/SlideshowOutlined';
+import TextSnippetOutlinedIcon from '@mui/icons-material/TextSnippetOutlined';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import {
+  getContextFiles,
+  uploadContextFile,
+  deleteContextFile,
+  getFileDownloadUrl,
+  formatFileSize,
+  type ContextFile,
+  type ContextCategory as ContextCategoryType,
+} from '@/services/contextFilesService';
 
-interface ContextItem {
-  id: string;
-  title: string;
-  content: string;
-  type: 'text' | 'url';
-  url?: string;
-  createdAt: string;
-}
-
-interface ContextCategory {
-  id: string;
+interface CategoryConfig {
+  id: ContextCategoryType;
   title: string;
   description: string;
   icon: React.ReactNode;
   color: string;
-  items: ContextItem[];
 }
 
-// Initial mock data
-const initialCategories: ContextCategory[] = [
+const categoryConfigs: CategoryConfig[] = [
   {
     id: 'goals',
     title: 'Goals / OKRs / Mission',
     description: 'Company objectives and key results',
     icon: <FlagIcon />,
     color: '#764ba2',
-    items: [
-      { id: '1', title: 'Q1 2024 OKRs', content: 'Increase user engagement by 25%...', type: 'text', createdAt: '2024-01-15' },
-      { id: '2', title: 'Company Mission', content: 'To empower product teams...', type: 'text', createdAt: '2024-01-10' },
-    ],
   },
   {
     id: 'kpis',
@@ -71,9 +65,6 @@ const initialCategories: ContextCategory[] = [
     description: 'Key performance indicators and metrics',
     icon: <TrendingUpOutlinedIcon />,
     color: '#52c41a',
-    items: [
-      { id: '3', title: 'Conversion Metrics', content: 'Current conversion rate: 3.2%...', type: 'text', createdAt: '2024-01-12' },
-    ],
   },
   {
     id: 'backlog',
@@ -81,10 +72,6 @@ const initialCategories: ContextCategory[] = [
     description: 'Product backlog and feature ideas',
     icon: <ListAltIcon />,
     color: '#faad14',
-    items: [
-      { id: '4', title: 'Feature Wishlist', content: 'Dark mode, Mobile app...', type: 'text', createdAt: '2024-01-08' },
-      { id: '5', title: 'User Feedback Summary', content: 'Top requested features...', type: 'text', createdAt: '2024-01-05' },
-    ],
   },
   {
     id: 'knowledge',
@@ -92,242 +79,445 @@ const initialCategories: ContextCategory[] = [
     description: 'Documentation and reference materials',
     icon: <MenuBookIcon />,
     color: '#667eea',
-    items: [
-      { id: '6', title: 'Design Guidelines', content: 'Brand colors, typography...', type: 'text', createdAt: '2024-01-01' },
-      { id: '7', title: 'Competitor Analysis', content: 'https://notion.so/competitors', type: 'url', url: 'https://notion.so/competitors', createdAt: '2024-01-03' },
-    ],
   },
 ];
 
-export function Context() {
-  const { showSuccess, showError } = useSnackbar();
-  const [categories, setCategories] = useState(initialCategories);
-  const [selectedCategory, setSelectedCategory] = useState<ContextCategory | null>(null);
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [editItem, setEditItem] = useState<ContextItem | null>(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{ categoryId: string; itemId: string } | null>(null);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [menuItem, setMenuItem] = useState<{ categoryId: string; item: ContextItem } | null>(null);
+function getFileIcon(fileType: string) {
+  switch (fileType) {
+    case 'image':
+      return <ImageOutlinedIcon />;
+    case 'pdf':
+      return <PictureAsPdfOutlinedIcon />;
+    case 'document':
+      return <DescriptionOutlinedIcon />;
+    case 'spreadsheet':
+      return <TableChartOutlinedIcon />;
+    case 'presentation':
+      return <SlideshowOutlinedIcon />;
+    case 'text':
+      return <TextSnippetOutlinedIcon />;
+    default:
+      return <InsertDriveFileOutlinedIcon />;
+  }
+}
 
-  // Form state
-  const [formTitle, setFormTitle] = useState('');
-  const [formContent, setFormContent] = useState('');
-  const [formType, setFormType] = useState<'text' | 'url'>('text');
-  const [formUrl, setFormUrl] = useState('');
+interface FilePreviewProps {
+  file: ContextFile;
+  onDelete: () => void;
+  onOpen: () => void;
+  color: string;
+}
 
-  const totalItems = categories.reduce((sum, cat) => sum + cat.items.length, 0);
+function FilePreview({ file, onDelete, onOpen, color }: FilePreviewProps) {
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        p: 1,
+        borderRadius: 1,
+        backgroundColor: 'rgba(0,0,0,0.03)',
+        '&:hover': {
+          backgroundColor: 'rgba(0,0,0,0.06)',
+        },
+      }}
+    >
+      <Box
+        sx={{
+          width: 36,
+          height: 36,
+          borderRadius: 1,
+          backgroundColor: `${color}15`,
+          color: color,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        {getFileIcon(file.fileType)}
+      </Box>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: 500,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {file.title}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {formatFileSize(file.fileSize)}
+        </Typography>
+      </Box>
+      <Tooltip title="Open">
+        <IconButton size="small" onClick={onOpen}>
+          <OpenInNewIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Delete">
+        <IconButton size="small" onClick={onDelete} color="error">
+          <DeleteOutlinedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+    </Box>
+  );
+}
 
-  const handleOpenCategory = (category: ContextCategory) => {
-    setSelectedCategory(category);
-  };
+interface CategoryCardProps {
+  config: CategoryConfig;
+  files: ContextFile[];
+  onUpload: (category: ContextCategoryType, file: File) => void;
+  onDeleteFile: (file: ContextFile) => void;
+  onOpenFile: (file: ContextFile) => void;
+  uploading: boolean;
+}
 
-  const handleCloseCategory = () => {
-    setSelectedCategory(null);
-  };
+function CategoryCard({ config, files, onUpload, onDeleteFile, onOpenFile, uploading }: CategoryCardProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const handleOpenAddDialog = () => {
-    setEditItem(null);
-    setFormTitle('');
-    setFormContent('');
-    setFormType('text');
-    setFormUrl('');
-    setAddDialogOpen(true);
-  };
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
 
-  const handleOpenEditDialog = (item: ContextItem) => {
-    setEditItem(item);
-    setFormTitle(item.title);
-    setFormContent(item.content);
-    setFormType(item.type);
-    setFormUrl(item.url || '');
-    setAddDialogOpen(true);
-    setAnchorEl(null);
-  };
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
 
-  const handleSaveItem = () => {
-    if (!formTitle.trim()) {
-      showError('Please enter a title');
-      return;
-    }
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
 
-    if (formType === 'text' && !formContent.trim()) {
-      showError('Please enter content');
-      return;
-    }
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
 
-    if (formType === 'url' && !formUrl.trim()) {
-      showError('Please enter a URL');
-      return;
-    }
-
-    const newItem: ContextItem = {
-      id: editItem?.id || Date.now().toString(),
-      title: formTitle,
-      content: formType === 'url' ? `Reference: ${formUrl}` : formContent,
-      type: formType,
-      url: formType === 'url' ? formUrl : undefined,
-      createdAt: editItem?.createdAt || new Date().toISOString().split('T')[0],
-    };
-
-    setCategories((prev) =>
-      prev.map((cat) => {
-        if (cat.id === selectedCategory?.id) {
-          if (editItem) {
-            return {
-              ...cat,
-              items: cat.items.map((item) => (item.id === editItem.id ? newItem : item)),
-            };
-          } else {
-            return {
-              ...cat,
-              items: [...cat.items, newItem],
-            };
-          }
-        }
-        return cat;
-      })
-    );
-
-    // Update selectedCategory to reflect changes
-    setSelectedCategory((prev) => {
-      if (!prev) return null;
-      if (editItem) {
-        return {
-          ...prev,
-          items: prev.items.map((item) => (item.id === editItem.id ? newItem : item)),
-        };
-      } else {
-        return {
-          ...prev,
-          items: [...prev.items, newItem],
-        };
+      const droppedFiles = Array.from(e.dataTransfer.files);
+      if (droppedFiles.length > 0) {
+        onUpload(config.id, droppedFiles[0]);
       }
-    });
+    },
+    [config.id, onUpload]
+  );
 
-    showSuccess(editItem ? 'Item updated' : 'Item added');
-    setAddDialogOpen(false);
-  };
-
-  const handleDeleteItem = () => {
-    if (!itemToDelete) return;
-
-    setCategories((prev) =>
-      prev.map((cat) => {
-        if (cat.id === itemToDelete.categoryId) {
-          return {
-            ...cat,
-            items: cat.items.filter((item) => item.id !== itemToDelete.itemId),
-          };
-        }
-        return cat;
-      })
-    );
-
-    // Update selectedCategory to reflect changes
-    setSelectedCategory((prev) => {
-      if (!prev || prev.id !== itemToDelete.categoryId) return prev;
-      return {
-        ...prev,
-        items: prev.items.filter((item) => item.id !== itemToDelete.itemId),
-      };
-    });
-
-    showSuccess('Item deleted');
-    setDeleteConfirmOpen(false);
-    setItemToDelete(null);
-  };
-
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, categoryId: string, item: ContextItem) => {
-    event.stopPropagation();
-    setAnchorEl(event.currentTarget);
-    setMenuItem({ categoryId, item });
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setMenuItem(null);
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files;
+    if (selectedFiles && selectedFiles.length > 0) {
+      onUpload(config.id, selectedFiles[0]);
+    }
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
-    <Box>
+    <Card
+      sx={{
+        height: '100%',
+        minHeight: 320,
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'all 0.2s',
+        border: isDragging ? `2px dashed ${config.color}` : '2px solid transparent',
+        backgroundColor: isDragging ? `${config.color}08` : undefined,
+        '&:hover': {
+          boxShadow: 4,
+        },
+      }}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 2.5 }}>
+        {/* Header */}
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 2 }}>
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              borderRadius: 2,
+              backgroundColor: `${config.color}15`,
+              color: config.color,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              '& svg': { fontSize: 24 },
+            }}
+          >
+            {config.icon}
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="subtitle1" fontWeight={600}>
+              {config.title}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {config.description}
+            </Typography>
+          </Box>
+          <Chip
+            label={`${files.length} files`}
+            size="small"
+            sx={{
+              backgroundColor: `${config.color}15`,
+              color: config.color,
+              fontWeight: 500,
+            }}
+          />
+        </Box>
+
+        {uploading && <LinearProgress sx={{ mb: 2 }} />}
+
+        {/* File List */}
+        <Box sx={{ flex: 1, overflow: 'auto', mb: 2 }}>
+          {files.length === 0 ? (
+            <Box
+              sx={{
+                height: '100%',
+                minHeight: 120,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px dashed',
+                borderColor: 'divider',
+                borderRadius: 2,
+                p: 2,
+              }}
+            >
+              <CloudUploadOutlinedIcon sx={{ fontSize: 32, color: 'text.disabled', mb: 1 }} />
+              <Typography variant="body2" color="text.secondary" align="center">
+                Drop files here or click to upload
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {files.slice(0, 3).map((file) => (
+                <FilePreview
+                  key={file.id}
+                  file={file}
+                  color={config.color}
+                  onDelete={() => onDeleteFile(file)}
+                  onOpen={() => onOpenFile(file)}
+                />
+              ))}
+              {files.length > 3 && (
+                <Typography variant="caption" color="text.secondary" sx={{ pl: 1 }}>
+                  +{files.length - 3} more files
+                </Typography>
+              )}
+            </Box>
+          )}
+        </Box>
+
+        {/* Upload Button */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          hidden
+          onChange={handleFileSelect}
+          accept="*/*"
+        />
+        <Button
+          variant="outlined"
+          startIcon={<AddOutlinedIcon />}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          sx={{
+            borderColor: config.color,
+            color: config.color,
+            '&:hover': {
+              borderColor: config.color,
+              backgroundColor: `${config.color}10`,
+            },
+          }}
+        >
+          Upload File
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function Context() {
+  const { showSuccess, showError } = useSnackbar();
+  const [files, setFiles] = useState<Record<ContextCategoryType, ContextFile[]>>({
+    goals: [],
+    kpis: [],
+    backlog: [],
+    knowledge: [],
+  });
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState<ContextCategoryType | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<ContextFile | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryConfig | null>(null);
+
+  // Load files on mount
+  useEffect(() => {
+    loadFiles();
+  }, []);
+
+  const loadFiles = async () => {
+    try {
+      setLoading(true);
+      const allFiles = await getContextFiles();
+
+      // Group files by category
+      const grouped: Record<ContextCategoryType, ContextFile[]> = {
+        goals: [],
+        kpis: [],
+        backlog: [],
+        knowledge: [],
+      };
+
+      allFiles.forEach((file) => {
+        if (grouped[file.category]) {
+          grouped[file.category].push(file);
+        }
+      });
+
+      setFiles(grouped);
+    } catch (error) {
+      console.error('Failed to load files:', error);
+      showError('Failed to load files');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpload = async (category: ContextCategoryType, file: File) => {
+    try {
+      setUploading(category);
+
+      const uploadedFile = await uploadContextFile({
+        category,
+        title: file.name.replace(/\.[^/.]+$/, ''), // Remove extension for title
+        file,
+      });
+
+      setFiles((prev) => ({
+        ...prev,
+        [category]: [uploadedFile, ...prev[category]],
+      }));
+
+      showSuccess('File uploaded successfully');
+    } catch (error) {
+      console.error('Upload failed:', error);
+      showError(error instanceof Error ? error.message : 'Upload failed');
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const handleDeleteFile = async () => {
+    if (!fileToDelete) return;
+
+    try {
+      await deleteContextFile(fileToDelete.id);
+
+      setFiles((prev) => ({
+        ...prev,
+        [fileToDelete.category]: prev[fileToDelete.category].filter(
+          (f) => f.id !== fileToDelete.id
+        ),
+      }));
+
+      showSuccess('File deleted');
+    } catch (error) {
+      console.error('Delete failed:', error);
+      showError(error instanceof Error ? error.message : 'Delete failed');
+    } finally {
+      setDeleteConfirmOpen(false);
+      setFileToDelete(null);
+    }
+  };
+
+  const handleOpenFile = async (file: ContextFile) => {
+    try {
+      const url = await getFileDownloadUrl(file.filePath);
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Failed to get download URL:', error);
+      showError('Failed to open file');
+    }
+  };
+
+  const handleOpenCategory = (config: CategoryConfig) => {
+    setSelectedCategory(config);
+    setViewDialogOpen(true);
+  };
+
+  const totalFiles = Object.values(files).reduce((sum, arr) => sum + arr.length, 0);
+
+  return (
+    <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={600} gutterBottom>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h5" fontWeight={600} gutterBottom>
           Product Context
         </Typography>
-        <Typography variant="body1" color="text.secondary">
-          {totalItems} items across {categories.length} categories
+        <Typography variant="body2" color="text.secondary">
+          {totalFiles} files across {categoryConfigs.length} categories
         </Typography>
       </Box>
 
       {/* Info Alert */}
-      <Alert severity="info" icon={<LightbulbIcon />} sx={{ mb: 4 }}>
+      <Alert severity="info" icon={<LightbulbIcon />} sx={{ mb: 3 }}>
         <Typography variant="body2">
-          <strong>How it works:</strong> Add product context to help AI generate better, more relevant prototypes.
-          This information will be used when generating designs with AI.
+          <strong>How it works:</strong> Upload product context files to help AI generate better,
+          more relevant prototypes. Drag and drop files into any category.
         </Typography>
       </Alert>
 
       {/* 2x2 Category Grid */}
-      <Grid container spacing={3}>
-        {categories.map((category) => (
-          <Grid item xs={12} md={6} key={category.id}>
-            <Card
-              sx={{
-                height: 200,
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                '&:hover': {
-                  boxShadow: 4,
-                  transform: 'translateY(-2px)',
-                },
-              }}
-            >
-              <CardActionArea
-                onClick={() => handleOpenCategory(category)}
-                sx={{ height: '100%', p: 3 }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                  <Box
-                    sx={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 2,
-                      backgroundColor: `${category.color}15`,
-                      color: category.color,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      '& svg': { fontSize: 28 },
-                    }}
-                  >
-                    {category.icon}
-                  </Box>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="h6" fontWeight={600} gutterBottom>
-                      {category.title}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      {category.description}
-                    </Typography>
-                    <Chip
-                      label={`${category.items.length} items`}
-                      size="small"
-                      sx={{ backgroundColor: `${category.color}15`, color: category.color }}
-                    />
-                  </Box>
-                </Box>
-              </CardActionArea>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+      {loading ? (
+        <Grid container spacing={3}>
+          {[1, 2, 3, 4].map((i) => (
+            <Grid item xs={12} md={6} key={i}>
+              <Skeleton variant="rectangular" height={320} sx={{ borderRadius: 2 }} />
+            </Grid>
+          ))}
+        </Grid>
+      ) : (
+        <Grid container spacing={3}>
+          {categoryConfigs.map((config) => (
+            <Grid item xs={12} md={6} key={config.id}>
+              <CategoryCard
+                config={config}
+                files={files[config.id]}
+                onUpload={handleUpload}
+                onDeleteFile={(file) => {
+                  setFileToDelete(file);
+                  setDeleteConfirmOpen(true);
+                }}
+                onOpenFile={handleOpenFile}
+                uploading={uploading === config.id}
+              />
+            </Grid>
+          ))}
+        </Grid>
+      )}
 
-      {/* Category Detail Dialog */}
+      {/* View All Files Dialog */}
       <Dialog
-        open={!!selectedCategory}
-        onClose={handleCloseCategory}
+        open={viewDialogOpen}
+        onClose={() => setViewDialogOpen(false)}
         maxWidth="md"
         fullWidth
       >
@@ -353,152 +543,44 @@ export function Context() {
               </Box>
             </DialogTitle>
             <DialogContent>
-              {selectedCategory.items.length === 0 ? (
+              {files[selectedCategory.id].length === 0 ? (
                 <Box sx={{ py: 4, textAlign: 'center' }}>
-                  <Typography color="text.secondary">No items yet</Typography>
-                  <Button
-                    startIcon={<AddOutlinedIcon />}
-                    onClick={handleOpenAddDialog}
-                    sx={{ mt: 2 }}
-                  >
-                    Add First Item
-                  </Button>
+                  <Typography color="text.secondary">No files uploaded yet</Typography>
                 </Box>
               ) : (
-                <List>
-                  {selectedCategory.items.map((item) => (
-                    <ListItem
-                      key={item.id}
-                      sx={{
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        borderRadius: 1,
-                        mb: 1,
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
+                  {files[selectedCategory.id].map((file) => (
+                    <FilePreview
+                      key={file.id}
+                      file={file}
+                      color={selectedCategory.color}
+                      onDelete={() => {
+                        setFileToDelete(file);
+                        setDeleteConfirmOpen(true);
                       }}
-                    >
-                      <ListItemIcon>
-                        {item.type === 'url' ? <LinkIcon /> : <DescriptionIcon />}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={item.title}
-                        secondary={
-                          item.type === 'url'
-                            ? item.url
-                            : item.content.substring(0, 100) + (item.content.length > 100 ? '...' : '')
-                        }
-                      />
-                      <ListItemSecondaryAction>
-                        <IconButton
-                          edge="end"
-                          onClick={(e) => handleMenuOpen(e, selectedCategory.id, item)}
-                        >
-                          <MoreVertOutlinedIcon />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
+                      onOpen={() => handleOpenFile(file)}
+                    />
                   ))}
-                </List>
+                </Box>
               )}
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleCloseCategory}>Close</Button>
-              <Button
-                variant="contained"
-                startIcon={<AddOutlinedIcon />}
-                onClick={handleOpenAddDialog}
-              >
-                Add Item
-              </Button>
+              <Button onClick={() => setViewDialogOpen(false)}>Close</Button>
             </DialogActions>
           </>
         )}
       </Dialog>
 
-      {/* Add/Edit Item Dialog */}
-      <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{editItem ? 'Edit Item' : 'Add Item'}</DialogTitle>
-        <DialogContent>
-          <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Chip
-                label="Text"
-                color={formType === 'text' ? 'primary' : 'default'}
-                onClick={() => setFormType('text')}
-                sx={{ cursor: 'pointer' }}
-              />
-              <Chip
-                label="URL"
-                color={formType === 'url' ? 'primary' : 'default'}
-                onClick={() => setFormType('url')}
-                sx={{ cursor: 'pointer' }}
-              />
-            </Box>
-
-            <TextField
-              fullWidth
-              label="Title"
-              value={formTitle}
-              onChange={(e) => setFormTitle(e.target.value)}
-              placeholder="e.g., Q1 2024 Goals"
-            />
-
-            {formType === 'text' ? (
-              <TextField
-                fullWidth
-                label="Content"
-                value={formContent}
-                onChange={(e) => setFormContent(e.target.value)}
-                multiline
-                rows={6}
-                placeholder="Enter your content here..."
-              />
-            ) : (
-              <TextField
-                fullWidth
-                label="URL"
-                value={formUrl}
-                onChange={(e) => setFormUrl(e.target.value)}
-                placeholder="https://..."
-              />
-            )}
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAddDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveItem}>
-            {editItem ? 'Save' : 'Add'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Context Menu */}
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-        <MenuItem onClick={() => menuItem && handleOpenEditDialog(menuItem.item)}>
-          <ListItemIcon><EditOutlinedIcon fontSize="small" /></ListItemIcon>
-          Edit
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            if (menuItem) {
-              setItemToDelete({ categoryId: menuItem.categoryId, itemId: menuItem.item.id });
-              setDeleteConfirmOpen(true);
-            }
-            handleMenuClose();
-          }}
-          sx={{ color: 'error.main' }}
-        >
-          <ListItemIcon><DeleteOutlinedIcon fontSize="small" color="error" /></ListItemIcon>
-          Delete
-        </MenuItem>
-      </Menu>
-
       {/* Delete Confirmation */}
       <ConfirmDialog
         open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
-        onConfirm={handleDeleteItem}
-        title="Delete Item"
-        content="Are you sure you want to delete this item?"
+        onClose={() => {
+          setDeleteConfirmOpen(false);
+          setFileToDelete(null);
+        }}
+        onConfirm={handleDeleteFile}
+        title="Delete File"
+        content={`Are you sure you want to delete "${fileToDelete?.title}"? This action cannot be undone.`}
         confirmText="Delete"
         confirmColor="error"
       />
