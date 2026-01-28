@@ -1,9 +1,13 @@
 import { useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import {
   House,
   Flask,
@@ -12,8 +16,16 @@ import {
   ChartLine,
   Plug,
   Gear,
+  Code,
+  At,
+  Flag,
+  DownloadSimple,
+  ArrowCounterClockwise,
+  CaretDown,
+  ShareNetwork,
 } from '@phosphor-icons/react';
 import { useThemeStore, useBackgroundStyle } from '@/store/themeStore';
+import { useScreensStore } from '@/store/screensStore';
 
 const SIDEBAR_WIDTH = 48;
 
@@ -35,13 +47,20 @@ const sidebarItems: SidebarItem[] = [
 
 export function VibeLayout() {
   const navigate = useNavigate();
+  const { screenId } = useParams<{ screenId?: string }>();
   const [activeItem, setActiveItem] = useState('/prototypes');
+  const [pagesMenuAnchor, setPagesMenuAnchor] = useState<null | HTMLElement>(null);
   const { config, mode } = useThemeStore();
   const backgroundStyle = useBackgroundStyle();
+  const { getScreenById } = useScreensStore();
+
+  const screen = screenId ? getScreenById(screenId) : null;
 
   const navHoverBg = mode === 'craftsman'
     ? 'rgba(184, 134, 11, 0.1)'
     : 'rgba(20, 184, 166, 0.15)';
+
+  const toolbarIconColor = config.colors.textSecondary;
 
   const handleNavigate = (path: string) => {
     setActiveItem(path);
@@ -107,7 +126,7 @@ export function VibeLayout() {
         ))}
       </Box>
 
-      {/* Main Content Area - Full width for Vibe */}
+      {/* Main Content Area */}
       <Box
         sx={{
           flexGrow: 1,
@@ -117,7 +136,112 @@ export function VibeLayout() {
           ...backgroundStyle,
         }}
       >
-        <Outlet />
+        {/* Top Toolbar */}
+        <Box
+          sx={{
+            height: 48,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            px: 2,
+            borderBottom: '1px solid',
+            borderColor: 'rgba(0,0,0,0.08)',
+            backgroundColor: config.colors.bgPrimary,
+          }}
+        >
+          {/* Left: Project Name */}
+          <Typography
+            variant="body2"
+            sx={{
+              fontWeight: 500,
+              color: config.colors.textPrimary,
+              fontFamily: config.fonts.display,
+            }}
+          >
+            {screen?.name || 'New Project'}
+          </Typography>
+
+          {/* Center: Toolbar Icons */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Tooltip title="Code View">
+              <IconButton size="small" sx={{ color: toolbarIconColor }}>
+                <Code size={18} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Mentions">
+              <IconButton size="small" sx={{ color: toolbarIconColor }}>
+                <At size={18} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Flag">
+              <IconButton size="small" sx={{ color: toolbarIconColor }}>
+                <Flag size={18} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Download">
+              <IconButton size="small" sx={{ color: toolbarIconColor }}>
+                <DownloadSimple size={18} />
+              </IconButton>
+            </Tooltip>
+
+            <Divider orientation="vertical" sx={{ mx: 1, height: 20 }} />
+
+            <Tooltip title="Undo">
+              <IconButton size="small" sx={{ color: toolbarIconColor }}>
+                <ArrowCounterClockwise size={18} />
+              </IconButton>
+            </Tooltip>
+
+            <Divider orientation="vertical" sx={{ mx: 1, height: 20 }} />
+
+            {/* Pages Dropdown */}
+            <Button
+              size="small"
+              endIcon={<CaretDown size={14} />}
+              onClick={(e) => setPagesMenuAnchor(e.currentTarget)}
+              sx={{
+                color: config.colors.textSecondary,
+                textTransform: 'none',
+                fontWeight: 400,
+                fontSize: '0.8125rem',
+              }}
+            >
+              Pages /
+            </Button>
+            <Menu
+              anchorEl={pagesMenuAnchor}
+              open={Boolean(pagesMenuAnchor)}
+              onClose={() => setPagesMenuAnchor(null)}
+            >
+              <MenuItem onClick={() => setPagesMenuAnchor(null)}>
+                Main Page
+              </MenuItem>
+              <MenuItem onClick={() => setPagesMenuAnchor(null)}>
+                + Add Page
+              </MenuItem>
+            </Menu>
+          </Box>
+
+          {/* Right: Share Button */}
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<ShareNetwork size={16} />}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 500,
+              borderColor: 'rgba(0,0,0,0.12)',
+              color: config.colors.textPrimary,
+            }}
+          >
+            Share
+          </Button>
+        </Box>
+
+        {/* Content Area */}
+        <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+          <Outlet />
+        </Box>
       </Box>
     </Box>
   );
