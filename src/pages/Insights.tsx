@@ -465,70 +465,74 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
         {/* Left Column: Feedback Summary + Funnel stacked */}
         <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {/* Feedback Summary */}
-          <Card variant="outlined">
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <Typography variant="subtitle1" fontWeight={500}>
-                  Feedback summary
-                </Typography>
-                <Box component="span" sx={{ fontSize: 14 }}>📋</Box>
-              </Box>
-              <Typography variant="body2" color="text.secondary">
-                Overall positive reception. Users appreciated the clean layout and intuitive navigation.
-                Main suggestions focus on improving CTA visibility and button contrast.
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+              <Typography variant="subtitle1" fontWeight={600}>
+                Feedback summary
               </Typography>
-            </CardContent>
-          </Card>
+              <Box component="span" sx={{ fontSize: 14 }}>📋</Box>
+            </Box>
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="body2" color="text.secondary">
+                  Overall positive reception. Users appreciated the clean layout and intuitive navigation.
+                  Main suggestions focus on improving CTA visibility and button contrast.
+                </Typography>
+              </CardContent>
+            </Card>
+          </Box>
 
           {/* Participants Funnel */}
-          <Card variant="outlined">
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <Typography variant="subtitle1" fontWeight={500}>
-                  Participants funnel
-                </Typography>
-                <Box component="span" sx={{ fontSize: 14 }}>📊</Box>
-              </Box>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                {funnelSteps.map((step, index) => (
-                  <Box key={step.label}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography variant="body2">{step.label}</Typography>
-                      <Typography variant="body2" fontWeight={500}>
-                        {step.count} ({step.percent}%)
-                      </Typography>
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+              <Typography variant="subtitle1" fontWeight={600}>
+                Participants funnel
+              </Typography>
+              <Box component="span" sx={{ fontSize: 14 }}>📊</Box>
+            </Box>
+            <Card variant="outlined">
+              <CardContent>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {funnelSteps.map((step, index) => (
+                    <Box key={step.label}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                        <Typography variant="body2">{step.label}</Typography>
+                        <Typography variant="body2" fontWeight={500}>
+                          {step.count} ({step.percent}%)
+                        </Typography>
+                      </Box>
+                      <LinearProgress
+                        variant="determinate"
+                        value={step.percent}
+                        sx={{
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: 'grey.200',
+                          '& .MuiLinearProgress-bar': {
+                            backgroundColor: index === 0 ? config.colors.primary :
+                              index === funnelSteps.length - 1 ? config.colors.success :
+                              config.colors.textSecondary,
+                          },
+                        }}
+                      />
                     </Box>
-                    <LinearProgress
-                      variant="determinate"
-                      value={step.percent}
-                      sx={{
-                        height: 8,
-                        borderRadius: 4,
-                        backgroundColor: 'grey.200',
-                        '& .MuiLinearProgress-bar': {
-                          backgroundColor: index === 0 ? config.colors.primary :
-                            index === funnelSteps.length - 1 ? config.colors.success :
-                            config.colors.textSecondary,
-                        },
-                      }}
-                    />
-                  </Box>
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Box>
         </Grid>
 
         {/* Right Column: Feedback Shared - takes full height */}
         <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexShrink: 0 }}>
+            <Typography variant="subtitle1" fontWeight={600}>
+              Feedback shared
+            </Typography>
+            <Box component="span" sx={{ fontSize: 14 }}>💬</Box>
+          </Box>
           <Card variant="outlined" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexShrink: 0 }}>
-                <Typography variant="subtitle1" fontWeight={500}>
-                  Feedback shared
-                </Typography>
-                <Box component="span" sx={{ fontSize: 14 }}>💬</Box>
-              </Box>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, flex: 1, overflow: 'auto' }}>
                 {feedbackComments.map((fb) => (
                   <Box key={fb.id} sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 1.5 }}>

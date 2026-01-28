@@ -57,6 +57,15 @@ function saveLocalFiles(files: ContextFile[]): void {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(files));
   } catch (e) {
     console.warn('[ContextFilesService] Failed to save to localStorage:', e);
+    // If localStorage is full, try to save without the data URLs (metadata only)
+    try {
+      const metadataOnly = files.map(f => ({ ...f, localDataUrl: undefined }));
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(metadataOnly));
+      console.warn('[ContextFilesService] Saved metadata only due to storage limits');
+    } catch {
+      // If that also fails, throw an error
+      throw new Error('Local storage is full. Please delete some files or clear browser storage.');
+    }
   }
 }
 
@@ -153,7 +162,22 @@ export async function uploadContextFile(params: UploadContextFileParams): Promis
 
   if (useMock) {
     // Mock upload - store in localStorage
-    const dataUrl = await fileToDataUrl(file);
+    // Check file size - localStorage has a ~5MB limit total, so limit individual files to 2MB
+    const MAX_LOCAL_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+    if (file.size > MAX_LOCAL_FILE_SIZE) {
+      console.warn(`[ContextFilesService] File too large for local storage: ${file.size} bytes`);
+      // Still allow the upload but don't store the data URL
+    }
+
+    let dataUrl: string | undefined;
+    if (file.size <= MAX_LOCAL_FILE_SIZE) {
+      try {
+        dataUrl = await fileToDataUrl(file);
+      } catch (e) {
+        console.warn('[ContextFilesService] Failed to convert file to data URL:', e);
+      }
+    }
+
     const fileType = getFileType(file.type, file.name);
 
     // Extract content preview for text files
@@ -186,7 +210,16 @@ export async function uploadContextFile(params: UploadContextFileParams): Promis
 
     const files = getLocalFiles();
     files.unshift(newFile);
-    saveLocalFiles(files);
+
+    try {
+      saveLocalFiles(files);
+    } catch (e) {
+      // If save fails, try saving without the data URL
+      newFile.localDataUrl = undefined;
+      files[0] = newFile;
+      saveLocalFiles(files);
+      console.warn('[ContextFilesService] Saved file metadata only due to storage limits');
+    }
 
     return newFile;
   }
@@ -332,6 +365,10 @@ export async function getFileDownloadUrl(filePath: string): Promise<string> {
     const file = files.find(f => f.filePath === filePath);
     if (file?.localDataUrl) {
       return file.localDataUrl;
+    }
+    if (file) {
+      // File exists but data URL wasn't stored (too large)
+      throw new Error('File content not available in demo mode. Files larger than 2MB are not stored locally.');
     }
     throw new Error('File not found in local storage');
   }
