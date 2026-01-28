@@ -114,8 +114,10 @@ function FilePreview({ file, onDelete, onOpen, color }: FilePreviewProps) {
         p: 1,
         borderRadius: 1,
         backgroundColor: 'rgba(0,0,0,0.03)',
+        transition: 'all 0.2s ease',
         '&:hover': {
           backgroundColor: 'rgba(0,0,0,0.06)',
+          transform: 'translateX(4px)',
         },
       }}
     >
@@ -151,12 +153,21 @@ function FilePreview({ file, onDelete, onOpen, color }: FilePreviewProps) {
         </Typography>
       </Box>
       <Tooltip title="Open">
-        <IconButton size="small" onClick={onOpen}>
+        <IconButton
+          size="small"
+          onClick={onOpen}
+          sx={{ transition: 'all 0.2s ease', '&:hover': { transform: 'scale(1.1)' } }}
+        >
           <OpenInNewIcon fontSize="small" />
         </IconButton>
       </Tooltip>
       <Tooltip title="Delete">
-        <IconButton size="small" onClick={onDelete} color="error">
+        <IconButton
+          size="small"
+          onClick={onDelete}
+          color="error"
+          sx={{ transition: 'all 0.2s ease', '&:hover': { transform: 'scale(1.1)' } }}
+        >
           <DeleteOutlinedIcon fontSize="small" />
         </IconButton>
       </Tooltip>
@@ -226,11 +237,12 @@ function CategoryCard({ config, files, onUpload, onDeleteFile, onOpenFile, uploa
         minHeight: 320,
         display: 'flex',
         flexDirection: 'column',
-        transition: 'all 0.2s',
+        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
         border: isDragging ? `2px dashed ${config.color}` : '2px solid transparent',
         backgroundColor: isDragging ? `${config.color}08` : undefined,
         '&:hover': {
           boxShadow: 4,
+          transform: 'translateY(-4px)',
         },
       }}
       onDragEnter={handleDragEnter}
@@ -336,9 +348,12 @@ function CategoryCard({ config, files, onUpload, onDeleteFile, onOpenFile, uploa
           sx={{
             borderColor: config.color,
             color: config.color,
+            transition: 'all 0.2s ease',
             '&:hover': {
               borderColor: config.color,
               backgroundColor: `${config.color}10`,
+              transform: 'translateY(-2px)',
+              boxShadow: `0 4px 12px ${config.color}30`,
             },
           }}
         >
@@ -485,8 +500,22 @@ export function Context() {
         </Grid>
       ) : (
         <Grid container spacing={3}>
-          {categoryConfigs.map((config) => (
-            <Grid item xs={12} md={6} key={config.id}>
+          {categoryConfigs.map((config, index) => (
+            <Grid
+              item
+              xs={12}
+              md={6}
+              key={config.id}
+              sx={{
+                animation: 'fadeInUp 0.4s ease forwards',
+                animationDelay: `${index * 0.1}s`,
+                opacity: 0,
+                '@keyframes fadeInUp': {
+                  from: { opacity: 0, transform: 'translateY(20px)' },
+                  to: { opacity: 1, transform: 'translateY(0)' },
+                },
+              }}
+            >
               <CategoryCard
                 config={config}
                 files={files[config.id]}

@@ -16,6 +16,7 @@ import Avatar from '@mui/material/Avatar';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Collapse from '@mui/material/Collapse';
+import Fade from '@mui/material/Fade';
 import {
   House,
   Flask,
@@ -185,8 +186,10 @@ export function AppLayout() {
                         justifyContent: collapsed ? 'center' : 'flex-start',
                         px: 1.5,
                         borderRadius: 1,
+                        transition: 'all 0.2s ease',
                         '&:hover': {
                           backgroundColor: navHoverBg,
+                          transform: 'translateX(4px)',
                         },
                       }}
                     >
@@ -232,8 +235,10 @@ export function AppLayout() {
                                 mb: 0.25,
                                 borderRadius: 1,
                                 backgroundColor: isChildActive ? navActiveBg : 'transparent',
+                                transition: 'all 0.2s ease',
                                 '&:hover': {
                                   backgroundColor: isChildActive ? navHoverBg : navHoverBg,
+                                  transform: 'translateX(4px)',
                                 },
                               }}
                             >
@@ -274,8 +279,10 @@ export function AppLayout() {
                     px: 1.5,
                     borderRadius: 1,
                     backgroundColor: isItemActive ? navActiveBg : 'transparent',
+                    transition: 'all 0.2s ease',
                     '&:hover': {
                       backgroundColor: isItemActive ? navHoverBg : navHoverBg,
+                      transform: 'translateX(4px)',
                     },
                   }}
                 >
@@ -311,7 +318,11 @@ export function AppLayout() {
           <IconButton
             onClick={() => setCollapsed(!collapsed)}
             size="small"
-            sx={{ color: navTextColor, '&:hover': { color: navActiveTextColor } }}
+            sx={{
+              color: navTextColor,
+              transition: 'all 0.2s ease',
+              '&:hover': { color: navActiveTextColor, transform: 'scale(1.1)' },
+            }}
           >
             {collapsed ? <ListIcon size={20} /> : <CaretLeft size={20} />}
           </IconButton>
@@ -354,11 +365,13 @@ export function AppLayout() {
               onClose={handleUserMenuClose}
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
               transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              TransitionComponent={Fade}
               slotProps={{
                 paper: {
                   sx: {
                     border: `1px solid ${config.colors.border}`,
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
+                    borderRadius: 2,
                     mt: 0.5,
                   },
                 },
@@ -370,13 +383,16 @@ export function AppLayout() {
                 </Typography>
               </MenuItem>
               <Divider />
-              <MenuItem onClick={() => { handleUserMenuClose(); navigate('/settings'); }}>
+              <MenuItem
+                onClick={() => { handleUserMenuClose(); navigate('/settings'); }}
+                sx={{ transition: 'all 0.15s ease' }}
+              >
                 <ListItemIcon>
                   <User size={18} color={config.colors.textSecondary} />
                 </ListItemIcon>
                 Settings
               </MenuItem>
-              <MenuItem onClick={handleLogout}>
+              <MenuItem onClick={handleLogout} sx={{ transition: 'all 0.15s ease' }}>
                 <ListItemIcon>
                   <SignOut size={18} color={config.colors.textSecondary} />
                 </ListItemIcon>

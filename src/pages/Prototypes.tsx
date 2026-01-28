@@ -2,15 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardActionArea from '@mui/material/CardActionArea';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
-import Chip from '@mui/material/Chip';
-import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -20,17 +15,17 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import Fade from '@mui/material/Fade';
 import {
   Plus,
   MagnifyingGlass,
-  DotsThreeVertical,
   PencilSimple,
   Trash,
   ShareNetwork,
   Copy,
   Flask,
 } from '@phosphor-icons/react';
-import { EmptyState } from '@/components';
+import { EmptyState, ThumbnailCard } from '@/components';
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { useThemeStore } from '@/store/themeStore';
 
@@ -163,6 +158,13 @@ export function Prototypes() {
           variant="contained"
           startIcon={<Plus size={18} />}
           onClick={() => setCreateDialogOpen(true)}
+          sx={{
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            },
+          }}
         >
           New Prototype
         </Button>
@@ -175,7 +177,18 @@ export function Prototypes() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           size="small"
-          sx={{ width: 300 }}
+          sx={{
+            width: 300,
+            '& .MuiOutlinedInput-root': {
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+              },
+              '&.Mui-focused': {
+                boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
+              },
+            },
+          }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -205,60 +218,47 @@ export function Prototypes() {
         />
       ) : (
         <Grid container spacing={2}>
-          {filteredPrototypes.map((prototype) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={prototype.id}>
-              <Card sx={{ height: '100%' }}>
-                <CardActionArea onClick={() => navigate(`/prototypes/${prototype.id}`)}>
-                  {/* Card thumbnail */}
-                  <Box
-                    sx={{
-                      height: 120,
-                      background: mode === 'modern' && config.gradients
-                        ? `linear-gradient(135deg, ${config.colors.bgDark} 0%, rgba(13, 148, 136, 0.3) 100%)`
-                        : config.colors.bgDark,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      position: 'relative',
-                    }}
-                  >
-                    <Flask
-                      size={32}
-                      color={mode === 'modern' ? 'rgba(255,255,255,0.6)' : config.colors.primary}
-                      style={{ opacity: 0.6 }}
-                    />
-                    <Box sx={{ position: 'absolute', top: 6, right: 6 }}>
-                      <Chip
-                        label={prototype.status}
-                        size="small"
-                        color={getStatusColor(prototype.status)}
-                      />
-                    </Box>
-                  </Box>
-                </CardActionArea>
-                <CardContent sx={{ p: '10px !important' }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography variant="body2" noWrap sx={{ fontWeight: 400, mb: 0.25 }}>
-                        {prototype.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                        {prototype.variants} variants · {prototype.views} views
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem' }}>
-                        Updated {formatDate(prototype.updatedAt)}
-                      </Typography>
-                    </Box>
-                    <IconButton
-                      size="small"
-                      onClick={(e) => handleMenuOpen(e, prototype)}
-                      sx={{ color: config.colors.textSecondary, p: 0.5 }}
-                    >
-                      <DotsThreeVertical size={16} />
-                    </IconButton>
-                  </Box>
-                </CardContent>
-              </Card>
+          {filteredPrototypes.map((prototype, index) => (
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={4}
+              lg={3}
+              key={prototype.id}
+              sx={{
+                animation: 'fadeInUp 0.4s ease forwards',
+                animationDelay: `${index * 0.05}s`,
+                opacity: 0,
+                '@keyframes fadeInUp': {
+                  from: {
+                    opacity: 0,
+                    transform: 'translateY(20px)',
+                  },
+                  to: {
+                    opacity: 1,
+                    transform: 'translateY(0)',
+                  },
+                },
+              }}
+            >
+              <ThumbnailCard
+                id={prototype.id}
+                title={prototype.name}
+                subtitle={`Updated ${formatDate(prototype.updatedAt)}`}
+                secondaryInfo={`${prototype.variants} variants · ${prototype.views} views`}
+                status={{
+                  label: prototype.status,
+                  color: getStatusColor(prototype.status),
+                }}
+                onClick={() => navigate(`/prototypes/${prototype.id}`)}
+                onMenuClick={(e) => handleMenuOpen(e, prototype)}
+                primaryAction={{
+                  icon: <Flask size={24} color="white" weight="fill" />,
+                  label: 'Open Prototype',
+                  onClick: () => navigate(`/prototypes/${prototype.id}`),
+                }}
+              />
             </Grid>
           ))}
         </Grid>
@@ -269,28 +269,49 @@ export function Prototypes() {
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
+        TransitionComponent={Fade}
+        sx={{
+          '& .MuiPaper-root': {
+            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+            borderRadius: 2,
+          },
+        }}
       >
-        <MenuItem onClick={() => { handleMenuClose(); navigate(`/prototypes/${selectedPrototype?.id}`); }}>
-          <ListItemIcon><PencilSimple size={18} color={config.colors.textSecondary} /></ListItemIcon>
+        <MenuItem
+          onClick={() => { handleMenuClose(); navigate(`/prototypes/${selectedPrototype?.id}`); }}
+          sx={{ transition: 'all 0.15s ease' }}
+        >
+          <ListItemIcon><PencilSimple size={18} color={config.colors.primary} /></ListItemIcon>
           Edit
         </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={handleMenuClose} sx={{ transition: 'all 0.15s ease' }}>
           <ListItemIcon><Copy size={18} color={config.colors.textSecondary} /></ListItemIcon>
           Duplicate
         </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={handleMenuClose} sx={{ transition: 'all 0.15s ease' }}>
           <ListItemIcon><ShareNetwork size={18} color={config.colors.textSecondary} /></ListItemIcon>
           Share
         </MenuItem>
-        <MenuItem onClick={handleMenuClose} sx={{ color: config.colors.error }}>
+        <MenuItem onClick={handleMenuClose} sx={{ color: config.colors.error, transition: 'all 0.15s ease' }}>
           <ListItemIcon><Trash size={18} color={config.colors.error} /></ListItemIcon>
           Delete
         </MenuItem>
       </Menu>
 
       {/* Create Dialog */}
-      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontFamily: config.fonts.display, fontWeight: 400 }}>
+      <Dialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        TransitionComponent={Fade}
+        sx={{
+          '& .MuiDialog-paper': {
+            borderRadius: 3,
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontFamily: config.fonts.display, fontWeight: mode === 'craftsman' ? 400 : 600 }}>
           Create New Prototype
         </DialogTitle>
         <DialogContent>

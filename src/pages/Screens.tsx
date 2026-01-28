@@ -2,9 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardActions from '@mui/material/CardActions';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
@@ -24,28 +21,31 @@ import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
-import UploadOutlinedIcon from '@mui/icons-material/UploadOutlined';
-import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
-import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined';
-import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
-import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
-import MoreVertOutlinedIcon from '@mui/icons-material/MoreVertOutlined';
-import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined';
-import CheckBoxOutlinedIcon from '@mui/icons-material/CheckBoxOutlined';
-import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
-import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
-import { EmptyState } from '@/components';
+import Fade from '@mui/material/Fade';
+import {
+  MagnifyingGlass,
+  UploadSimple,
+  GridFour,
+  List,
+  Trash,
+  Copy,
+  Sparkle,
+  CheckSquare,
+  X,
+} from '@phosphor-icons/react';
+import { EmptyState, ThumbnailCard } from '@/components';
 import { FileUpload } from '@/components/FileUpload';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { useScreensStore } from '@/store/screensStore';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeStore } from '@/store/themeStore';
 import type { CapturedScreen } from '@/types';
 
 export function Screens() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { config, mode } = useThemeStore();
   const { showSuccess, showError, showWarning } = useSnackbar();
   const {
     screens,
@@ -182,148 +182,6 @@ export function Screens() {
     });
   };
 
-  const ScreenCard = ({ screen }: { screen: CapturedScreen }) => {
-    const isSelected = selectedIds.includes(screen.id);
-
-    const previewContent = screen.editedHtml ? (
-      <iframe
-        srcDoc={screen.editedHtml}
-        style={{
-          width: '200%',
-          height: '200%',
-          transform: 'scale(0.5)',
-          transformOrigin: 'top left',
-          pointerEvents: 'none',
-          border: 'none',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-        }}
-        title={screen.name}
-      />
-    ) : screen.filePath ? (
-      <iframe
-        src={screen.filePath}
-        style={{
-          width: '200%',
-          height: '200%',
-          transform: 'scale(0.5)',
-          transformOrigin: 'top left',
-          pointerEvents: 'none',
-          border: 'none',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-        }}
-        title={screen.name}
-      />
-    ) : (
-      <InsertDriveFileOutlinedIcon sx={{ fontSize: 48, color: 'rgba(255,255,255,0.5)' }} />
-    );
-
-    const handleCardClick = () => {
-      if (isSelectionMode) {
-        toggleSelectScreen(screen.id);
-      } else {
-        navigate(`/prototypes/${screen.id}`);
-      }
-    };
-
-    return (
-      <Card
-        sx={{
-          height: '100%',
-          border: isSelected ? '2px solid' : '1px solid',
-          borderColor: isSelected ? 'primary.main' : 'divider',
-          '&:hover': { boxShadow: 3 },
-        }}
-      >
-        <Box
-          onClick={handleCardClick}
-          sx={{
-            height: 180,
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
-          {previewContent}
-
-          {isSelectionMode && (
-            <Box
-              sx={{ position: 'absolute', top: 8, left: 8, zIndex: 10 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleSelectScreen(screen.id);
-              }}
-            >
-              <Checkbox
-                checked={isSelected}
-                sx={{
-                  color: 'white',
-                  '&.Mui-checked': { color: 'white' },
-                  backgroundColor: 'rgba(0,0,0,0.3)',
-                  borderRadius: 1,
-                }}
-              />
-            </Box>
-          )}
-
-          {!isSelectionMode && (
-            <Box
-              sx={{
-                position: 'absolute',
-                inset: 0,
-                backgroundColor: 'rgba(0,0,0,0.4)',
-                opacity: 0,
-                transition: 'opacity 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                '&:hover': { opacity: 1 },
-              }}
-            >
-              <AutoFixHighOutlinedIcon sx={{ fontSize: 32, color: 'white' }} />
-            </Box>
-          )}
-        </Box>
-
-        <CardContent sx={{ py: 1.5 }}>
-          <Typography variant="subtitle2" noWrap fontWeight={600}>
-            {screen.name}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {formatDate(screen.capturedAt)}
-          </Typography>
-          {screen.tags && screen.tags.length > 0 && (
-            <Box sx={{ mt: 1, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-              {screen.tags.slice(0, 3).map((tag) => (
-                <Chip key={tag} label={tag} size="small" variant="outlined" />
-              ))}
-            </Box>
-          )}
-        </CardContent>
-
-        {!isSelectionMode && (
-          <CardActions sx={{ px: 2, py: 1 }}>
-            <Tooltip title="Open in Vibe Editor">
-              <IconButton size="small" onClick={() => navigate(`/prototypes/${screen.id}`)}>
-                <AutoFixHighOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <IconButton size="small" onClick={(e) => handleMenuOpen(e, screen)}>
-              <MoreVertOutlinedIcon fontSize="small" />
-            </IconButton>
-          </CardActions>
-        )}
-      </Card>
-    );
-  };
-
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -335,16 +193,19 @@ export function Screens() {
   return (
     <Box>
       {/* Selection mode banner */}
-      {isSelectionMode && (
+      <Fade in={isSelectionMode}>
         <Alert
           severity="info"
-          sx={{ mb: 2 }}
+          sx={{
+            mb: 2,
+            transition: 'all 0.3s ease',
+          }}
           action={
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
                 color="error"
                 size="small"
-                startIcon={<DeleteOutlinedIcon />}
+                startIcon={<Trash size={16} />}
                 disabled={selectedIds.length === 0}
                 onClick={handleBatchDelete}
               >
@@ -352,7 +213,7 @@ export function Screens() {
               </Button>
               <Button
                 size="small"
-                startIcon={<CloseOutlinedIcon />}
+                startIcon={<X size={16} />}
                 onClick={handleToggleSelectionMode}
               >
                 Cancel
@@ -371,24 +232,43 @@ export function Screens() {
             </Typography>
           </Box>
         </Alert>
-      )}
+      </Fade>
 
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" fontWeight={600}>
+        <Typography
+          variant="h1"
+          sx={{
+            fontFamily: config.fonts.display,
+            fontSize: '2.25rem',
+            fontWeight: mode === 'craftsman' ? 400 : 700,
+            color: config.colors.textPrimary,
+          }}
+        >
           Captured Screens
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <TextField
             placeholder="Search screens..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             size="small"
-            sx={{ width: 250 }}
+            sx={{
+              width: 250,
+              '& .MuiOutlinedInput-root': {
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                },
+                '&.Mui-focused': {
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
+                },
+              },
+            }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchOutlinedIcon fontSize="small" />
+                  <MagnifyingGlass size={18} color={config.colors.textSecondary} />
                 </InputAdornment>
               ),
             }}
@@ -398,26 +278,42 @@ export function Screens() {
             exclusive
             onChange={(_, v) => v && setViewMode(v)}
             size="small"
+            sx={{
+              '& .MuiToggleButton-root': {
+                transition: 'all 0.2s ease',
+              },
+            }}
           >
             <ToggleButton value="grid">
-              <GridViewOutlinedIcon fontSize="small" />
+              <GridFour size={18} />
             </ToggleButton>
             <ToggleButton value="list">
-              <ViewListOutlinedIcon fontSize="small" />
+              <List size={18} />
             </ToggleButton>
           </ToggleButtonGroup>
           <Tooltip title={isSelectionMode ? 'Exit selection mode' : 'Select multiple'}>
             <IconButton
               onClick={handleToggleSelectionMode}
               color={isSelectionMode ? 'primary' : 'default'}
+              sx={{
+                transition: 'all 0.2s ease',
+                '&:hover': { transform: 'scale(1.1)' },
+              }}
             >
-              <CheckBoxOutlinedIcon />
+              <CheckSquare size={20} />
             </IconButton>
           </Tooltip>
           <Button
             variant="contained"
-            startIcon={<UploadOutlinedIcon />}
+            startIcon={<UploadSimple size={18} />}
             onClick={() => setIsUploadModalOpen(true)}
+            sx={{
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              },
+            }}
           >
             Import Screen
           </Button>
@@ -437,33 +333,113 @@ export function Screens() {
         />
       ) : (
         <Grid container spacing={2}>
-          {filteredScreens.map((screen) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={screen.id}>
-              <ScreenCard screen={screen} />
+          {filteredScreens.map((screen, index) => (
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={4}
+              lg={3}
+              key={screen.id}
+              sx={{
+                animation: 'fadeInUp 0.4s ease forwards',
+                animationDelay: `${index * 0.05}s`,
+                opacity: 0,
+                '@keyframes fadeInUp': {
+                  from: {
+                    opacity: 0,
+                    transform: 'translateY(20px)',
+                  },
+                  to: {
+                    opacity: 1,
+                    transform: 'translateY(0)',
+                  },
+                },
+              }}
+            >
+              <ThumbnailCard
+                id={screen.id}
+                title={screen.name}
+                subtitle={formatDate(screen.capturedAt)}
+                tags={screen.tags}
+                preview={{
+                  type: screen.editedHtml ? 'html' : screen.filePath ? 'url' : 'placeholder',
+                  content: screen.editedHtml || screen.filePath,
+                }}
+                isSelectionMode={isSelectionMode}
+                isSelected={selectedIds.includes(screen.id)}
+                onSelect={() => toggleSelectScreen(screen.id)}
+                onClick={() => navigate(`/prototypes/${screen.id}`)}
+                onMenuClick={(e) => handleMenuOpen(e, screen)}
+                primaryAction={{
+                  icon: <Sparkle size={24} color="white" weight="fill" />,
+                  label: 'Open in Editor',
+                  onClick: () => navigate(`/prototypes/${screen.id}`),
+                }}
+              />
             </Grid>
           ))}
         </Grid>
       )}
 
       {/* Context Menu */}
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-        <MenuItem onClick={() => { handleMenuClose(); menuScreen && navigate(`/prototypes/${menuScreen.id}`); }}>
-          <ListItemIcon><AutoFixHighOutlinedIcon fontSize="small" /></ListItemIcon>
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        TransitionComponent={Fade}
+        sx={{
+          '& .MuiPaper-root': {
+            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+            borderRadius: 2,
+          },
+        }}
+      >
+        <MenuItem
+          onClick={() => {
+            handleMenuClose();
+            menuScreen && navigate(`/prototypes/${menuScreen.id}`);
+          }}
+          sx={{ transition: 'all 0.15s ease' }}
+        >
+          <ListItemIcon><Sparkle size={18} color={config.colors.primary} /></ListItemIcon>
           Open in Vibe Editor
         </MenuItem>
-        <MenuItem onClick={() => { handleMenuClose(); menuScreen && duplicateScreen(menuScreen.id); }}>
-          <ListItemIcon><ContentCopyOutlinedIcon fontSize="small" /></ListItemIcon>
+        <MenuItem
+          onClick={() => {
+            handleMenuClose();
+            menuScreen && duplicateScreen(menuScreen.id);
+          }}
+          sx={{ transition: 'all 0.15s ease' }}
+        >
+          <ListItemIcon><Copy size={18} color={config.colors.textSecondary} /></ListItemIcon>
           Duplicate
         </MenuItem>
-        <MenuItem onClick={() => menuScreen && handleDeleteClick(menuScreen)} sx={{ color: 'error.main' }}>
-          <ListItemIcon><DeleteOutlinedIcon fontSize="small" color="error" /></ListItemIcon>
+        <MenuItem
+          onClick={() => menuScreen && handleDeleteClick(menuScreen)}
+          sx={{ color: 'error.main', transition: 'all 0.15s ease' }}
+        >
+          <ListItemIcon><Trash size={18} color={config.colors.error} /></ListItemIcon>
           Delete
         </MenuItem>
       </Menu>
 
       {/* Upload Modal */}
-      <Dialog open={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Import HTML Screens</DialogTitle>
+      <Dialog
+        open={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        TransitionComponent={Fade}
+        sx={{
+          '& .MuiDialog-paper': {
+            borderRadius: 3,
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontFamily: config.fonts.display, fontWeight: mode === 'craftsman' ? 400 : 600 }}>
+          Import HTML Screens
+        </DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2 }}>
             <FileUpload
@@ -484,7 +460,11 @@ export function Screens() {
                     key={index}
                     label={file.name}
                     onDelete={() => setUploadingFiles((prev) => prev.filter((_, i) => i !== index))}
-                    sx={{ m: 0.5 }}
+                    sx={{
+                      m: 0.5,
+                      transition: 'all 0.2s ease',
+                      '&:hover': { transform: 'scale(1.02)' },
+                    }}
                   />
                 ))}
               </Box>
@@ -502,7 +482,9 @@ export function Screens() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsUploadModalOpen(false)}>Cancel</Button>
+          <Button onClick={() => setIsUploadModalOpen(false)} variant="outlined">
+            Cancel
+          </Button>
           <Button
             variant="contained"
             onClick={handleUpload}

@@ -1,6 +1,7 @@
 /**
  * Context Files Service
  * Handles file uploads and management for Product Context categories
+ * Supports both Supabase storage and local mock mode for demos
  */
 
 import { supabase, isSupabaseConfigured } from './supabase';
@@ -22,6 +23,8 @@ export interface ContextFile {
   contentPreview?: string;
   createdAt: string;
   updatedAt: string;
+  // For local mock mode - store the file data URL
+  localDataUrl?: string;
 }
 
 export interface UploadContextFileParams {
@@ -31,15 +34,76 @@ export interface UploadContextFileParams {
   file: File;
 }
 
+// Local storage key for mock files
+const LOCAL_STORAGE_KEY = 'voxel_context_files';
+
+/**
+ * Get mock files from localStorage
+ */
+function getLocalFiles(): ContextFile[] {
+  try {
+    const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Save mock files to localStorage
+ */
+function saveLocalFiles(files: ContextFile[]): void {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(files));
+  } catch (e) {
+    console.warn('[ContextFilesService] Failed to save to localStorage:', e);
+  }
+}
+
+/**
+ * Convert File to data URL for local storage
+ */
+async function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Check if we should use local mock mode
+ */
+async function shouldUseMockMode(): Promise<boolean> {
+  if (!isSupabaseConfigured()) {
+    return true;
+  }
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    return !user;
+  } catch {
+    return true;
+  }
+}
+
 /**
  * Get all context files for the current user
  */
 export async function getContextFiles(category?: ContextCategory): Promise<ContextFile[]> {
-  if (!isSupabaseConfigured()) {
-    console.warn('[ContextFilesService] Supabase not configured');
-    return [];
+  const useMock = await shouldUseMockMode();
+
+  if (useMock) {
+    // Return mock files from localStorage
+    let files = getLocalFiles();
+    if (category) {
+      files = files.filter(f => f.category === category);
+    }
+    return files.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
+  // Use Supabase
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     console.warn('[ContextFilesService] No authenticated user');
@@ -85,11 +149,49 @@ export async function getContextFiles(category?: ContextCategory): Promise<Conte
  */
 export async function uploadContextFile(params: UploadContextFileParams): Promise<ContextFile> {
   const { category, title, description, file } = params;
+  const useMock = await shouldUseMockMode();
 
-  if (!isSupabaseConfigured()) {
-    throw new Error('Supabase not configured');
+  if (useMock) {
+    // Mock upload - store in localStorage
+    const dataUrl = await fileToDataUrl(file);
+    const fileType = getFileType(file.type, file.name);
+
+    // Extract content preview for text files
+    let contentPreview: string | undefined;
+    if (fileType === 'text' || fileType === 'document') {
+      try {
+        const text = await file.text();
+        contentPreview = text.substring(0, 500);
+      } catch {
+        // Ignore preview extraction errors
+      }
+    }
+
+    const newFile: ContextFile = {
+      id: `mock_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      userId: 'mock_user',
+      category,
+      title,
+      description,
+      fileName: file.name,
+      filePath: `mock/${category}/${file.name}`,
+      fileType,
+      fileSize: file.size,
+      mimeType: file.type,
+      contentPreview,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      localDataUrl: dataUrl,
+    };
+
+    const files = getLocalFiles();
+    files.unshift(newFile);
+    saveLocalFiles(files);
+
+    return newFile;
   }
 
+  // Use Supabase
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     throw new Error('You must be logged in to upload files');
@@ -171,10 +273,17 @@ export async function uploadContextFile(params: UploadContextFileParams): Promis
  * Delete a context file
  */
 export async function deleteContextFile(fileId: string): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    throw new Error('Supabase not configured');
+  const useMock = await shouldUseMockMode();
+
+  if (useMock) {
+    // Mock delete - remove from localStorage
+    const files = getLocalFiles();
+    const updatedFiles = files.filter(f => f.id !== fileId);
+    saveLocalFiles(updatedFiles);
+    return;
   }
 
+  // Use Supabase
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     throw new Error('You must be logged in to delete files');
@@ -215,10 +324,19 @@ export async function deleteContextFile(fileId: string): Promise<void> {
  * Get a download URL for a context file
  */
 export async function getFileDownloadUrl(filePath: string): Promise<string> {
-  if (!isSupabaseConfigured()) {
-    throw new Error('Supabase not configured');
+  const useMock = await shouldUseMockMode();
+
+  if (useMock) {
+    // For mock files, find the file and return its data URL
+    const files = getLocalFiles();
+    const file = files.find(f => f.filePath === filePath);
+    if (file?.localDataUrl) {
+      return file.localDataUrl;
+    }
+    throw new Error('File not found in local storage');
   }
 
+  // Use Supabase
   const { data, error } = await supabase.storage
     .from('context-files')
     .createSignedUrl(filePath, 3600); // 1 hour expiry

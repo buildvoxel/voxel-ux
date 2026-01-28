@@ -118,7 +118,21 @@ export function Home() {
 
       {/* Quick Stats */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid
+          item
+          xs={12}
+          sm={6}
+          md={3}
+          sx={{
+            animation: 'fadeInUp 0.4s ease forwards',
+            animationDelay: '0.05s',
+            opacity: 0,
+            '@keyframes fadeInUp': {
+              from: { opacity: 0, transform: 'translateY(20px)' },
+              to: { opacity: 1, transform: 'translateY(0)' },
+            },
+          }}
+        >
           <StatCard
             title="Total Prototypes"
             value={12}
@@ -126,7 +140,17 @@ export function Home() {
             trend={{ direction: 'up', value: 8 }}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid
+          item
+          xs={12}
+          sm={6}
+          md={3}
+          sx={{
+            animation: 'fadeInUp 0.4s ease forwards',
+            animationDelay: '0.1s',
+            opacity: 0,
+          }}
+        >
           <StatCard
             title="Total Views"
             value="2.4K"
@@ -134,14 +158,34 @@ export function Home() {
             trend={{ direction: 'up', value: 12.5 }}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid
+          item
+          xs={12}
+          sm={6}
+          md={3}
+          sx={{
+            animation: 'fadeInUp 0.4s ease forwards',
+            animationDelay: '0.15s',
+            opacity: 0,
+          }}
+        >
           <StatCard
             title="Shared"
             value={5}
             icon={<TrendUp size={20} />}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid
+          item
+          xs={12}
+          sm={6}
+          md={3}
+          sx={{
+            animation: 'fadeInUp 0.4s ease forwards',
+            animationDelay: '0.2s',
+            opacity: 0,
+          }}
+        >
           <StatCard
             title="Deployed"
             value={3}
@@ -175,13 +219,35 @@ export function Home() {
                   startIcon={<Plus size={14} />}
                   size="small"
                   onClick={() => navigate('/prototypes')}
+                  sx={{
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    },
+                  }}
                 >
                   New Prototype
                 </Button>
               </Box>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {recentPrototypes.map((prototype) => (
-                  <Card key={prototype.id} variant="outlined" sx={{ borderRadius: 1 }}>
+                {recentPrototypes.map((prototype, index) => (
+                  <Card
+                    key={prototype.id}
+                    variant="outlined"
+                    sx={{
+                      borderRadius: 1,
+                      transition: 'all 0.2s ease',
+                      animation: 'fadeInUp 0.4s ease forwards',
+                      animationDelay: `${0.3 + index * 0.05}s`,
+                      opacity: 0,
+                      '&:hover': {
+                        transform: 'translateX(4px)',
+                        borderColor: config.colors.primary,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                      },
+                    }}
+                  >
                     <CardActionArea onClick={() => navigate(`/prototypes/${prototype.id}`)}>
                       <Box sx={{ p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -250,7 +316,7 @@ export function Home() {
           <Card sx={{ mb: 2 }}>
             <CardContent sx={{ p: '12px !important' }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {recentInsights.map((insight) => (
+                {recentInsights.map((insight, index) => (
                   <Box
                     key={insight.id}
                     sx={{
@@ -260,6 +326,15 @@ export function Home() {
                       p: 1,
                       borderRadius: 1,
                       backgroundColor: config.colors.bgSecondary,
+                      transition: 'all 0.2s ease',
+                      animation: 'fadeInUp 0.4s ease forwards',
+                      animationDelay: `${0.4 + index * 0.05}s`,
+                      opacity: 0,
+                      cursor: 'pointer',
+                      '&:hover': {
+                        transform: 'translateX(4px)',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                      },
                     }}
                   >
                     <Box>
