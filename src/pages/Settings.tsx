@@ -28,15 +28,18 @@ import Tab from '@mui/material/Tab';
 import InputAdornment from '@mui/material/InputAdornment';
 import CircularProgress from '@mui/material/CircularProgress';
 import Autocomplete from '@mui/material/Autocomplete';
-import VpnKeyIcon from '@mui/icons-material/VpnKey';
-import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
-import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import SecurityIcon from '@mui/icons-material/Security';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
-import PersonIcon from '@mui/icons-material/Person';
-import GroupIcon from '@mui/icons-material/Group';
+import {
+  Key,
+  Trash,
+  Plus,
+  CheckCircle,
+  ShieldCheck,
+  Robot,
+  User,
+  Users,
+} from '@phosphor-icons/react';
 import { useSnackbar } from '@/components/SnackbarProvider';
+import { useThemeStore } from '@/store/themeStore';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EmptyState } from '@/components';
 import {
@@ -68,6 +71,7 @@ function TabPanel(props: TabPanelProps) {
 
 function ApiKeysTab() {
   const { showSuccess, showError } = useSnackbar();
+  const { config } = useThemeStore();
   const [apiKeys, setApiKeys] = useState<ApiKeyConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -175,87 +179,109 @@ function ApiKeysTab() {
         </Typography>
       </Box>
 
-      <Alert severity="info" icon={<SecurityIcon />} sx={{ mb: 3 }}>
+      <Alert severity="info" icon={<ShieldCheck size={20} />} sx={{ mb: 3 }}>
         Your API keys are encrypted at rest and never exposed in the application. Only server-side functions can access the decrypted keys.
       </Alert>
 
-      <Card sx={{ mb: 3 }}>
-        <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Typography variant="h6">Configured Providers</Typography>
-          <Button variant="contained" startIcon={<AddOutlinedIcon />} onClick={openModal}>
-            Add Provider
-          </Button>
-        </Box>
-        <TableContainer>
-          {isLoading ? (
-            <Box sx={{ p: 4, textAlign: 'center' }}>
-              <CircularProgress />
-            </Box>
-          ) : apiKeys.length === 0 ? (
-            <EmptyState
-              icon={<VpnKeyIcon sx={{ fontSize: 48, color: 'text.disabled' }} />}
-              title="No API keys configured"
-              description="Add your first API key to enable AI-powered features"
-              action={{ label: 'Add Your First Key', onClick: openModal }}
-            />
-          ) : (
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Provider</TableCell>
-                  <TableCell>Model</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Added</TableCell>
-                  <TableCell align="right">Actions</TableCell>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography
+          variant="overline"
+          sx={{
+            color: config.colors.textSecondary,
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            letterSpacing: '0.05em',
+          }}
+        >
+          Configured Providers
+        </Typography>
+        <Button variant="contained" startIcon={<Plus size={16} />} onClick={openModal} size="small">
+          Add Provider
+        </Button>
+      </Box>
+      <TableContainer component={Card} sx={{ mb: 3, border: 'none' }}>
+        {isLoading ? (
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <CircularProgress size={24} />
+          </Box>
+        ) : apiKeys.length === 0 ? (
+          <EmptyState
+            icon={<Key size={48} color={config.colors.textSecondary} />}
+            title="No API keys configured"
+            description="Add your first API key to enable AI-powered features"
+            action={{ label: 'Add Your First Key', onClick: openModal }}
+          />
+        ) : (
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Provider</TableCell>
+                <TableCell>Model</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Added</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {apiKeys.map((key) => (
+                <TableRow key={key.id}>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Robot size={18} color={config.colors.textSecondary} />
+                      {PROVIDER_INFO[key.provider].name}
+                      {key.isActive && <Chip label="Active" size="small" color="success" />}
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Chip label={key.model || PROVIDER_INFO[key.provider].defaultModel} size="small" variant="outlined" />
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <CheckCircle size={14} color={config.colors.success} weight="fill" />
+                      <Typography variant="body2" sx={{ color: config.colors.success }}>
+                        Connected
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>{new Date(key.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell align="right">
+                    {!key.isActive && (
+                      <Button size="small" onClick={() => handleSetActive(key.provider)}>
+                        Set Active
+                      </Button>
+                    )}
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => {
+                        setKeyToDelete(key.provider);
+                        setDeleteConfirmOpen(true);
+                      }}
+                    >
+                      <Trash size={16} />
+                    </IconButton>
+                  </TableCell>
                 </TableRow>
-              </TableHead>
-              <TableBody>
-                {apiKeys.map((key) => (
-                  <TableRow key={key.id}>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <SmartToyIcon fontSize="small" />
-                        <Typography fontWeight={500}>{PROVIDER_INFO[key.provider].name}</Typography>
-                        {key.isActive && <Chip label="Active" size="small" color="success" />}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Chip label={key.model || PROVIDER_INFO[key.provider].defaultModel} size="small" variant="outlined" />
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
-                        <Typography variant="body2" color="success.main">Connected</Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>{new Date(key.createdAt).toLocaleDateString()}</TableCell>
-                    <TableCell align="right">
-                      {!key.isActive && (
-                        <Button size="small" onClick={() => handleSetActive(key.provider)}>
-                          Set Active
-                        </Button>
-                      )}
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => {
-                          setKeyToDelete(key.provider);
-                          setDeleteConfirmOpen(true);
-                        }}
-                      >
-                        <DeleteOutlinedIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </TableContainer>
-      </Card>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </TableContainer>
 
       {/* Provider Info Cards */}
-      <Typography variant="h6" gutterBottom>Supported Providers</Typography>
+      <Typography
+        variant="overline"
+        sx={{
+          color: config.colors.textSecondary,
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          letterSpacing: '0.05em',
+          display: 'block',
+          mb: 2,
+        }}
+      >
+        Supported Providers
+      </Typography>
       <Grid container spacing={2}>
         {(['anthropic', 'openai', 'google'] as LLMProvider[]).map((provider) => {
           const info = PROVIDER_INFO[provider];
@@ -328,7 +354,7 @@ function ApiKeysTab() {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <VpnKeyIcon />
+                    <Key size={18} />
                   </InputAdornment>
                 ),
               }}
@@ -355,7 +381,7 @@ function ApiKeysTab() {
             variant="contained"
             onClick={handleAddKey}
             disabled={isSubmitting || !apiKey}
-            startIcon={isSubmitting ? <CircularProgress size={16} /> : <SecurityIcon />}
+            startIcon={isSubmitting ? <CircularProgress size={16} /> : <ShieldCheck size={16} />}
           >
             Save Securely
           </Button>
@@ -424,6 +450,7 @@ function AccountTab() {
 
 function UserManagementTab() {
   const { isAdmin } = useAuthStore();
+  const { config } = useThemeStore();
 
   if (!isAdmin()) {
     return (
@@ -448,36 +475,47 @@ function UserManagementTab() {
         Manage team members and their permissions.
       </Typography>
 
-      <Card>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Role</TableCell>
-                <TableCell>Joined</TableCell>
+      <Typography
+        variant="overline"
+        sx={{
+          color: config.colors.textSecondary,
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          letterSpacing: '0.05em',
+          display: 'block',
+          mb: 1.5,
+        }}
+      >
+        Team Members
+      </Typography>
+      <TableContainer component={Card} sx={{ border: 'none' }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell>Role</TableCell>
+              <TableCell>Joined</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {users.map((user) => (
+              <TableRow key={user.id}>
+                <TableCell>{user.name}</TableCell>
+                <TableCell>{user.email}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={user.role}
+                    size="small"
+                    color={user.role === 'admin' ? 'warning' : 'default'}
+                  />
+                </TableCell>
+                <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>{user.name}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={user.role}
-                      size="small"
-                      color={user.role === 'admin' ? 'warning' : 'default'}
-                    />
-                  </TableCell>
-                  <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Card>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Box>
   );
 }
@@ -494,9 +532,9 @@ export function Settings() {
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
-          <Tab icon={<VpnKeyIcon />} label="API Keys" iconPosition="start" />
-          <Tab icon={<PersonIcon />} label="Account" iconPosition="start" />
-          {isAdmin() && <Tab icon={<GroupIcon />} label="Users" iconPosition="start" />}
+          <Tab icon={<Key size={18} />} label="API Keys" iconPosition="start" />
+          <Tab icon={<User size={18} />} label="Account" iconPosition="start" />
+          {isAdmin() && <Tab icon={<Users size={18} />} label="Users" iconPosition="start" />}
         </Tabs>
       </Box>
 

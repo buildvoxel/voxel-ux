@@ -4,9 +4,9 @@ import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import InputAdornment from '@mui/material/InputAdornment';
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import { MagnifyingGlass, ArrowsClockwise } from '@phosphor-icons/react';
 import { DataGrid, type GridColDef, type GridRowsProp } from '@mui/x-data-grid';
+import { useThemeStore } from '@/store/themeStore';
 
 export interface DataTableProps {
   title?: string;
@@ -40,6 +40,7 @@ export function DataTable({
     pageSize,
     page: 0,
   });
+  const { config } = useThemeStore();
 
   const handleSearch = (value: string) => {
     setSearchValue(value);
@@ -48,46 +49,58 @@ export function DataTable({
 
   return (
     <Box>
+      {/* Title above table */}
+      {title && (
+        <Typography
+          variant="overline"
+          sx={{
+            color: config.colors.textSecondary,
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            letterSpacing: '0.05em',
+            display: 'block',
+            mb: 1.5,
+          }}
+        >
+          {title}
+        </Typography>
+      )}
+      {/* Search and actions */}
       <Box
         sx={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-end',
           alignItems: 'center',
           mb: 2,
+          gap: 1,
         }}
       >
-        {title && (
-          <Typography variant="h6" fontWeight={600}>
-            {title}
-          </Typography>
+        {showSearch && (
+          <TextField
+            placeholder={searchPlaceholder}
+            value={searchValue}
+            onChange={(e) => handleSearch(e.target.value)}
+            size="small"
+            sx={{ width: 250 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <MagnifyingGlass size={18} color={config.colors.textSecondary} />
+                </InputAdornment>
+              ),
+            }}
+          />
         )}
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          {showSearch && (
-            <TextField
-              placeholder={searchPlaceholder}
-              value={searchValue}
-              onChange={(e) => handleSearch(e.target.value)}
-              size="small"
-              sx={{ width: 250 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchOutlinedIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          )}
-          {showRefresh && (
-            <Button
-              variant="outlined"
-              startIcon={<RefreshIcon />}
-              onClick={onRefresh}
-            >
-              Refresh
-            </Button>
-          )}
-        </Box>
+        {showRefresh && (
+          <Button
+            variant="outlined"
+            startIcon={<ArrowsClockwise size={16} />}
+            onClick={onRefresh}
+            size="small"
+          >
+            Refresh
+          </Button>
+        )}
       </Box>
       <DataGrid
         rows={rows}
@@ -100,12 +113,32 @@ export function DataTable({
         disableRowSelectionOnClick
         autoHeight
         sx={{
-          border: 'none',
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+          borderRadius: 2,
+          '& .MuiDataGrid-columnHeaders': {
+            backgroundColor: config.colors.bgSecondary,
+            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+          },
+          '& .MuiDataGrid-columnHeaderTitle': {
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            color: config.colors.textSecondary,
+          },
+          '& .MuiDataGrid-cell': {
+            fontSize: '0.875rem',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+          },
           '& .MuiDataGrid-cell:focus': {
             outline: 'none',
           },
           '& .MuiDataGrid-row:hover': {
             cursor: onRowClick ? 'pointer' : 'default',
+            backgroundColor: 'rgba(0, 0, 0, 0.02)',
+          },
+          '& .MuiDataGrid-footerContainer': {
+            borderTop: '1px solid rgba(0, 0, 0, 0.08)',
           },
         }}
       />

@@ -18,14 +18,17 @@ import TableRow from '@mui/material/TableRow';
 import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
 import IconButton from '@mui/material/IconButton';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import TouchAppIcon from '@mui/icons-material/TouchApp';
-import TimerIcon from '@mui/icons-material/Timer';
-import TrophyIcon from '@mui/icons-material/EmojiEvents';
-import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
+import {
+  ArrowLeft,
+  Eye,
+  CursorClick,
+  Timer,
+  Trophy,
+  TrendUp,
+} from '@phosphor-icons/react';
 import { StatCard } from '@/components';
 import { BreadcrumbNav } from '@/components/BreadcrumbNav';
+import { useThemeStore } from '@/store/themeStore';
 
 // Mock data
 const projectsData = [
@@ -121,6 +124,7 @@ const formatTime = (seconds: number) => {
 function AllProjectsView() {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState('30d');
+  const { config } = useThemeStore();
 
   const totalViews = projectsData.reduce((sum, p) => sum + p.totalViews, 0);
   const totalClicks = projectsData.reduce((sum, p) => sum + p.totalClicks, 0);
@@ -162,7 +166,7 @@ function AllProjectsView() {
           <StatCard
             title="Total Views"
             value={formatNumber(totalViews)}
-            icon={<VisibilityOutlinedIcon />}
+            icon={<Eye size={20} />}
             trend={{ direction: 'up', value: 12.5 }}
           />
         </Grid>
@@ -170,7 +174,7 @@ function AllProjectsView() {
           <StatCard
             title="Total Clicks"
             value={formatNumber(totalClicks)}
-            icon={<TouchAppIcon />}
+            icon={<CursorClick size={20} />}
             trend={{ direction: 'up', value: 8.3 }}
             color="#52c41a"
           />
@@ -179,7 +183,7 @@ function AllProjectsView() {
           <StatCard
             title="Avg. Engagement"
             value={formatTime(avgEngagement)}
-            icon={<TimerIcon />}
+            icon={<Timer size={20} />}
             trend={{ direction: 'down', value: 3.2 }}
             color="#faad14"
           />
@@ -188,7 +192,7 @@ function AllProjectsView() {
           <StatCard
             title="Avg. Conversion"
             value={`${avgConversion.toFixed(1)}%`}
-            icon={<TrophyIcon />}
+            icon={<Trophy size={20} />}
             trend={{ direction: 'up', value: 15.7 }}
             color="#eb2f96"
           />
@@ -196,60 +200,66 @@ function AllProjectsView() {
       </Grid>
 
       {/* Projects Table */}
-      <Card>
-        <CardContent>
-          <Typography variant="h6" fontWeight={600} gutterBottom>
-            Project Performance
-          </Typography>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Project</TableCell>
-                  <TableCell>Variants</TableCell>
-                  <TableCell align="right">Views</TableCell>
-                  <TableCell align="right">Clicks</TableCell>
-                  <TableCell align="right">Avg. Engagement</TableCell>
-                  <TableCell align="right">Top Conversion</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {projectsData.map((project) => (
-                  <TableRow
-                    key={project.id}
-                    hover
-                    onClick={() => navigate(`/insights/${project.id}`)}
-                    sx={{ cursor: 'pointer' }}
-                  >
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography fontWeight={500}>{project.name}</Typography>
-                        <Chip
-                          label={project.status}
-                          size="small"
-                          color={project.status === 'deployed' ? 'success' : 'primary'}
-                        />
-                      </Box>
-                    </TableCell>
-                    <TableCell>{project.variants}</TableCell>
-                    <TableCell align="right">{formatNumber(project.totalViews)}</TableCell>
-                    <TableCell align="right">{formatNumber(project.totalClicks)}</TableCell>
-                    <TableCell align="right">{formatTime(project.avgEngagement)}</TableCell>
-                    <TableCell align="right">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'flex-end' }}>
-                        <TrendingUpOutlinedIcon sx={{ fontSize: 16, color: 'success.main' }} />
-                        <Typography color="success.main" fontWeight={500}>
-                          {project.topConversion}%
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+      <Box sx={{ mb: 2 }}>
+        <Typography
+          variant="overline"
+          sx={{
+            color: config.colors.textSecondary,
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            letterSpacing: '0.05em',
+          }}
+        >
+          Project Performance
+        </Typography>
+      </Box>
+      <TableContainer component={Card} sx={{ border: 'none' }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Project</TableCell>
+              <TableCell>Variants</TableCell>
+              <TableCell align="right">Views</TableCell>
+              <TableCell align="right">Clicks</TableCell>
+              <TableCell align="right">Avg. Engagement</TableCell>
+              <TableCell align="right">Top Conversion</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {projectsData.map((project) => (
+              <TableRow
+                key={project.id}
+                hover
+                onClick={() => navigate(`/insights/${project.id}`)}
+                sx={{ cursor: 'pointer' }}
+              >
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {project.name}
+                    <Chip
+                      label={project.status}
+                      size="small"
+                      color={project.status === 'deployed' ? 'success' : 'primary'}
+                    />
+                  </Box>
+                </TableCell>
+                <TableCell>{project.variants}</TableCell>
+                <TableCell align="right">{formatNumber(project.totalViews)}</TableCell>
+                <TableCell align="right">{formatNumber(project.totalClicks)}</TableCell>
+                <TableCell align="right">{formatTime(project.avgEngagement)}</TableCell>
+                <TableCell align="right">
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'flex-end' }}>
+                    <TrendUp size={14} color={config.colors.success} />
+                    <Typography variant="body2" sx={{ color: config.colors.success }}>
+                      {project.topConversion}%
+                    </Typography>
+                  </Box>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Box>
   );
 }
@@ -257,6 +267,7 @@ function AllProjectsView() {
 // Project View
 function ProjectView({ projectId }: { projectId: string }) {
   const navigate = useNavigate();
+  const { config } = useThemeStore();
   const project = projectsData.find((p) => p.id === projectId);
 
   if (!project) {
@@ -273,8 +284,8 @@ function ProjectView({ projectId }: { projectId: string }) {
       />
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-        <IconButton onClick={() => navigate('/insights')}>
-          <ArrowBackIcon />
+        <IconButton onClick={() => navigate('/insights')} size="small">
+          <ArrowLeft size={20} />
         </IconButton>
         <Typography variant="h4" fontWeight={600}>
           {project.name}
@@ -291,14 +302,14 @@ function ProjectView({ projectId }: { projectId: string }) {
           <StatCard
             title="Total Views"
             value={formatNumber(project.totalViews)}
-            icon={<VisibilityOutlinedIcon />}
+            icon={<Eye size={20} />}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Clicks"
             value={formatNumber(project.totalClicks)}
-            icon={<TouchAppIcon />}
+            icon={<CursorClick size={20} />}
             color="#52c41a"
           />
         </Grid>
@@ -306,7 +317,7 @@ function ProjectView({ projectId }: { projectId: string }) {
           <StatCard
             title="Avg. Engagement"
             value={formatTime(project.avgEngagement)}
-            icon={<TimerIcon />}
+            icon={<Timer size={20} />}
             color="#faad14"
           />
         </Grid>
@@ -314,74 +325,85 @@ function ProjectView({ projectId }: { projectId: string }) {
           <StatCard
             title="Top Conversion"
             value={`${project.topConversion}%`}
-            icon={<TrophyIcon />}
+            icon={<Trophy size={20} />}
             color="#eb2f96"
           />
         </Grid>
       </Grid>
 
       {/* Variants Table */}
-      <Card>
-        <CardContent>
-          <Typography variant="h6" fontWeight={600} gutterBottom>
-            Variant Performance
-          </Typography>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Variant</TableCell>
-                  <TableCell align="right">Views</TableCell>
-                  <TableCell align="right">Clicks</TableCell>
-                  <TableCell align="right">Conversion Rate</TableCell>
-                  <TableCell align="right">Avg. Time</TableCell>
-                  <TableCell>Scroll Depth</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {variantsData.map((variant) => (
-                  <TableRow
-                    key={variant.id}
-                    hover
-                    onClick={() => navigate(`/insights/${projectId}/${variant.id}`)}
-                    sx={{ cursor: 'pointer' }}
+      <Box sx={{ mb: 2 }}>
+        <Typography
+          variant="overline"
+          sx={{
+            color: config.colors.textSecondary,
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            letterSpacing: '0.05em',
+          }}
+        >
+          Variant Performance
+        </Typography>
+      </Box>
+      <TableContainer component={Card} sx={{ border: 'none' }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Variant</TableCell>
+              <TableCell align="right">Views</TableCell>
+              <TableCell align="right">Clicks</TableCell>
+              <TableCell align="right">Conversion Rate</TableCell>
+              <TableCell align="right">Avg. Time</TableCell>
+              <TableCell>Scroll Depth</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {variantsData.map((variant) => (
+              <TableRow
+                key={variant.id}
+                hover
+                onClick={() => navigate(`/insights/${projectId}/${variant.id}`)}
+                sx={{ cursor: 'pointer' }}
+              >
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {variant.label}
+                    {variant.isTopPerformer && (
+                      <Chip label="Top" size="small" color="warning" icon={<Trophy size={12} />} />
+                    )}
+                  </Box>
+                </TableCell>
+                <TableCell align="right">{formatNumber(variant.views)}</TableCell>
+                <TableCell align="right">{formatNumber(variant.clicks)}</TableCell>
+                <TableCell align="right">
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: variant.isTopPerformer ? config.colors.success : 'inherit',
+                      fontWeight: variant.isTopPerformer ? 500 : 400,
+                    }}
                   >
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography fontWeight={500}>{variant.label}</Typography>
-                        {variant.isTopPerformer && (
-                          <Chip label="Top" size="small" color="warning" icon={<TrophyIcon />} />
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell align="right">{formatNumber(variant.views)}</TableCell>
-                    <TableCell align="right">{formatNumber(variant.clicks)}</TableCell>
-                    <TableCell align="right">
-                      <Typography
-                        color={variant.isTopPerformer ? 'success.main' : 'text.primary'}
-                        fontWeight={variant.isTopPerformer ? 600 : 400}
-                      >
-                        {variant.conversionRate}%
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">{formatTime(variant.avgTimeSpent)}</TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <LinearProgress
-                          variant="determinate"
-                          value={variant.scrollDepth}
-                          sx={{ flex: 1, height: 8, borderRadius: 4 }}
-                        />
-                        <Typography variant="caption">{variant.scrollDepth}%</Typography>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+                    {variant.conversionRate}%
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">{formatTime(variant.avgTimeSpent)}</TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <LinearProgress
+                      variant="determinate"
+                      value={variant.scrollDepth}
+                      sx={{ flex: 1, height: 6, borderRadius: 3 }}
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                      {variant.scrollDepth}%
+                    </Typography>
+                  </Box>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Box>
   );
 }
@@ -389,6 +411,7 @@ function ProjectView({ projectId }: { projectId: string }) {
 // Variant View
 function VariantView({ projectId, variantId }: { projectId: string; variantId: string }) {
   const navigate = useNavigate();
+  const { config } = useThemeStore();
   const project = projectsData.find((p) => p.id === projectId);
   const variant = variantsData.find((v) => v.id === variantId);
 
@@ -407,14 +430,14 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
       />
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-        <IconButton onClick={() => navigate(`/insights/${projectId}`)}>
-          <ArrowBackIcon />
+        <IconButton onClick={() => navigate(`/insights/${projectId}`)} size="small">
+          <ArrowLeft size={20} />
         </IconButton>
         <Typography variant="h4" fontWeight={600}>
           {variant.label}
         </Typography>
         {variant.isTopPerformer && (
-          <Chip label="Top Performer" color="warning" icon={<TrophyIcon />} />
+          <Chip label="Top Performer" color="warning" icon={<Trophy size={14} />} />
         )}
       </Box>
 
@@ -426,14 +449,14 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
               <StatCard
                 title="Views"
                 value={formatNumber(variant.views)}
-                icon={<VisibilityOutlinedIcon />}
+                icon={<Eye size={20} />}
               />
             </Grid>
             <Grid item xs={6} md={3}>
               <StatCard
                 title="Clicks"
                 value={formatNumber(variant.clicks)}
-                icon={<TouchAppIcon />}
+                icon={<CursorClick size={20} />}
                 color="#52c41a"
               />
             </Grid>
@@ -441,7 +464,7 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
               <StatCard
                 title="Conversion"
                 value={`${variant.conversionRate}%`}
-                icon={<TrophyIcon />}
+                icon={<Trophy size={20} />}
                 color="#eb2f96"
               />
             </Grid>
@@ -449,81 +472,154 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
               <StatCard
                 title="Avg. Time"
                 value={formatTime(variant.avgTimeSpent)}
-                icon={<TimerIcon />}
+                icon={<Timer size={20} />}
                 color="#faad14"
               />
             </Grid>
           </Grid>
 
           {/* Scroll Depth */}
-          <Card sx={{ mt: 3 }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight={600} gutterBottom>
-                Scroll Depth Analysis
-              </Typography>
-              <Box sx={{ py: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography>Average Scroll Depth</Typography>
-                  <Typography fontWeight={600}>{variant.scrollDepth}%</Typography>
+          <Box sx={{ mt: 3 }}>
+            <Typography
+              variant="overline"
+              sx={{
+                color: config.colors.textSecondary,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                letterSpacing: '0.05em',
+                display: 'block',
+                mb: 1,
+              }}
+            >
+              Scroll Depth Analysis
+            </Typography>
+            <Card>
+              <CardContent>
+                <Box sx={{ py: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Average Scroll Depth
+                    </Typography>
+                    <Typography variant="body2" fontWeight={500}>
+                      {variant.scrollDepth}%
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={variant.scrollDepth}
+                    sx={{ height: 8, borderRadius: 4 }}
+                  />
                 </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={variant.scrollDepth}
-                  sx={{ height: 12, borderRadius: 6 }}
-                />
-              </Box>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Box>
 
           {/* Feedback Summary */}
-          <Card sx={{ mt: 3 }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight={600} gutterBottom>
-                User Feedback Summary
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Box sx={{ p: 2, bgcolor: 'success.50', borderRadius: 1, borderLeft: '4px solid', borderColor: 'success.main' }}>
-                  <Typography variant="subtitle2" color="success.main" gutterBottom>
-                    Positive Feedback (12)
-                  </Typography>
-                  <Typography variant="body2">
-                    Users appreciated the clean layout and intuitive navigation flow.
-                  </Typography>
+          <Box sx={{ mt: 3 }}>
+            <Typography
+              variant="overline"
+              sx={{
+                color: config.colors.textSecondary,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                letterSpacing: '0.05em',
+                display: 'block',
+                mb: 1,
+              }}
+            >
+              User Feedback Summary
+            </Typography>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      bgcolor: config.colors.successBg,
+                      borderRadius: 1,
+                      borderLeft: '3px solid',
+                      borderColor: config.colors.success,
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: config.colors.success,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      Positive Feedback (12)
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      Users appreciated the clean layout and intuitive navigation flow.
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      p: 2,
+                      bgcolor: config.colors.warningBg,
+                      borderRadius: 1,
+                      borderLeft: '3px solid',
+                      borderColor: config.colors.warning,
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: config.colors.warning,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      Suggestions (5)
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      Some users requested larger buttons and more contrast on CTAs.
+                    </Typography>
+                  </Box>
                 </Box>
-                <Box sx={{ p: 2, bgcolor: 'warning.50', borderRadius: 1, borderLeft: '4px solid', borderColor: 'warning.main' }}>
-                  <Typography variant="subtitle2" color="warning.main" gutterBottom>
-                    Suggestions (5)
-                  </Typography>
-                  <Typography variant="body2">
-                    Some users requested larger buttons and more contrast on CTAs.
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Box>
         </Grid>
 
         {/* Preview */}
         <Grid item xs={12} md={4}>
+          <Typography
+            variant="overline"
+            sx={{
+              color: config.colors.textSecondary,
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              letterSpacing: '0.05em',
+              display: 'block',
+              mb: 1,
+            }}
+          >
+            Preview
+          </Typography>
           <Card>
             <Box
               sx={{
                 height: 300,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                backgroundColor: config.colors.bgDark,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Typography variant="h6" color="white">
+              <Typography variant="body2" color="white" sx={{ opacity: 0.6 }}>
                 {variant.label} Preview
               </Typography>
             </Box>
             <CardContent>
-              <Typography variant="subtitle1" fontWeight={600}>
+              <Typography variant="body2" fontWeight={500}>
                 {project.name}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="caption" color="text.secondary">
                 {variant.label}
               </Typography>
             </CardContent>

@@ -508,6 +508,58 @@ export const muiTheme = createTheme({
         },
       },
     },
+    MuiTableContainer: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          border: '1px solid rgba(0, 0, 0, 0.08)',
+        },
+      },
+    },
+    MuiTableHead: {
+      styleOverrides: {
+        root: {
+          backgroundColor: voxelColors.bgSecondary,
+          '& .MuiTableCell-head': {
+            color: voxelColors.textSecondary,
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            padding: '10px 16px',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+          },
+        },
+      },
+    },
+    MuiTableBody: {
+      styleOverrides: {
+        root: {
+          '& .MuiTableRow-root': {
+            transition: 'background-color 150ms ease',
+            '&:hover': {
+              backgroundColor: 'rgba(0, 0, 0, 0.02)',
+            },
+            '&:last-child .MuiTableCell-body': {
+              borderBottom: 'none',
+            },
+          },
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        root: {
+          borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+          padding: '12px 16px',
+        },
+        body: {
+          fontSize: '0.875rem',
+          fontWeight: 400,
+          color: voxelColors.textPrimary,
+        },
+      },
+    },
     MuiTabs: {
       styleOverrides: {
         indicator: {
