@@ -400,7 +400,7 @@ export const VibePrototyping: React.FC = () => {
   const { config } = useThemeStore();
 
   // External stores
-  const { getScreenById, initializeScreens, screens } = useScreensStore();
+  const { getScreenById, initializeScreens, screens, updateScreen } = useScreensStore();
   const { contexts } = useContextStore();
 
   // Vibe store
@@ -437,6 +437,10 @@ export const VibePrototyping: React.FC = () => {
   const [shareLink, setShareLink] = useState('');
   const [pagesAnchorEl, setPagesAnchorEl] = useState<null | HTMLElement>(null);
   const [variantSwitcherAnchorEl, setVariantSwitcherAnchorEl] = useState<null | HTMLElement>(null);
+
+  // Screen name editing
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
 
   // Resizable panel state
   const [panelWidth, setPanelWidth] = useState(25); // percentage
@@ -751,6 +755,31 @@ export const VibePrototyping: React.FC = () => {
     setFocusedVariantIndex(null);
   }, []);
 
+  // Handle screen name edit
+  const handleStartEditName = useCallback(() => {
+    setEditedName(screen?.name || '');
+    setIsEditingName(true);
+  }, [screen?.name]);
+
+  const handleSaveName = useCallback(async () => {
+    if (!screenId || !editedName.trim()) {
+      setIsEditingName(false);
+      return;
+    }
+
+    try {
+      await updateScreen(screenId, { name: editedName.trim() });
+      // Update local screen state
+      setScreen((prev) => prev ? { ...prev, name: editedName.trim() } : prev);
+      showSuccess('Screen name updated');
+    } catch (error) {
+      console.error('Failed to update screen name:', error);
+      showError('Failed to update screen name');
+    } finally {
+      setIsEditingName(false);
+    }
+  }, [screenId, editedName, updateScreen, showSuccess, showError]);
+
   // Computed values
   const isAnalyzing = status === 'analyzing';
   const isPlanning = status === 'planning';
@@ -940,32 +969,66 @@ export const VibePrototyping: React.FC = () => {
           </Menu>
         </Box>
 
-        {/* Right: Project breadcrumb */}
-        <Typography
-          variant="subtitle2"
-          sx={{
-            fontWeight: 500,
-            color: 'text.secondary',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-          }}
-        >
-          {focusedVariantIndex && focusedPlan ? (
-            <>
-              <span
-                style={{ cursor: 'pointer', color: config.colors.primary }}
-                onClick={handleBackToGrid}
-              >
-                {projectName}
-              </span>
-              <CaretRight size={14} />
-              {focusedPlan.title}
-            </>
+        {/* Right: Project breadcrumb with editable name */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {isEditingName ? (
+            <TextField
+              size="small"
+              value={editedName}
+              onChange={(e) => setEditedName(e.target.value)}
+              onBlur={handleSaveName}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveName();
+                if (e.key === 'Escape') setIsEditingName(false);
+              }}
+              autoFocus
+              sx={{
+                width: 200,
+                '& .MuiOutlinedInput-root': {
+                  fontFamily: config.fonts.body,
+                  fontSize: '0.875rem',
+                },
+                '& .MuiOutlinedInput-input': {
+                  py: 0.5,
+                  px: 1,
+                },
+              }}
+            />
           ) : (
-            projectName
+            <Typography
+              variant="subtitle2"
+              sx={{
+                fontWeight: 500,
+                color: 'text.secondary',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+              }}
+            >
+              {focusedVariantIndex && focusedPlan ? (
+                <>
+                  <span
+                    style={{ cursor: 'pointer', color: config.colors.primary }}
+                    onClick={handleBackToGrid}
+                  >
+                    {projectName}
+                  </span>
+                  <CaretRight size={14} />
+                  {focusedPlan.title}
+                </>
+              ) : (
+                <Tooltip title="Click to rename">
+                  <span
+                    style={{ cursor: 'pointer' }}
+                    onClick={handleStartEditName}
+                  >
+                    {projectName}
+                  </span>
+                </Tooltip>
+              )}
+            </Typography>
           )}
-        </Typography>
+        </Box>
       </Box>
 
       {/* Main content area */}
@@ -1153,9 +1216,18 @@ export const VibePrototyping: React.FC = () => {
                 bgcolor: 'white',
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2,
+                  fontFamily: config.fonts.body,
+                  fontSize: '0.875rem',
                   transition: 'all 0.2s ease',
                   '&:hover': { boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },
                   '&.Mui-focused': { boxShadow: '0 2px 12px rgba(0,0,0,0.12)' },
+                },
+                '& .MuiOutlinedInput-input': {
+                  fontFamily: config.fonts.body,
+                  '&::placeholder': {
+                    fontFamily: config.fonts.body,
+                    opacity: 0.6,
+                  },
                 },
               }}
             />
@@ -1237,7 +1309,7 @@ export const VibePrototyping: React.FC = () => {
             overflow: 'hidden',
           }}
         >
-          {/* Initial empty state */}
+          {/* Initial state - show the selected screen */}
           {status === 'idle' && !hasVariants && (
             <Box
               sx={{
@@ -1245,11 +1317,43 @@ export const VibePrototyping: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                p: 2,
               }}
             >
-              <Typography color="text.secondary">
-                Preview will appear here
-              </Typography>
+              {screen?.editedHtml ? (
+                <Card
+                  variant="outlined"
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: 2,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      position: 'relative',
+                      backgroundColor: '#fafafa',
+                    }}
+                  >
+                    <iframe
+                      srcDoc={screen.editedHtml}
+                      title={screen.name || 'Screen Preview'}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        border: 'none',
+                      }}
+                    />
+                  </Box>
+                </Card>
+              ) : (
+                <Typography color="text.secondary">
+                  Describe what you want to build to get started
+                </Typography>
+              )}
             </Box>
           )}
 
@@ -1372,6 +1476,11 @@ export const VibePrototyping: React.FC = () => {
                   <Copy size={20} />
                 </IconButton>
               ),
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                fontFamily: config.fonts.body,
+              },
             }}
           />
         </DialogContent>

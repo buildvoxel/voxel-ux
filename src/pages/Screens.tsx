@@ -32,6 +32,7 @@ import {
   Sparkle,
   CheckSquare,
   X,
+  PencilSimple,
 } from '@phosphor-icons/react';
 import { EmptyState, ThumbnailCard } from '@/components';
 import { FileUpload } from '@/components/FileUpload';
@@ -53,6 +54,7 @@ export function Screens() {
     removeScreens,
     duplicateScreen,
     uploadScreen,
+    updateScreen,
     initializeScreens,
     fetchFromSupabase,
     isLoading,
@@ -73,6 +75,9 @@ export function Screens() {
   const [menuScreen, setMenuScreen] = useState<CapturedScreen | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [screenToDelete, setScreenToDelete] = useState<CapturedScreen | null>(null);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [screenToRename, setScreenToRename] = useState<CapturedScreen | null>(null);
+  const [newScreenName, setNewScreenName] = useState('');
 
   useEffect(() => {
     initializeScreens();
@@ -116,6 +121,28 @@ export function Screens() {
     }
     setDeleteConfirmOpen(false);
     setScreenToDelete(null);
+  };
+
+  const handleRenameClick = (screen: CapturedScreen) => {
+    setScreenToRename(screen);
+    setNewScreenName(screen.name);
+    setRenameDialogOpen(true);
+    handleMenuClose();
+  };
+
+  const handleRenameConfirm = async () => {
+    if (screenToRename && newScreenName.trim()) {
+      try {
+        await updateScreen(screenToRename.id, { name: newScreenName.trim() });
+        showSuccess('Screen renamed');
+      } catch (error) {
+        console.error('Rename failed:', error);
+        showError('Failed to rename screen');
+      }
+    }
+    setRenameDialogOpen(false);
+    setScreenToRename(null);
+    setNewScreenName('');
   };
 
   const handleFilesSelected = (files: FileList) => {
@@ -406,6 +433,13 @@ export function Screens() {
           Open in Vibe Editor
         </MenuItem>
         <MenuItem
+          onClick={() => menuScreen && handleRenameClick(menuScreen)}
+          sx={{ transition: 'all 0.15s ease' }}
+        >
+          <ListItemIcon><PencilSimple size={18} color={config.colors.textSecondary} /></ListItemIcon>
+          Rename
+        </MenuItem>
+        <MenuItem
           onClick={() => {
             handleMenuClose();
             menuScreen && duplicateScreen(menuScreen.id);
@@ -505,6 +539,56 @@ export function Screens() {
         confirmText="Delete"
         confirmColor="error"
       />
+
+      {/* Rename Dialog */}
+      <Dialog
+        open={renameDialogOpen}
+        onClose={() => setRenameDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        TransitionComponent={Fade}
+        sx={{
+          '& .MuiDialog-paper': {
+            borderRadius: 3,
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontFamily: config.fonts.display, fontWeight: mode === 'craftsman' ? 400 : 600 }}>
+          Rename Screen
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            label="Screen Name"
+            value={newScreenName}
+            onChange={(e) => setNewScreenName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newScreenName.trim()) {
+                handleRenameConfirm();
+              }
+            }}
+            sx={{
+              mt: 2,
+              '& .MuiOutlinedInput-root': {
+                fontFamily: config.fonts.body,
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRenameDialogOpen(false)} variant="outlined">
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleRenameConfirm}
+            disabled={!newScreenName.trim()}
+          >
+            Rename
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
