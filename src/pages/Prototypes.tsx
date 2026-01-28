@@ -204,24 +204,30 @@ export function Prototypes() {
           }
         />
       ) : (
-        <Grid container spacing={3}>
+        <Grid container spacing={2}>
           {filteredPrototypes.map((prototype) => (
             <Grid item xs={12} sm={6} md={4} lg={3} key={prototype.id}>
               <Card sx={{ height: '100%' }}>
                 <CardActionArea onClick={() => navigate(`/prototypes/${prototype.id}`)}>
-                  {/* Card thumbnail - Deep Charcoal with Brass icon */}
+                  {/* Card thumbnail */}
                   <Box
                     sx={{
-                      height: 160,
-                      backgroundColor: config.colors.bgDark,
+                      height: 120,
+                      background: mode === 'modern' && config.gradients
+                        ? `linear-gradient(135deg, ${config.colors.bgDark} 0%, rgba(13, 148, 136, 0.3) 100%)`
+                        : config.colors.bgDark,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       position: 'relative',
                     }}
                   >
-                    <Flask size={48} color={config.colors.primary} style={{ opacity: 0.6 }} />
-                    <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
+                    <Flask
+                      size={32}
+                      color={mode === 'modern' ? 'rgba(255,255,255,0.6)' : config.colors.primary}
+                      style={{ opacity: 0.6 }}
+                    />
+                    <Box sx={{ position: 'absolute', top: 6, right: 6 }}>
                       <Chip
                         label={prototype.status}
                         size="small"
@@ -230,25 +236,25 @@ export function Prototypes() {
                     </Box>
                   </Box>
                 </CardActionArea>
-                <CardContent>
+                <CardContent sx={{ p: '10px !important' }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography variant="subtitle1" fontWeight={600} noWrap>
+                      <Typography variant="body2" noWrap sx={{ fontWeight: 400, mb: 0.25 }}>
                         {prototype.name}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                         {prototype.variants} variants · {prototype.views} views
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" display="block">
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem' }}>
                         Updated {formatDate(prototype.updatedAt)}
                       </Typography>
                     </Box>
                     <IconButton
                       size="small"
                       onClick={(e) => handleMenuOpen(e, prototype)}
-                      sx={{ color: config.colors.textSecondary }}
+                      sx={{ color: config.colors.textSecondary, p: 0.5 }}
                     >
-                      <DotsThreeVertical size={18} />
+                      <DotsThreeVertical size={16} />
                     </IconButton>
                   </Box>
                 </CardContent>

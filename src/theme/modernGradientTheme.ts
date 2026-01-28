@@ -296,9 +296,9 @@ export const modernGradientTheme = createTheme({
     MuiCardContent: {
       styleOverrides: {
         root: {
-          padding: '16px',
+          padding: '12px',
           '&:last-child': {
-            paddingBottom: '16px',
+            paddingBottom: '12px',
           },
         },
       },
@@ -556,11 +556,11 @@ export const modernGradientTheme = createTheme({
           backgroundColor: modernColors.bgSecondary,
           '& .MuiTableCell-head': {
             color: modernColors.textSecondary,
-            fontSize: '0.75rem',
+            fontSize: '0.7rem',
             fontWeight: 600,
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
-            padding: '10px 16px',
+            padding: '8px 12px',
             borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
           },
         },
@@ -585,10 +585,10 @@ export const modernGradientTheme = createTheme({
       styleOverrides: {
         root: {
           borderBottom: '1px solid rgba(0, 0, 0, 0.04)',
-          padding: '12px 16px',
+          padding: '10px 12px',
         },
         body: {
-          fontSize: '0.875rem',
+          fontSize: '0.8125rem',
           fontWeight: 400,
           color: modernColors.textPrimary,
         },

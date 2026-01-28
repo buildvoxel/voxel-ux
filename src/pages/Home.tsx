@@ -117,7 +117,7 @@ export function Home() {
       </Box>
 
       {/* Quick Stats */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Prototypes"
@@ -151,63 +151,68 @@ export function Home() {
         </Grid>
       </Grid>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={2}>
         {/* Recent Prototypes */}
         <Grid item xs={12} lg={8}>
+          <Box sx={{ mb: 1.5 }}>
+            <Typography
+              variant="overline"
+              sx={{
+                color: config.colors.textSecondary,
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                letterSpacing: '0.08em',
+              }}
+            >
+              Recent Prototypes
+            </Typography>
+          </Box>
           <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography
-                  variant="h3"
-                  sx={{
-                    fontFamily: config.fonts.display,
-                    fontSize: '1.25rem',
-                    fontWeight: 400,
-                  }}
-                >
-                  Recent Prototypes
-                </Typography>
+            <CardContent sx={{ p: '12px !important' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
                 <Button
                   variant="contained"
-                  startIcon={<Plus size={18} />}
+                  startIcon={<Plus size={14} />}
                   size="small"
                   onClick={() => navigate('/prototypes')}
                 >
                   New Prototype
                 </Button>
               </Box>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {recentPrototypes.map((prototype) => (
-                  <Card key={prototype.id} variant="outlined">
+                  <Card key={prototype.id} variant="outlined" sx={{ borderRadius: 1 }}>
                     <CardActionArea onClick={() => navigate(`/prototypes/${prototype.id}`)}>
-                      <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                          {/* Icon box - Deep Charcoal with Brass icon */}
+                      <Box sx={{ p: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          {/* Icon box */}
                           <Box
                             sx={{
-                              width: 48,
-                              height: 48,
+                              width: 36,
+                              height: 36,
                               borderRadius: 1,
-                              backgroundColor: config.colors.bgDark,
+                              background: mode === 'modern' && config.gradients
+                                ? config.gradients.primary
+                                : config.colors.bgDark,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                             }}
                           >
-                            <Flask size={20} color={config.colors.primary} />
+                            <Flask size={16} color={mode === 'modern' ? 'white' : config.colors.primary} />
                           </Box>
                           <Box>
-                            <Typography variant="subtitle1" fontWeight={500}>
+                            <Typography variant="body2" sx={{ fontWeight: 400 }}>
                               {prototype.name}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                               Updated {prototype.updatedAt}
                             </Typography>
                           </Box>
                         </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           {prototype.views > 0 && (
-                            <Typography variant="body2" color="text.secondary">
+                            <Typography variant="caption" color="text.secondary">
                               {prototype.views} views
                             </Typography>
                           )}
@@ -229,20 +234,22 @@ export function Home() {
         {/* Sidebar */}
         <Grid item xs={12} lg={4}>
           {/* Recent Insights */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography
-                variant="h3"
-                sx={{
-                  fontFamily: config.fonts.display,
-                  fontSize: '1.25rem',
-                  fontWeight: 400,
-                  mb: 2,
-                }}
-              >
-                Recent Insights
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ mb: 1.5 }}>
+            <Typography
+              variant="overline"
+              sx={{
+                color: config.colors.textSecondary,
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                letterSpacing: '0.08em',
+              }}
+            >
+              Recent Insights
+            </Typography>
+          </Box>
+          <Card sx={{ mb: 2 }}>
+            <CardContent sx={{ p: '12px !important' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {recentInsights.map((insight) => (
                   <Box
                     key={insight.id}
@@ -250,22 +257,22 @@ export function Home() {
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      p: 1.5,
+                      p: 1,
                       borderRadius: 1,
                       backgroundColor: config.colors.bgSecondary,
                     }}
                   >
                     <Box>
-                      <Typography variant="body2" fontWeight={500}>
+                      <Typography variant="body2" sx={{ fontSize: '0.8125rem' }}>
                         {insight.prototypeName}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                         {insight.metric}
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <TrendUp size={16} color={config.colors.success} />
-                      <Typography variant="body2" sx={{ color: config.colors.success, fontWeight: 600 }}>
+                      <TrendUp size={14} color={config.colors.success} />
+                      <Typography variant="caption" sx={{ color: config.colors.success, fontWeight: 500 }}>
                         {insight.value}
                       </Typography>
                     </Box>
@@ -275,7 +282,8 @@ export function Home() {
               <Button
                 fullWidth
                 variant="text"
-                sx={{ mt: 2 }}
+                size="small"
+                sx={{ mt: 1.5 }}
                 onClick={() => navigate('/insights')}
               >
                 View All Insights
@@ -284,24 +292,26 @@ export function Home() {
           </Card>
 
           {/* Deployed Prototypes */}
+          <Box sx={{ mb: 1.5 }}>
+            <Typography
+              variant="overline"
+              sx={{
+                color: config.colors.textSecondary,
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                letterSpacing: '0.08em',
+              }}
+            >
+              Deployments
+            </Typography>
+          </Box>
           <Card>
-            <CardContent>
-              <Typography
-                variant="h3"
-                sx={{
-                  fontFamily: config.fonts.display,
-                  fontSize: '1.25rem',
-                  fontWeight: 400,
-                  mb: 2,
-                }}
-              >
-                Deployments
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <CardContent sx={{ p: '12px !important' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                 {deployedPrototypes.map((item) => (
                   <Box key={item.id}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                      <Typography variant="body2" fontWeight={500}>
+                      <Typography variant="body2" sx={{ fontSize: '0.8125rem' }}>
                         {item.name}
                       </Typography>
                       <Chip
@@ -314,9 +324,9 @@ export function Home() {
                     <LinearProgress
                       variant="determinate"
                       value={item.progress}
-                      sx={{ mb: 0.5 }}
+                      sx={{ mb: 0.5, height: 4, borderRadius: 2 }}
                     />
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                       {item.deployedAt}
                     </Typography>
                   </Box>
