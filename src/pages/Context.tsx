@@ -365,8 +365,6 @@ export function Context() {
   const [uploading, setUploading] = useState<ContextCategoryType | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<ContextFile | null>(null);
-  const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<CategoryConfig | null>(null);
 
   // Load files on mount
   useEffect(() => {
@@ -458,11 +456,6 @@ export function Context() {
     }
   };
 
-  const handleOpenCategory = (config: CategoryConfig) => {
-    setSelectedCategory(config);
-    setViewDialogOpen(true);
-  };
-
   const totalFiles = Object.values(files).reduce((sum, arr) => sum + arr.length, 0);
 
   return (
@@ -513,63 +506,6 @@ export function Context() {
           ))}
         </Grid>
       )}
-
-      {/* View All Files Dialog */}
-      <Dialog
-        open={viewDialogOpen}
-        onClose={() => setViewDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        {selectedCategory && (
-          <>
-            <DialogTitle>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box
-                  sx={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 1,
-                    backgroundColor: `${selectedCategory.color}15`,
-                    color: selectedCategory.color,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {selectedCategory.icon}
-                </Box>
-                <Typography variant="h6">{selectedCategory.title}</Typography>
-              </Box>
-            </DialogTitle>
-            <DialogContent>
-              {files[selectedCategory.id].length === 0 ? (
-                <Box sx={{ py: 4, textAlign: 'center' }}>
-                  <Typography color="text.secondary">No files uploaded yet</Typography>
-                </Box>
-              ) : (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
-                  {files[selectedCategory.id].map((file) => (
-                    <FilePreview
-                      key={file.id}
-                      file={file}
-                      color={selectedCategory.color}
-                      onDelete={() => {
-                        setFileToDelete(file);
-                        setDeleteConfirmOpen(true);
-                      }}
-                      onOpen={() => handleOpenFile(file)}
-                    />
-                  ))}
-                </Box>
-              )}
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setViewDialogOpen(false)}>Close</Button>
-            </DialogActions>
-          </>
-        )}
-      </Dialog>
 
       {/* Delete Confirmation */}
       <ConfirmDialog
