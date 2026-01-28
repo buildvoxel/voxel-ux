@@ -294,19 +294,16 @@ function ApiKeysTab() {
 
           return (
             <Grid item xs={12} md={4} key={provider}>
-              <Card sx={{ border: hasKey ? '2px solid' : undefined, borderColor: 'success.main' }}>
-                <CardContent>
+              <Card sx={{ height: '100%', border: hasKey ? '2px solid' : undefined, borderColor: 'success.main' }}>
+                <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                     <Typography fontWeight={600}>{info.name}</Typography>
                     {hasKey && <Chip label="Configured" size="small" color="success" />}
                   </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flex: 1 }}>
                     {info.description}
                   </Typography>
-                  <Typography variant="caption" color="text.disabled">
-                    Models: {info.models.slice(0, 3).join(', ')}...
-                  </Typography>
-                  <Box sx={{ mt: 1 }}>
+                  <Box>
                     <Button
                       size="small"
                       onClick={() => window.open(urls[provider], '_blank')}
@@ -598,6 +595,11 @@ function UserManagementTab() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'user' | 'admin'>('user');
   const [inviteTeam, setInviteTeam] = useState('');
+  const [addTeamDialogOpen, setAddTeamDialogOpen] = useState(false);
+  const [newTeamName, setNewTeamName] = useState('');
+  const [newTeamColor, setNewTeamColor] = useState('#764ba2');
+
+  const teamColors = ['#764ba2', '#667eea', '#52c41a', '#faad14', '#f5222d', '#13c2c2', '#722ed1', '#eb2f96'];
 
   if (!isAdmin()) {
     return (
@@ -615,12 +617,12 @@ function UserManagementTab() {
     { id: '4', name: 'Sarah Wilson', email: 'sarah@example.com', role: 'user', team: 'Engineering', createdAt: '2024-02-15', projects: 3, variants: 9, lastActive: '2025-01-25' },
   ];
 
-  // Mock teams data
-  const teams = [
+  // Mock teams data - using state for dynamic updates
+  const [teams, setTeams] = useState([
     { id: '1', name: 'Design', members: 2, color: '#764ba2' },
     { id: '2', name: 'Product', members: 1, color: '#667eea' },
     { id: '3', name: 'Engineering', members: 1, color: '#52c41a' },
-  ];
+  ]);
 
   const handleInvite = () => {
     showSuccess(`Invitation sent to ${inviteEmail}`);
@@ -628,6 +630,21 @@ function UserManagementTab() {
     setInviteEmail('');
     setInviteRole('user');
     setInviteTeam('');
+  };
+
+  const handleAddTeam = () => {
+    if (!newTeamName.trim()) return;
+    const newTeam = {
+      id: String(teams.length + 1),
+      name: newTeamName.trim(),
+      members: 0,
+      color: newTeamColor,
+    };
+    setTeams([...teams, newTeam]);
+    showSuccess(`Team "${newTeamName}" created`);
+    setAddTeamDialogOpen(false);
+    setNewTeamName('');
+    setNewTeamColor('#764ba2');
   };
 
   const totalProjects = users.reduce((sum, u) => sum + u.projects, 0);
@@ -715,11 +732,57 @@ function UserManagementTab() {
         <Grid item xs={12} sm={6} md={4}>
           <Card sx={{ border: '1px dashed', borderColor: 'divider', height: '100%' }}>
             <CardContent sx={{ py: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Button startIcon={<Plus size={16} />} size="small">Add Team</Button>
+              <Button startIcon={<Plus size={16} />} size="small" onClick={() => setAddTeamDialogOpen(true)}>Add Team</Button>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
+
+      {/* Add Team Dialog */}
+      <Dialog open={addTeamDialogOpen} onClose={() => setAddTeamDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Create New Team</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              fullWidth
+              label="Team Name"
+              value={newTeamName}
+              onChange={(e) => setNewTeamName(e.target.value)}
+              placeholder="e.g., Marketing"
+            />
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Team Color
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {teamColors.map((color) => (
+                  <Box
+                    key={color}
+                    onClick={() => setNewTeamColor(color)}
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 1,
+                      backgroundColor: color,
+                      cursor: 'pointer',
+                      border: newTeamColor === color ? '3px solid' : '2px solid transparent',
+                      borderColor: newTeamColor === color ? 'primary.main' : 'transparent',
+                      transition: 'all 0.2s ease',
+                      '&:hover': { transform: 'scale(1.1)' },
+                    }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddTeamDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleAddTeam} disabled={!newTeamName.trim()}>
+            Create Team
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Users Table */}
       <Typography

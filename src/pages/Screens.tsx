@@ -33,6 +33,7 @@ import {
   CheckSquare,
   X,
   PencilSimple,
+  DotsThreeVertical,
 } from '@phosphor-icons/react';
 import { EmptyState, ThumbnailCard } from '@/components';
 import { FileUpload } from '@/components/FileUpload';
@@ -347,7 +348,7 @@ export function Screens() {
         </Box>
       </Box>
 
-      {/* Grid */}
+      {/* Grid or List View */}
       {filteredScreens.length === 0 ? (
         <EmptyState
           title={searchQuery ? 'No screens match your search' : 'No captured screens yet'}
@@ -358,7 +359,7 @@ export function Screens() {
               : undefined
           }
         />
-      ) : (
+      ) : viewMode === 'grid' ? (
         <Grid container spacing={2}>
           {filteredScreens.map((screen, index) => (
             <Grid
@@ -407,6 +408,118 @@ export function Screens() {
             </Grid>
           ))}
         </Grid>
+      ) : (
+        /* List View */
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {filteredScreens.map((screen, index) => (
+            <Box
+              key={screen.id}
+              onClick={() => navigate(`/prototypes/${screen.id}`)}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                p: 1.5,
+                borderRadius: 2,
+                border: `1px solid ${config.colors.border}`,
+                backgroundColor: config.colors.surface,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                animation: 'fadeInUp 0.4s ease forwards',
+                animationDelay: `${index * 0.03}s`,
+                opacity: 0,
+                '@keyframes fadeInUp': {
+                  from: { opacity: 0, transform: 'translateY(10px)' },
+                  to: { opacity: 1, transform: 'translateY(0)' },
+                },
+                '&:hover': {
+                  borderColor: config.colors.primary,
+                  transform: 'translateX(4px)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                },
+              }}
+            >
+              {isSelectionMode && (
+                <Checkbox
+                  checked={selectedIds.includes(screen.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSelectScreen(screen.id);
+                  }}
+                />
+              )}
+              {/* Thumbnail */}
+              <Box
+                sx={{
+                  width: 80,
+                  height: 60,
+                  borderRadius: 1,
+                  backgroundColor: config.colors.bgSecondary,
+                  flexShrink: 0,
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {screen.editedHtml || screen.filePath ? (
+                  <iframe
+                    srcDoc={screen.editedHtml || undefined}
+                    src={!screen.editedHtml && screen.filePath ? screen.filePath : undefined}
+                    style={{
+                      width: '400%',
+                      height: '400%',
+                      transform: 'scale(0.25)',
+                      transformOrigin: 'top left',
+                      border: 'none',
+                      pointerEvents: 'none',
+                    }}
+                    title={screen.name}
+                  />
+                ) : (
+                  <Sparkle size={24} color={config.colors.textSecondary} />
+                )}
+              </Box>
+              {/* Info */}
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography
+                  variant="body1"
+                  fontWeight={500}
+                  sx={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {screen.name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Captured {formatDate(screen.capturedAt)}
+                </Typography>
+              </Box>
+              {/* Tags */}
+              <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
+                {screen.tags?.slice(0, 2).map((tag) => (
+                  <Chip key={tag} label={tag} size="small" variant="outlined" />
+                ))}
+                {(screen.tags?.length || 0) > 2 && (
+                  <Chip label={`+${screen.tags!.length - 2}`} size="small" variant="outlined" />
+                )}
+              </Box>
+              {/* Actions */}
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleMenuOpen(e, screen);
+                }}
+                sx={{ flexShrink: 0 }}
+              >
+                <DotsThreeVertical size={18} />
+              </IconButton>
+            </Box>
+          ))}
+        </Box>
       )}
 
       {/* Context Menu */}

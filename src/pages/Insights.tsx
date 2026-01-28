@@ -135,7 +135,7 @@ function AllProjectsView() {
       {/* Stats Row - Per wireframe */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={4}>
-          <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+          <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 100 }}>
             <Typography variant="body2" color="text.secondary" gutterBottom>
               Number of projects
             </Typography>
@@ -148,7 +148,7 @@ function AllProjectsView() {
           </Card>
         </Grid>
         <Grid item xs={12} sm={4}>
-          <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+          <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 100 }}>
             <Typography variant="body2" color="text.secondary" gutterBottom>
               Avg. number variants per projects
             </Typography>
@@ -158,7 +158,7 @@ function AllProjectsView() {
           </Card>
         </Grid>
         <Grid item xs={12} sm={4}>
-          <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+          <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 100 }}>
             <Typography variant="body2" color="text.secondary" gutterBottom>
               Engaged participants
             </Typography>
@@ -208,6 +208,7 @@ function AllProjectsView() {
 // Project View - Per wireframe: Insights > Project name
 function ProjectView({ projectId }: { projectId: string }) {
   const navigate = useNavigate();
+  const { config } = useThemeStore();
   const project = projectsData.find((p) => p.id === projectId);
 
   if (!project) {
@@ -229,15 +230,28 @@ function ProjectView({ projectId }: { projectId: string }) {
 
   return (
     <Box>
-      {/* Breadcrumb title per wireframe */}
-      <Typography variant="h5" fontWeight={500} sx={{ mb: 3 }}>
-        Insights {'>'} {project.name}
-      </Typography>
+      {/* Breadcrumb navigation */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+        <Typography
+          variant="h5"
+          fontWeight={500}
+          sx={{
+            cursor: 'pointer',
+            '&:hover': { color: config.colors.primary },
+            transition: 'color 0.2s ease',
+          }}
+          onClick={() => navigate('/insights')}
+        >
+          Insights
+        </Typography>
+        <Typography variant="h5" fontWeight={500} color="text.secondary">{'>'}</Typography>
+        <Typography variant="h5" fontWeight={500}>{project.name}</Typography>
+      </Box>
 
       {/* Stats Row - Per wireframe: 3 cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={4}>
-          <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+          <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 100 }}>
             <Typography variant="body2" color="text.secondary" gutterBottom>
               Number of projects
             </Typography>
@@ -250,7 +264,7 @@ function ProjectView({ projectId }: { projectId: string }) {
           </Card>
         </Grid>
         <Grid item xs={12} sm={4}>
-          <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+          <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 100 }}>
             <Typography variant="body2" color="text.secondary" gutterBottom>
               Avg. number variants per projects
             </Typography>
@@ -260,7 +274,7 @@ function ProjectView({ projectId }: { projectId: string }) {
           </Card>
         </Grid>
         <Grid item xs={12} sm={4}>
-          <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+          <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 100 }}>
             <Typography variant="body2" color="text.secondary" gutterBottom>
               Engaged participants
             </Typography>
@@ -275,13 +289,13 @@ function ProjectView({ projectId }: { projectId: string }) {
       <TableContainer component={Card} sx={{ border: 'none' }}>
         <Table>
           <TableHead>
-            <TableRow sx={{ backgroundColor: 'grey.600' }}>
-              <TableCell sx={{ color: 'white', fontWeight: 500 }}>Variant name</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 500 }}>Description</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 500 }} align="center"># Sessions</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 500 }} align="center"># Participants</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 500 }} align="center"># Comments</TableCell>
-              <TableCell sx={{ color: 'white', fontWeight: 500 }} align="right">Total time spent</TableCell>
+            <TableRow sx={{ backgroundColor: config.colors.bgSecondary }}>
+              <TableCell sx={{ fontWeight: 600 }}>Variant name</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Description</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="center"># Sessions</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="center"># Participants</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="center"># Comments</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="right">Total time spent</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -316,6 +330,7 @@ function ProjectView({ projectId }: { projectId: string }) {
 
 // Variant View - Per wireframe: Insights > Project name > Variant name
 function VariantView({ projectId, variantId }: { projectId: string; variantId: string }) {
+  const navigate = useNavigate();
   const { config } = useThemeStore();
   const project = projectsData.find((p) => p.id === projectId);
   const variant = variantsData.find((v) => v.id === variantId);
@@ -329,6 +344,8 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
     { id: 1, user: 'Sarah Chen', comment: 'Love the clean layout! Very intuitive.', time: '2h ago' },
     { id: 2, user: 'Mike Johnson', comment: 'The CTA button could be more prominent.', time: '4h ago' },
     { id: 3, user: 'Emma Wilson', comment: 'Great flow, easy to navigate.', time: '1d ago' },
+    { id: 4, user: 'Alex Rodriguez', comment: 'Navigation is smooth and intuitive.', time: '2d ago' },
+    { id: 5, user: 'Jordan Lee', comment: 'Consider adding more visual hierarchy.', time: '3d ago' },
   ];
 
   // Funnel data
@@ -340,19 +357,45 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
   ];
 
   return (
-    <Box>
-      {/* Breadcrumb title per wireframe */}
-      <Typography variant="h5" fontWeight={500} sx={{ mb: 3 }}>
-        Insights {'>'} {project.name} {'>'} {variant.label}
-      </Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 140px)' }}>
+      {/* Breadcrumb navigation */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexShrink: 0 }}>
+        <Typography
+          variant="h5"
+          fontWeight={500}
+          sx={{
+            cursor: 'pointer',
+            '&:hover': { color: config.colors.primary },
+            transition: 'color 0.2s ease',
+          }}
+          onClick={() => navigate('/insights')}
+        >
+          Insights
+        </Typography>
+        <Typography variant="h5" fontWeight={500} color="text.secondary">{'>'}</Typography>
+        <Typography
+          variant="h5"
+          fontWeight={500}
+          sx={{
+            cursor: 'pointer',
+            '&:hover': { color: config.colors.primary },
+            transition: 'color 0.2s ease',
+          }}
+          onClick={() => navigate(`/insights/${projectId}`)}
+        >
+          {project.name}
+        </Typography>
+        <Typography variant="h5" fontWeight={500} color="text.secondary">{'>'}</Typography>
+        <Typography variant="h5" fontWeight={500}>{variant.label}</Typography>
+      </Box>
 
       {/* Top Section: Stats (2x2) + Thumbnail */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      <Grid container spacing={3} sx={{ mb: 3, flexShrink: 0 }}>
         {/* Stats 2x2 Grid */}
         <Grid item xs={12} md={8}>
           <Grid container spacing={2}>
             <Grid item xs={6}>
-              <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+              <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', minHeight: 90 }}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   Total sessions
                 </Typography>
@@ -362,7 +405,7 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
               </Card>
             </Grid>
             <Grid item xs={6}>
-              <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+              <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', minHeight: 90 }}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   Unique participants
                 </Typography>
@@ -372,7 +415,7 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
               </Card>
             </Grid>
             <Grid item xs={6}>
-              <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+              <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', minHeight: 90 }}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   Time spent per session
                 </Typography>
@@ -382,7 +425,7 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
               </Card>
             </Grid>
             <Grid item xs={6}>
-              <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+              <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', minHeight: 90 }}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   Feedback shared
                 </Typography>
@@ -417,10 +460,12 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
         </Grid>
       </Grid>
 
-      {/* Feedback Summary + Feedback Shared (side by side) */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={6}>
-          <Card variant="outlined" sx={{ height: '100%' }}>
+      {/* Main content: Left (Feedback Summary + Funnel) + Right (Feedback Shared) */}
+      <Grid container spacing={3} sx={{ flex: 1, minHeight: 0 }}>
+        {/* Left Column: Feedback Summary + Funnel stacked */}
+        <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {/* Feedback Summary */}
+          <Card variant="outlined">
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <Typography variant="subtitle1" fontWeight={500}>
@@ -434,19 +479,59 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
               </Typography>
             </CardContent>
           </Card>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Card variant="outlined" sx={{ height: '100%' }}>
+
+          {/* Participants Funnel */}
+          <Card variant="outlined">
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <Typography variant="subtitle1" fontWeight={500}>
+                  Participants funnel
+                </Typography>
+                <Box component="span" sx={{ fontSize: 14 }}>📊</Box>
+              </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                {funnelSteps.map((step, index) => (
+                  <Box key={step.label}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="body2">{step.label}</Typography>
+                      <Typography variant="body2" fontWeight={500}>
+                        {step.count} ({step.percent}%)
+                      </Typography>
+                    </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={step.percent}
+                      sx={{
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: 'grey.200',
+                        '& .MuiLinearProgress-bar': {
+                          backgroundColor: index === 0 ? config.colors.primary :
+                            index === funnelSteps.length - 1 ? config.colors.success :
+                            config.colors.textSecondary,
+                        },
+                      }}
+                    />
+                  </Box>
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Right Column: Feedback Shared - takes full height */}
+        <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column' }}>
+          <Card variant="outlined" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexShrink: 0 }}>
                 <Typography variant="subtitle1" fontWeight={500}>
                   Feedback shared
                 </Typography>
                 <Box component="span" sx={{ fontSize: 14 }}>💬</Box>
               </Box>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, flex: 1, overflow: 'auto' }}>
                 {feedbackComments.map((fb) => (
-                  <Box key={fb.id} sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 1 }}>
+                  <Box key={fb.id} sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 1.5 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Typography variant="body2" fontWeight={500}>{fb.user}</Typography>
                       <Typography variant="caption" color="text.secondary">{fb.time}</Typography>
@@ -459,44 +544,6 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
           </Card>
         </Grid>
       </Grid>
-
-      {/* Participants Funnel */}
-      <Card variant="outlined">
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <Typography variant="subtitle1" fontWeight={500}>
-              Participants funnel
-            </Typography>
-            <Box component="span" sx={{ fontSize: 14 }}>📊</Box>
-          </Box>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {funnelSteps.map((step, index) => (
-              <Box key={step.label}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography variant="body2">{step.label}</Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    {step.count} ({step.percent}%)
-                  </Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={step.percent}
-                  sx={{
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: 'grey.200',
-                    '& .MuiLinearProgress-bar': {
-                      backgroundColor: index === 0 ? config.colors.primary :
-                        index === funnelSteps.length - 1 ? config.colors.success :
-                        config.colors.textSecondary,
-                    },
-                  }}
-                />
-              </Box>
-            ))}
-          </Box>
-        </CardContent>
-      </Card>
     </Box>
   );
 }

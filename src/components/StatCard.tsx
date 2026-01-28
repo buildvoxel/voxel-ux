@@ -75,7 +75,9 @@ export function StatCard({ title, value, icon, trend, color }: StatCardProps) {
                 width: 40,
                 height: 40,
                 borderRadius: 1,
-                backgroundColor: config.colors.bgDark,
+                backgroundColor: mode === 'modern'
+                  ? `${iconColor}15`
+                  : config.colors.bgDark,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
