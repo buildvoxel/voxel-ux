@@ -24,6 +24,7 @@ import {
   CaretDown,
   ShareNetwork,
 } from '@phosphor-icons/react';
+// Flask still used in sidebarItems
 import { useThemeStore, useBackgroundStyle } from '@/store/themeStore';
 import { useScreensStore } from '@/store/screensStore';
 
@@ -83,27 +84,21 @@ export function VibeLayout() {
       >
         {/* Logo */}
         <Box
+          component="img"
+          src="/voxel-logo.png"
+          alt="Voxel"
+          onClick={() => navigate('/')}
           sx={{
             width: 32,
             height: 32,
-            background: mode === 'modern' && config.gradients
-              ? config.gradients.primary
-              : config.colors.primary,
-            borderRadius: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
             mb: 1,
             cursor: 'pointer',
-            transition: 'background-color 0.2s',
+            transition: 'opacity 0.2s',
             '&:hover': {
-              opacity: 0.9,
+              opacity: 0.8,
             },
           }}
-          onClick={() => navigate('/')}
-        >
-          <Flask size={18} color="white" weight="duotone" />
-        </Box>
+        />
         <Divider sx={{ width: '80%', borderColor: 'rgba(255,255,255,0.1)', mb: 1 }} />
 
         {/* Navigation Items */}

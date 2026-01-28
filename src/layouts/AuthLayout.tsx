@@ -2,7 +2,6 @@ import { Outlet } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
-import { Flask } from '@phosphor-icons/react';
 import { useThemeStore, useBackgroundStyle } from '@/store/themeStore';
 
 export function AuthLayout() {
@@ -34,22 +33,16 @@ export function AuthLayout() {
         <Box sx={{ textAlign: 'center', mb: 4 }}>
           {/* Logo */}
           <Box
+            component="img"
+            src="/voxel-logo.png"
+            alt="Voxel"
             sx={{
               width: 48,
               height: 48,
-              background: mode === 'modern' && config.gradients
-                ? config.gradients.primary
-                : config.colors.primary,
-              borderRadius: 1.5,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               mx: 'auto',
               mb: 2,
             }}
-          >
-            <Flask size={24} color="white" weight="duotone" />
-          </Box>
+          />
           <Typography
             variant="h4"
             component="h1"

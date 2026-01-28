@@ -1,14 +1,9 @@
-import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -24,18 +19,21 @@ import {
   CursorClick,
   Timer,
   Trophy,
-  TrendUp,
 } from '@phosphor-icons/react';
 import { StatCard } from '@/components';
 import { BreadcrumbNav } from '@/components/BreadcrumbNav';
 import { useThemeStore } from '@/store/themeStore';
 
-// Mock data
+// Mock data - Updated to match wireframe columns
 const projectsData = [
   {
     id: '1',
     name: 'E-commerce Checkout Flow',
+    creator: 'Sarah Chen',
     variants: 4,
+    participants: 12,
+    comments: 24,
+    totalTimeSpent: '4h 32m',
     totalViews: 2340,
     totalClicks: 890,
     avgEngagement: 245,
@@ -45,7 +43,11 @@ const projectsData = [
   {
     id: '2',
     name: 'Dashboard Redesign',
+    creator: 'Mike Johnson',
     variants: 2,
+    participants: 8,
+    comments: 15,
+    totalTimeSpent: '2h 18m',
     totalViews: 1250,
     totalClicks: 450,
     avgEngagement: 180,
@@ -55,7 +57,11 @@ const projectsData = [
   {
     id: '3',
     name: 'Mobile App Onboarding',
+    creator: 'Emma Wilson',
     variants: 3,
+    participants: 15,
+    comments: 32,
+    totalTimeSpent: '6h 45m',
     totalViews: 5670,
     totalClicks: 2100,
     avgEngagement: 320,
@@ -123,106 +129,71 @@ const formatTime = (seconds: number) => {
 // All Projects View
 function AllProjectsView() {
   const navigate = useNavigate();
-  const [dateRange, setDateRange] = useState('30d');
-  const { config } = useThemeStore();
 
-  const totalViews = projectsData.reduce((sum, p) => sum + p.totalViews, 0);
-  const totalClicks = projectsData.reduce((sum, p) => sum + p.totalClicks, 0);
-  const avgEngagement = Math.round(
-    projectsData.reduce((sum, p) => sum + p.avgEngagement, 0) / projectsData.length
+  // Stats per wireframe
+  const activeProjects = projectsData.filter(p => p.status === 'shared' || p.status === 'deployed').length;
+  const totalProjects = projectsData.length;
+  const avgVariantsPerProject = Math.round(
+    projectsData.reduce((sum, p) => sum + p.variants, 0) / projectsData.length
   );
-  const avgConversion =
-    projectsData.reduce((sum, p) => sum + p.topConversion, 0) / projectsData.length;
+  const totalParticipants = projectsData.reduce((sum, p) => sum + p.participants, 0);
 
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Box>
-          <Typography variant="h4" fontWeight={600}>
-            Insights
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Track engagement and optimize variant performance
-          </Typography>
-        </Box>
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Date Range</InputLabel>
-          <Select
-            value={dateRange}
-            label="Date Range"
-            onChange={(e) => setDateRange(e.target.value)}
-          >
-            <MenuItem value="today">Today</MenuItem>
-            <MenuItem value="7d">Last 7 days</MenuItem>
-            <MenuItem value="30d">Last 30 days</MenuItem>
-            <MenuItem value="90d">Last 90 days</MenuItem>
-          </Select>
-        </FormControl>
+        <Typography variant="h4" fontWeight={600}>
+          Insights
+        </Typography>
       </Box>
 
-      {/* Stats Row */}
+      {/* Stats Row - Per wireframe */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Total Views"
-            value={formatNumber(totalViews)}
-            icon={<Eye size={20} />}
-            trend={{ direction: 'up', value: 12.5 }}
-          />
+        <Grid item xs={12} sm={4}>
+          <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Number of projects
+            </Typography>
+            <Typography variant="h5" fontWeight={500}>
+              {activeProjects}/{totalProjects}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              (active/total)
+            </Typography>
+          </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Total Clicks"
-            value={formatNumber(totalClicks)}
-            icon={<CursorClick size={20} />}
-            trend={{ direction: 'up', value: 8.3 }}
-            color="#52c41a"
-          />
+        <Grid item xs={12} sm={4}>
+          <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Avg. number variants per projects
+            </Typography>
+            <Typography variant="h5" fontWeight={500}>
+              {avgVariantsPerProject}
+            </Typography>
+          </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Avg. Engagement"
-            value={formatTime(avgEngagement)}
-            icon={<Timer size={20} />}
-            trend={{ direction: 'down', value: 3.2 }}
-            color="#faad14"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Avg. Conversion"
-            value={`${avgConversion.toFixed(1)}%`}
-            icon={<Trophy size={20} />}
-            trend={{ direction: 'up', value: 15.7 }}
-            color="#eb2f96"
-          />
+        <Grid item xs={12} sm={4}>
+          <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Engaged participants
+            </Typography>
+            <Typography variant="h5" fontWeight={500}>
+              {totalParticipants}
+            </Typography>
+          </Card>
         </Grid>
       </Grid>
 
-      {/* Projects Table */}
-      <Box sx={{ mb: 2 }}>
-        <Typography
-          variant="overline"
-          sx={{
-            color: config.colors.textSecondary,
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            letterSpacing: '0.05em',
-          }}
-        >
-          Project Performance
-        </Typography>
-      </Box>
+      {/* Projects Table - Columns per wireframe */}
       <TableContainer component={Card} sx={{ border: 'none' }}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Project</TableCell>
-              <TableCell>Variants</TableCell>
-              <TableCell align="right">Views</TableCell>
-              <TableCell align="right">Clicks</TableCell>
-              <TableCell align="right">Avg. Engagement</TableCell>
-              <TableCell align="right">Top Conversion</TableCell>
+              <TableCell>Project name</TableCell>
+              <TableCell>Creator</TableCell>
+              <TableCell align="center">Variants</TableCell>
+              <TableCell align="center">Participants</TableCell>
+              <TableCell align="center">Comments</TableCell>
+              <TableCell align="right">Total time spent</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -233,28 +204,12 @@ function AllProjectsView() {
                 onClick={() => navigate(`/insights/${project.id}`)}
                 sx={{ cursor: 'pointer' }}
               >
-                <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {project.name}
-                    <Chip
-                      label={project.status}
-                      size="small"
-                      color={project.status === 'deployed' ? 'success' : 'primary'}
-                    />
-                  </Box>
-                </TableCell>
-                <TableCell>{project.variants}</TableCell>
-                <TableCell align="right">{formatNumber(project.totalViews)}</TableCell>
-                <TableCell align="right">{formatNumber(project.totalClicks)}</TableCell>
-                <TableCell align="right">{formatTime(project.avgEngagement)}</TableCell>
-                <TableCell align="right">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'flex-end' }}>
-                    <TrendUp size={14} color={config.colors.success} />
-                    <Typography variant="body2" sx={{ color: config.colors.success }}>
-                      {project.topConversion}%
-                    </Typography>
-                  </Box>
-                </TableCell>
+                <TableCell>{project.name}</TableCell>
+                <TableCell>{project.creator}</TableCell>
+                <TableCell align="center">{project.variants}</TableCell>
+                <TableCell align="center">{project.participants}</TableCell>
+                <TableCell align="center">{project.comments}</TableCell>
+                <TableCell align="right">{project.totalTimeSpent}</TableCell>
               </TableRow>
             ))}
           </TableBody>

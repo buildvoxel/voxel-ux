@@ -139,21 +139,15 @@ export function AppLayout() {
           }}
         >
           <Box
+            component="img"
+            src="/voxel-logo.png"
+            alt="Voxel"
             sx={{
               width: 32,
               height: 32,
-              background: mode === 'modern' && config.gradients
-                ? config.gradients.primary
-                : config.colors.primary,
-              borderRadius: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               flexShrink: 0,
             }}
-          >
-            <Flask size={18} color="white" weight="duotone" />
-          </Box>
+          />
           {!collapsed && (
             <Typography
               sx={{
