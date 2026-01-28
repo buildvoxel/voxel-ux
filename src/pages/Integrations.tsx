@@ -17,7 +17,7 @@ import DesignServicesIcon from '@mui/icons-material/DesignServices';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import AssignmentIcon from '@mui/icons-material/Assignment';
-import CodeIcon from '@mui/icons-material/Code';
+import CodeOutlinedIcon from '@mui/icons-material/CodeOutlined';
 import { useSnackbar } from '@/components/SnackbarProvider';
 
 interface Integration {
@@ -62,7 +62,7 @@ const categoryIcons: Record<string, React.ReactNode> = {
   'AI & Code Gen': <SmartToyIcon />,
   'Deployment': <CloudUploadIcon />,
   'Project Management': <AssignmentIcon />,
-  'Dev Tools': <CodeIcon />,
+  'Dev Tools': <CodeOutlinedIcon />,
 };
 
 const categoryColors: Record<string, string> = {

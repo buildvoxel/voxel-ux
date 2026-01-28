@@ -22,7 +22,7 @@ import AccordionDetails from '@mui/material/AccordionDetails';
 import Badge from '@mui/material/Badge';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import BoltIcon from '@mui/icons-material/Bolt';
-import SettingsIcon from '@mui/icons-material/Settings';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AppsIcon from '@mui/icons-material/Apps';
 import FindInPageIcon from '@mui/icons-material/FindInPage';
@@ -563,7 +563,7 @@ export const VibePrototyping: React.FC = () => {
             />
           )}
           <IconButton>
-            <SettingsIcon />
+            <SettingsOutlinedIcon />
           </IconButton>
         </Box>
       </Box>

@@ -4,13 +4,13 @@ import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
-import HomeIcon from '@mui/icons-material/Home';
-import ScienceIcon from '@mui/icons-material/Science';
-import FolderIcon from '@mui/icons-material/Folder';
-import DescriptionIcon from '@mui/icons-material/Description';
-import InsightsIcon from '@mui/icons-material/Insights';
-import ExtensionIcon from '@mui/icons-material/Extension';
-import SettingsIcon from '@mui/icons-material/Settings';
+import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
+import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
+import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
+import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 
 const SIDEBAR_WIDTH = 48;
 
@@ -21,13 +21,13 @@ interface SidebarItem {
 }
 
 const sidebarItems: SidebarItem[] = [
-  { icon: <HomeIcon />, label: 'Home', path: '/' },
-  { icon: <ScienceIcon />, label: 'Prototypes', path: '/prototypes' },
-  { icon: <FolderIcon />, label: 'Repository', path: '/repository/screens' },
-  { icon: <DescriptionIcon />, label: 'Context', path: '/context' },
-  { icon: <InsightsIcon />, label: 'Insights', path: '/insights' },
-  { icon: <ExtensionIcon />, label: 'Integrations', path: '/integrations' },
-  { icon: <SettingsIcon />, label: 'Settings', path: '/settings' },
+  { icon: <HomeOutlinedIcon />, label: 'Home', path: '/' },
+  { icon: <ScienceOutlinedIcon />, label: 'Prototypes', path: '/prototypes' },
+  { icon: <FolderOutlinedIcon />, label: 'Repository', path: '/repository/screens' },
+  { icon: <DescriptionOutlinedIcon />, label: 'Context', path: '/context' },
+  { icon: <InsightsOutlinedIcon />, label: 'Insights', path: '/insights' },
+  { icon: <ExtensionOutlinedIcon />, label: 'Integrations', path: '/integrations' },
+  { icon: <SettingsOutlinedIcon />, label: 'Settings', path: '/settings' },
 ];
 
 export function VibeLayout() {
@@ -68,7 +68,7 @@ export function VibeLayout() {
           }}
           onClick={() => navigate('/')}
         >
-          <ScienceIcon sx={{ color: 'white', fontSize: 18 }} />
+          <ScienceOutlinedIcon sx={{ color: 'white', fontSize: 18 }} />
         </Box>
         <Divider sx={{ width: '80%', borderColor: 'grey.700', mb: 1 }} />
 

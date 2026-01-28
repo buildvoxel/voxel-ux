@@ -13,7 +13,7 @@ import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
+import RocketLaunchOutlinedIcon from '@mui/icons-material/RocketLaunchOutlined';
 import { VariantPlanCard } from './VariantPlanCard';
 import { EmptyState } from '@/components';
 import type { VariantPlan } from '../../services/variantPlanService';
@@ -101,7 +101,7 @@ export const PlanReviewGrid: React.FC<PlanReviewGridProps> = ({
       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Box>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-            <RocketLaunchIcon />
+            <RocketLaunchOutlinedIcon />
             Review Variant Plans
           </Typography>
           <Typography variant="body2" color="text.secondary">

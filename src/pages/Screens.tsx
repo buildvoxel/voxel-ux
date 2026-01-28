@@ -24,20 +24,20 @@ import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import SearchIcon from '@mui/icons-material/Search';
-import UploadIcon from '@mui/icons-material/Upload';
-import GridViewIcon from '@mui/icons-material/GridView';
-import ViewListIcon from '@mui/icons-material/ViewList';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import ScienceIcon from '@mui/icons-material/Science';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
-import CheckBoxIcon from '@mui/icons-material/CheckBox';
-import CloseIcon from '@mui/icons-material/Close';
-import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import UploadOutlinedIcon from '@mui/icons-material/UploadOutlined';
+import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
+import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
+import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
+import MoreVertOutlinedIcon from '@mui/icons-material/MoreVertOutlined';
+import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
+import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined';
+import CheckBoxOutlinedIcon from '@mui/icons-material/CheckBoxOutlined';
+import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
+import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 import { EmptyState } from '@/components';
 import { FileUpload } from '@/components/FileUpload';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -225,7 +225,7 @@ export function Screens() {
         title={screen.name}
       />
     ) : (
-      <InsertDriveFileIcon sx={{ fontSize: 48, color: 'rgba(255,255,255,0.5)' }} />
+      <InsertDriveFileOutlinedIcon sx={{ fontSize: 48, color: 'rgba(255,255,255,0.5)' }} />
     );
 
     const handleCardClick = () => {
@@ -294,7 +294,7 @@ export function Screens() {
                 '&:hover': { opacity: 1 },
               }}
             >
-              <VisibilityIcon sx={{ fontSize: 32, color: 'white' }} />
+              <VisibilityOutlinedIcon sx={{ fontSize: 32, color: 'white' }} />
             </Box>
           )}
         </Box>
@@ -319,16 +319,16 @@ export function Screens() {
           <CardActions sx={{ px: 2, py: 1 }}>
             <Tooltip title="Preview">
               <IconButton size="small" onClick={() => openPreview(screen)}>
-                <VisibilityIcon fontSize="small" />
+                <VisibilityOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <Tooltip title="Edit">
               <IconButton size="small" onClick={() => navigate(`/editor/${screen.id}`)}>
-                <EditIcon fontSize="small" />
+                <EditOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <IconButton size="small" onClick={(e) => handleMenuOpen(e, screen)}>
-              <MoreVertIcon fontSize="small" />
+              <MoreVertOutlinedIcon fontSize="small" />
             </IconButton>
           </CardActions>
         )}
@@ -356,7 +356,7 @@ export function Screens() {
               <Button
                 color="error"
                 size="small"
-                startIcon={<DeleteIcon />}
+                startIcon={<DeleteOutlinedIcon />}
                 disabled={selectedIds.length === 0}
                 onClick={handleBatchDelete}
               >
@@ -364,7 +364,7 @@ export function Screens() {
               </Button>
               <Button
                 size="small"
-                startIcon={<CloseIcon />}
+                startIcon={<CloseOutlinedIcon />}
                 onClick={handleToggleSelectionMode}
               >
                 Cancel
@@ -400,7 +400,7 @@ export function Screens() {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
+                  <SearchOutlinedIcon fontSize="small" />
                 </InputAdornment>
               ),
             }}
@@ -412,10 +412,10 @@ export function Screens() {
             size="small"
           >
             <ToggleButton value="grid">
-              <GridViewIcon fontSize="small" />
+              <GridViewOutlinedIcon fontSize="small" />
             </ToggleButton>
             <ToggleButton value="list">
-              <ViewListIcon fontSize="small" />
+              <ViewListOutlinedIcon fontSize="small" />
             </ToggleButton>
           </ToggleButtonGroup>
           <Tooltip title={isSelectionMode ? 'Exit selection mode' : 'Select multiple'}>
@@ -423,12 +423,12 @@ export function Screens() {
               onClick={handleToggleSelectionMode}
               color={isSelectionMode ? 'primary' : 'default'}
             >
-              <CheckBoxIcon />
+              <CheckBoxOutlinedIcon />
             </IconButton>
           </Tooltip>
           <Button
             variant="contained"
-            startIcon={<UploadIcon />}
+            startIcon={<UploadOutlinedIcon />}
             onClick={() => setIsUploadModalOpen(true)}
           >
             Import Screen
@@ -460,27 +460,27 @@ export function Screens() {
       {/* Context Menu */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
         <MenuItem onClick={() => { handleMenuClose(); menuScreen && openPreview(menuScreen); }}>
-          <ListItemIcon><VisibilityIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon><VisibilityOutlinedIcon fontSize="small" /></ListItemIcon>
           Preview
         </MenuItem>
         <MenuItem onClick={() => { handleMenuClose(); menuScreen && navigate(`/editor/${menuScreen.id}`); }}>
-          <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon><EditOutlinedIcon fontSize="small" /></ListItemIcon>
           Edit in WYSIWYG
         </MenuItem>
         <MenuItem onClick={() => { handleMenuClose(); menuScreen && navigate(`/variants/${menuScreen.id}`); }}>
-          <ListItemIcon><ScienceIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon><ScienceOutlinedIcon fontSize="small" /></ListItemIcon>
           Create Variants
         </MenuItem>
         <MenuItem onClick={() => { handleMenuClose(); menuScreen && navigate(`/vibe/${menuScreen.id}`); }}>
-          <ListItemIcon><AutoFixHighIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon><AutoFixHighOutlinedIcon fontSize="small" /></ListItemIcon>
           Vibe Prototype
         </MenuItem>
         <MenuItem onClick={() => { handleMenuClose(); menuScreen && duplicateScreen(menuScreen.id); }}>
-          <ListItemIcon><ContentCopyIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon><ContentCopyOutlinedIcon fontSize="small" /></ListItemIcon>
           Duplicate
         </MenuItem>
         <MenuItem onClick={() => menuScreen && handleDeleteClick(menuScreen)} sx={{ color: 'error.main' }}>
-          <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+          <ListItemIcon><DeleteOutlinedIcon fontSize="small" color="error" /></ListItemIcon>
           Delete
         </MenuItem>
       </Menu>
@@ -568,7 +568,7 @@ export function Screens() {
         <DialogActions>
           <Button onClick={closePreview}>Close</Button>
           <Button
-            startIcon={<ContentCopyIcon />}
+            startIcon={<ContentCopyOutlinedIcon />}
             onClick={() => {
               previewScreen && duplicateScreen(previewScreen.id);
               closePreview();
@@ -577,7 +577,7 @@ export function Screens() {
             Duplicate
           </Button>
           <Button
-            startIcon={<AutoFixHighIcon />}
+            startIcon={<AutoFixHighOutlinedIcon />}
             onClick={() => {
               previewScreen && navigate(`/vibe/${previewScreen.id}`);
               closePreview();
@@ -587,7 +587,7 @@ export function Screens() {
           </Button>
           <Button
             variant="contained"
-            startIcon={<EditIcon />}
+            startIcon={<EditOutlinedIcon />}
             onClick={() => {
               previewScreen && navigate(`/editor/${previewScreen.id}`);
               closePreview();

@@ -22,14 +22,14 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import SearchIcon from '@mui/icons-material/Search';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import CodeIcon from '@mui/icons-material/Code';
-import VisibilityIcon from '@mui/icons-material/Visibility';
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
+import CodeOutlinedIcon from '@mui/icons-material/CodeOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ClearIcon from '@mui/icons-material/Clear';
-import GridViewIcon from '@mui/icons-material/GridView';
-import ViewListIcon from '@mui/icons-material/ViewList';
+import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
+import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined';
 import { EmptyState } from '@/components';
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { useComponentsStore, type ExtractedComponent } from '@/store/componentsStore';
@@ -70,7 +70,7 @@ function CodeBlock({ code, language }: { code: string; language: string }) {
   return (
     <Box sx={{ position: 'relative' }}>
       <Button
-        startIcon={<ContentCopyIcon />}
+        startIcon={<ContentCopyOutlinedIcon />}
         size="small"
         onClick={copyCode}
         sx={{
@@ -166,17 +166,17 @@ function ComponentCard({
       </CardContent>
       <CardActions sx={{ px: 2, pb: 1.5, pt: 0 }}>
         <Tooltip title="Copy HTML">
-          <Button size="small" startIcon={<CodeIcon />} onClick={copyHTML}>
+          <Button size="small" startIcon={<CodeOutlinedIcon />} onClick={copyHTML}>
             HTML
           </Button>
         </Tooltip>
         <Tooltip title="Copy CSS">
-          <Button size="small" startIcon={<CodeIcon />} onClick={copyCSS}>
+          <Button size="small" startIcon={<CodeOutlinedIcon />} onClick={copyCSS}>
             CSS
           </Button>
         </Tooltip>
         <Tooltip title="Copy Both">
-          <Button size="small" startIcon={<ContentCopyIcon />} onClick={copyBoth}>
+          <Button size="small" startIcon={<ContentCopyOutlinedIcon />} onClick={copyBoth}>
             All
           </Button>
         </Tooltip>
@@ -222,9 +222,9 @@ function ComponentDetailModal({
         </Box>
 
         <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ mb: 2 }}>
-          <Tab icon={<VisibilityIcon />} label="Preview" iconPosition="start" />
-          <Tab icon={<CodeIcon />} label="HTML" iconPosition="start" />
-          <Tab icon={<CodeIcon />} label="CSS" iconPosition="start" />
+          <Tab icon={<VisibilityOutlinedIcon />} label="Preview" iconPosition="start" />
+          <Tab icon={<CodeOutlinedIcon />} label="HTML" iconPosition="start" />
+          <Tab icon={<CodeOutlinedIcon />} label="CSS" iconPosition="start" />
         </Tabs>
 
         {tabValue === 0 && (
@@ -246,7 +246,7 @@ function ComponentDetailModal({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Close</Button>
-        <Button variant="contained" startIcon={<ContentCopyIcon />} onClick={copyAll}>
+        <Button variant="contained" startIcon={<ContentCopyOutlinedIcon />} onClick={copyAll}>
           Copy All Code
         </Button>
       </DialogActions>
@@ -330,10 +330,10 @@ export function Components() {
           size="small"
         >
           <ToggleButton value="grid">
-            <GridViewIcon fontSize="small" />
+            <GridViewOutlinedIcon fontSize="small" />
           </ToggleButton>
           <ToggleButton value="list">
-            <ViewListIcon fontSize="small" />
+            <ViewListOutlinedIcon fontSize="small" />
           </ToggleButton>
         </ToggleButtonGroup>
       </Box>
@@ -350,7 +350,7 @@ export function Components() {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
+                  <SearchOutlinedIcon fontSize="small" />
                 </InputAdornment>
               ),
             }}

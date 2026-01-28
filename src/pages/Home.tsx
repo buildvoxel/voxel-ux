@@ -8,11 +8,11 @@ import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
-import AddIcon from '@mui/icons-material/Add';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
-import ScienceIcon from '@mui/icons-material/Science';
-import VisibilityIcon from '@mui/icons-material/Visibility';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
+import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
+import RocketLaunchOutlinedIcon from '@mui/icons-material/RocketLaunchOutlined';
+import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { StatCard } from '@/components';
 import { useAuthStore } from '@/store/authStore';
 
@@ -115,7 +115,7 @@ export function Home() {
           <StatCard
             title="Total Prototypes"
             value={12}
-            icon={<ScienceIcon />}
+            icon={<ScienceOutlinedIcon />}
             trend={{ direction: 'up', value: 8 }}
           />
         </Grid>
@@ -123,7 +123,7 @@ export function Home() {
           <StatCard
             title="Total Views"
             value="2.4K"
-            icon={<VisibilityIcon />}
+            icon={<VisibilityOutlinedIcon />}
             trend={{ direction: 'up', value: 12.5 }}
           />
         </Grid>
@@ -131,14 +131,14 @@ export function Home() {
           <StatCard
             title="Shared"
             value={5}
-            icon={<TrendingUpIcon />}
+            icon={<TrendingUpOutlinedIcon />}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Deployed"
             value={3}
-            icon={<RocketLaunchIcon />}
+            icon={<RocketLaunchOutlinedIcon />}
             color="#52c41a"
           />
         </Grid>
@@ -155,7 +155,7 @@ export function Home() {
                 </Typography>
                 <Button
                   variant="contained"
-                  startIcon={<AddIcon />}
+                  startIcon={<AddOutlinedIcon />}
                   size="small"
                   onClick={() => navigate('/prototypes')}
                 >
@@ -179,7 +179,7 @@ export function Home() {
                               justifyContent: 'center',
                             }}
                           >
-                            <ScienceIcon sx={{ color: 'white' }} />
+                            <ScienceOutlinedIcon sx={{ color: 'white' }} />
                           </Box>
                           <Box>
                             <Typography variant="subtitle1" fontWeight={500}>
@@ -241,7 +241,7 @@ export function Home() {
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <TrendingUpIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                      <TrendingUpOutlinedIcon sx={{ fontSize: 16, color: 'success.main' }} />
                       <Typography variant="body2" color="success.main" fontWeight={600}>
                         {insight.value}
                       </Typography>

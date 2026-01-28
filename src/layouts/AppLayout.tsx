@@ -16,21 +16,21 @@ import Avatar from '@mui/material/Avatar';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Collapse from '@mui/material/Collapse';
-import HomeIcon from '@mui/icons-material/Home';
-import ScienceIcon from '@mui/icons-material/Science';
-import FolderIcon from '@mui/icons-material/Folder';
-import ImageIcon from '@mui/icons-material/Image';
-import WidgetsIcon from '@mui/icons-material/Widgets';
-import DescriptionIcon from '@mui/icons-material/Description';
-import InsightsIcon from '@mui/icons-material/Insights';
-import ExtensionIcon from '@mui/icons-material/Extension';
-import SettingsIcon from '@mui/icons-material/Settings';
-import MenuIcon from '@mui/icons-material/Menu';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import LogoutIcon from '@mui/icons-material/Logout';
-import PersonIcon from '@mui/icons-material/Person';
+import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined';
+import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
+import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
+import WidgetsOutlinedIcon from '@mui/icons-material/WidgetsOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
+import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined';
+import ChevronLeftOutlinedIcon from '@mui/icons-material/ChevronLeftOutlined';
+import ExpandLessOutlinedIcon from '@mui/icons-material/ExpandLessOutlined';
+import ExpandMoreOutlinedIcon from '@mui/icons-material/ExpandMoreOutlined';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
+import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import { useAuthStore } from '@/store/authStore';
 
 const drawerWidth = 240;
@@ -44,20 +44,20 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Home', path: '/', icon: <HomeIcon /> },
-  { label: 'Prototypes', path: '/prototypes', icon: <ScienceIcon /> },
+  { label: 'Home', path: '/', icon: <HomeOutlinedIcon /> },
+  { label: 'Prototypes', path: '/prototypes', icon: <ScienceOutlinedIcon /> },
   {
     label: 'Repository',
-    icon: <FolderIcon />,
+    icon: <FolderOutlinedIcon />,
     children: [
-      { label: 'Screens', path: '/repository/screens', icon: <ImageIcon /> },
-      { label: 'Components', path: '/repository/components', icon: <WidgetsIcon /> },
+      { label: 'Screens', path: '/repository/screens', icon: <ImageOutlinedIcon /> },
+      { label: 'Components', path: '/repository/components', icon: <WidgetsOutlinedIcon /> },
     ],
   },
-  { label: 'Product Context', path: '/context', icon: <DescriptionIcon /> },
-  { label: 'Insights', path: '/insights', icon: <InsightsIcon /> },
-  { label: 'Integrations', path: '/integrations', icon: <ExtensionIcon /> },
-  { label: 'Settings', path: '/settings', icon: <SettingsIcon /> },
+  { label: 'Product Context', path: '/context', icon: <DescriptionOutlinedIcon /> },
+  { label: 'Insights', path: '/insights', icon: <InsightsOutlinedIcon /> },
+  { label: 'Integrations', path: '/integrations', icon: <ExtensionOutlinedIcon /> },
+  { label: 'Settings', path: '/settings', icon: <SettingsOutlinedIcon /> },
 ];
 
 export function AppLayout() {
@@ -131,7 +131,7 @@ export function AppLayout() {
               flexShrink: 0,
             }}
           >
-            <ScienceIcon sx={{ color: 'white', fontSize: 20 }} />
+            <ScienceOutlinedIcon sx={{ color: 'white', fontSize: 20 }} />
           </Box>
           {!collapsed && (
             <Typography variant="h6" fontWeight={600}>
@@ -183,7 +183,7 @@ export function AppLayout() {
                               color: isActive('/repository') ? 'primary.main' : 'inherit',
                             }}
                           />
-                          {repositoryOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                          {repositoryOpen ? <ExpandLessOutlinedIcon /> : <ExpandMoreOutlinedIcon />}
                         </>
                       )}
                     </ListItemButton>
@@ -273,7 +273,7 @@ export function AppLayout() {
         <Divider />
         <Box sx={{ p: 1, display: 'flex', justifyContent: 'center' }}>
           <IconButton onClick={() => setCollapsed(!collapsed)} size="small">
-            {collapsed ? <MenuIcon /> : <ChevronLeftIcon />}
+            {collapsed ? <MenuOutlinedIcon /> : <ChevronLeftOutlinedIcon />}
           </IconButton>
         </Box>
       </Drawer>
@@ -309,13 +309,13 @@ export function AppLayout() {
               <Divider />
               <MenuItem onClick={() => { handleUserMenuClose(); navigate('/settings'); }}>
                 <ListItemIcon>
-                  <PersonIcon fontSize="small" />
+                  <PersonOutlinedIcon fontSize="small" />
                 </ListItemIcon>
                 Settings
               </MenuItem>
               <MenuItem onClick={handleLogout}>
                 <ListItemIcon>
-                  <LogoutIcon fontSize="small" />
+                  <LogoutOutlinedIcon fontSize="small" />
                 </ListItemIcon>
                 Logout
               </MenuItem>

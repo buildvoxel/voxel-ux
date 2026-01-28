@@ -11,7 +11,7 @@ import Tooltip from '@mui/material/Tooltip';
 import CircularProgress from '@mui/material/CircularProgress';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import RestoreIcon from '@mui/icons-material/Restore';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { EmptyState } from '@/components';
@@ -180,7 +180,7 @@ export function VersionHistoryPanel({
                   <Tooltip title="Preview this version">
                     <Button
                       size="small"
-                      startIcon={<VisibilityIcon />}
+                      startIcon={<VisibilityOutlinedIcon />}
                       onClick={() => handlePreview(version)}
                     >
                       Preview

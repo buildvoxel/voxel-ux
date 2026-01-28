@@ -21,13 +21,13 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Alert from '@mui/material/Alert';
 import FlagIcon from '@mui/icons-material/Flag';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
-import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
+import MoreVertOutlinedIcon from '@mui/icons-material/MoreVertOutlined';
 import DescriptionIcon from '@mui/icons-material/Description';
 import LinkIcon from '@mui/icons-material/Link';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
@@ -69,7 +69,7 @@ const initialCategories: ContextCategory[] = [
     id: 'kpis',
     title: 'KPIs',
     description: 'Key performance indicators and metrics',
-    icon: <TrendingUpIcon />,
+    icon: <TrendingUpOutlinedIcon />,
     color: '#52c41a',
     items: [
       { id: '3', title: 'Conversion Metrics', content: 'Current conversion rate: 3.2%...', type: 'text', createdAt: '2024-01-12' },
@@ -357,7 +357,7 @@ export function Context() {
                 <Box sx={{ py: 4, textAlign: 'center' }}>
                   <Typography color="text.secondary">No items yet</Typography>
                   <Button
-                    startIcon={<AddIcon />}
+                    startIcon={<AddOutlinedIcon />}
                     onClick={handleOpenAddDialog}
                     sx={{ mt: 2 }}
                   >
@@ -392,7 +392,7 @@ export function Context() {
                           edge="end"
                           onClick={(e) => handleMenuOpen(e, selectedCategory.id, item)}
                         >
-                          <MoreVertIcon />
+                          <MoreVertOutlinedIcon />
                         </IconButton>
                       </ListItemSecondaryAction>
                     </ListItem>
@@ -404,7 +404,7 @@ export function Context() {
               <Button onClick={handleCloseCategory}>Close</Button>
               <Button
                 variant="contained"
-                startIcon={<AddIcon />}
+                startIcon={<AddOutlinedIcon />}
                 onClick={handleOpenAddDialog}
               >
                 Add Item
@@ -474,7 +474,7 @@ export function Context() {
       {/* Context Menu */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
         <MenuItem onClick={() => menuItem && handleOpenEditDialog(menuItem.item)}>
-          <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon><EditOutlinedIcon fontSize="small" /></ListItemIcon>
           Edit
         </MenuItem>
         <MenuItem
@@ -487,7 +487,7 @@ export function Context() {
           }}
           sx={{ color: 'error.main' }}
         >
-          <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+          <ListItemIcon><DeleteOutlinedIcon fontSize="small" color="error" /></ListItemIcon>
           Delete
         </MenuItem>
       </Menu>

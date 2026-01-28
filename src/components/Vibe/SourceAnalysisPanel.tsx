@@ -18,7 +18,7 @@ import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import PaletteIcon from '@mui/icons-material/Palette';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
-import GridViewIcon from '@mui/icons-material/GridView';
+import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
 import WidgetsIcon from '@mui/icons-material/Widgets';
 import AccessibilityIcon from '@mui/icons-material/Accessibility';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -94,7 +94,7 @@ export const SourceAnalysisPanel: React.FC<SourceAnalysisPanelProps> = ({ source
               </AccordionDetails>
             </Accordion>
             <Accordion disableGutters>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}><Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><GridViewIcon fontSize="small" /><Typography variant="subtitle2">Layout</Typography></Box></AccordionSummary>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}><Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><GridViewOutlinedIcon fontSize="small" /><Typography variant="subtitle2">Layout</Typography></Box></AccordionSummary>
               <AccordionDetails>
                 {metadata.layout.gridSystems.length > 0 && <Box sx={{ mb: 1.5 }}><Typography variant="caption" color="text.secondary">Layout Systems</Typography><Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>{metadata.layout.gridSystems.map((s, i) => <Chip key={i} label={s} size="small" color="primary" />)}</Box></Box>}
                 {metadata.layout.breakpoints.length > 0 && <Box><Typography variant="caption" color="text.secondary">Breakpoints</Typography><Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.5 }}>{metadata.layout.breakpoints.map((bp, i) => <Chip key={i} label={bp} size="small" />)}</Box></Box>}

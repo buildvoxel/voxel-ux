@@ -16,10 +16,10 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import Badge from '@mui/material/Badge';
 import CircularProgress from '@mui/material/CircularProgress';
-import GridViewIcon from '@mui/icons-material/GridView';
+import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
 import VerticalSplitIcon from '@mui/icons-material/VerticalSplit';
 import LayersIcon from '@mui/icons-material/Layers';
-import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import CheckIcon from '@mui/icons-material/Check';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
@@ -223,7 +223,7 @@ export const VariantComparisonView: React.FC<VariantComparisonViewProps> = ({
       <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
           <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-            <VisibilityIcon />
+            <VisibilityOutlinedIcon />
             Compare Variants
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -238,7 +238,7 @@ export const VariantComparisonView: React.FC<VariantComparisonViewProps> = ({
           size="small"
         >
           <ToggleButton value="grid">
-            <Tooltip title="Grid"><GridViewIcon /></Tooltip>
+            <Tooltip title="Grid"><GridViewOutlinedIcon /></Tooltip>
           </ToggleButton>
           <ToggleButton value="split">
             <Tooltip title="Split"><VerticalSplitIcon /></Tooltip>

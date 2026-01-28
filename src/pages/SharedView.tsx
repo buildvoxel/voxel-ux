@@ -20,8 +20,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import CheckIcon from '@mui/icons-material/Check';
-import CloseIcon from '@mui/icons-material/Close';
-import DeleteIcon from '@mui/icons-material/Delete';
+import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 
 import { EmptyState } from '@/components';
 import {
@@ -86,7 +86,7 @@ function CommentItem({
               size="small"
               onClick={() => resolveComment(comment.id)}
             >
-              {comment.resolved ? <CloseIcon fontSize="small" /> : <CheckIcon fontSize="small" />}
+              {comment.resolved ? <CloseOutlinedIcon fontSize="small" /> : <CheckIcon fontSize="small" />}
             </IconButton>
           </Tooltip>
           {isOwner && (
@@ -96,7 +96,7 @@ function CommentItem({
                 color="error"
                 onClick={() => deleteComment(comment.id)}
               >
-                <DeleteIcon fontSize="small" />
+                <DeleteOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
           )}

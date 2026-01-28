@@ -27,11 +27,11 @@ import Menu from '@mui/material/Menu';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import FormControl from '@mui/material/FormControl';
-import ShareIcon from '@mui/icons-material/Share';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import DeleteIcon from '@mui/icons-material/Delete';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import VisibilityIcon from '@mui/icons-material/Visibility';
+import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
+import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
+import MoreVertOutlinedIcon from '@mui/icons-material/MoreVertOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import CommentIcon from '@mui/icons-material/Comment';
 import PublicIcon from '@mui/icons-material/Public';
 import LockIcon from '@mui/icons-material/Lock';
@@ -87,7 +87,7 @@ function PublishModal({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <ShareIcon color="primary" />
+        <ShareOutlinedIcon color="primary" />
         Publish Prototype
       </DialogTitle>
       <DialogContent>
@@ -179,7 +179,7 @@ function ShareSettingsModal({
               />
               <Button
                 variant="outlined"
-                startIcon={<ContentCopyIcon />}
+                startIcon={<ContentCopyOutlinedIcon />}
                 onClick={handleCopyLink}
               >
                 Copy
@@ -309,7 +309,7 @@ function ShareSettingsModal({
                           color="error"
                           onClick={() => removeCollaborator(prototype.id, collab.id)}
                         >
-                          <DeleteIcon fontSize="small" />
+                          <DeleteOutlinedIcon fontSize="small" />
                         </IconButton>
                       </>
                     )}
@@ -423,7 +423,7 @@ function PrototypeCard({ prototype }: { prototype: PublishedPrototype }) {
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <VisibilityIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+              <VisibilityOutlinedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
               <Typography variant="caption" color="text.secondary">
                 {prototype.viewCount}
               </Typography>
@@ -445,27 +445,27 @@ function PrototypeCard({ prototype }: { prototype: PublishedPrototype }) {
         <CardActions>
           <Tooltip title="View">
             <IconButton size="small" onClick={() => navigate(`/view/${prototype.shareLink}`)}>
-              <VisibilityIcon />
+              <VisibilityOutlinedIcon />
             </IconButton>
           </Tooltip>
           <Tooltip title="Share">
             <IconButton size="small" onClick={() => setShareModalOpen(true)}>
-              <ShareIcon />
+              <ShareOutlinedIcon />
             </IconButton>
           </Tooltip>
           <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)}>
-            <MoreVertIcon />
+            <MoreVertOutlinedIcon />
           </IconButton>
         </CardActions>
       </Card>
 
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
         <MenuItem onClick={() => { navigate(`/view/${prototype.shareLink}`); handleMenuClose(); }}>
-          <ListItemIcon><VisibilityIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon><VisibilityOutlinedIcon fontSize="small" /></ListItemIcon>
           <ListItemText>View</ListItemText>
         </MenuItem>
         <MenuItem onClick={() => { setShareModalOpen(true); handleMenuClose(); }}>
-          <ListItemIcon><ShareIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon><ShareOutlinedIcon fontSize="small" /></ListItemIcon>
           <ListItemText>Share Settings</ListItemText>
         </MenuItem>
         <MenuItem
@@ -475,7 +475,7 @@ function PrototypeCard({ prototype }: { prototype: PublishedPrototype }) {
             handleMenuClose();
           }}
         >
-          <ListItemIcon><ContentCopyIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon><ContentCopyOutlinedIcon fontSize="small" /></ListItemIcon>
           <ListItemText>Copy Link</ListItemText>
         </MenuItem>
         <Divider />
@@ -483,7 +483,7 @@ function PrototypeCard({ prototype }: { prototype: PublishedPrototype }) {
           onClick={() => { setDeleteConfirmOpen(true); handleMenuClose(); }}
           sx={{ color: 'error.main' }}
         >
-          <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+          <ListItemIcon><DeleteOutlinedIcon fontSize="small" color="error" /></ListItemIcon>
           <ListItemText>Unpublish</ListItemText>
         </MenuItem>
       </Menu>
@@ -549,7 +549,7 @@ export function Collaborate() {
         </Box>
         <Button
           variant="contained"
-          startIcon={<ShareIcon />}
+          startIcon={<ShareOutlinedIcon />}
           onClick={handlePublishClick}
         >
           Publish Prototype

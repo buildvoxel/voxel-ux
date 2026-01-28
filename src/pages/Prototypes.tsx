@@ -20,14 +20,14 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
-import AddIcon from '@mui/icons-material/Add';
-import SearchIcon from '@mui/icons-material/Search';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import ShareIcon from '@mui/icons-material/Share';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import ScienceIcon from '@mui/icons-material/Science';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import MoreVertOutlinedIcon from '@mui/icons-material/MoreVertOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
+import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
+import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
+import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import { EmptyState } from '@/components';
 import { useSnackbar } from '@/components/SnackbarProvider';
 
@@ -149,7 +149,7 @@ export function Prototypes() {
         </Typography>
         <Button
           variant="contained"
-          startIcon={<AddIcon />}
+          startIcon={<AddOutlinedIcon />}
           onClick={() => setCreateDialogOpen(true)}
         >
           New Prototype
@@ -167,7 +167,7 @@ export function Prototypes() {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
+                <SearchOutlinedIcon fontSize="small" />
               </InputAdornment>
             ),
           }}
@@ -207,7 +207,7 @@ export function Prototypes() {
                       position: 'relative',
                     }}
                   >
-                    <ScienceIcon sx={{ fontSize: 48, color: 'rgba(255,255,255,0.5)' }} />
+                    <ScienceOutlinedIcon sx={{ fontSize: 48, color: 'rgba(255,255,255,0.5)' }} />
                     <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
                       <Chip
                         label={prototype.status}
@@ -235,7 +235,7 @@ export function Prototypes() {
                       size="small"
                       onClick={(e) => handleMenuOpen(e, prototype)}
                     >
-                      <MoreVertIcon fontSize="small" />
+                      <MoreVertOutlinedIcon fontSize="small" />
                     </IconButton>
                   </Box>
                 </CardContent>
@@ -252,19 +252,19 @@ export function Prototypes() {
         onClose={handleMenuClose}
       >
         <MenuItem onClick={() => { handleMenuClose(); navigate(`/prototypes/${selectedPrototype?.id}`); }}>
-          <ListItemIcon><EditIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon><EditOutlinedIcon fontSize="small" /></ListItemIcon>
           Edit
         </MenuItem>
         <MenuItem onClick={handleMenuClose}>
-          <ListItemIcon><ContentCopyIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon><ContentCopyOutlinedIcon fontSize="small" /></ListItemIcon>
           Duplicate
         </MenuItem>
         <MenuItem onClick={handleMenuClose}>
-          <ListItemIcon><ShareIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon><ShareOutlinedIcon fontSize="small" /></ListItemIcon>
           Share
         </MenuItem>
         <MenuItem onClick={handleMenuClose} sx={{ color: 'error.main' }}>
-          <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
+          <ListItemIcon><DeleteOutlinedIcon fontSize="small" color="error" /></ListItemIcon>
           Delete
         </MenuItem>
       </Menu>

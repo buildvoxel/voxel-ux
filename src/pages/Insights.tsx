@@ -19,11 +19,11 @@ import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
 import IconButton from '@mui/material/IconButton';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import TouchAppIcon from '@mui/icons-material/TouchApp';
 import TimerIcon from '@mui/icons-material/Timer';
 import TrophyIcon from '@mui/icons-material/EmojiEvents';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import { StatCard } from '@/components';
 import { BreadcrumbNav } from '@/components/BreadcrumbNav';
 
@@ -162,7 +162,7 @@ function AllProjectsView() {
           <StatCard
             title="Total Views"
             value={formatNumber(totalViews)}
-            icon={<VisibilityIcon />}
+            icon={<VisibilityOutlinedIcon />}
             trend={{ direction: 'up', value: 12.5 }}
           />
         </Grid>
@@ -237,7 +237,7 @@ function AllProjectsView() {
                     <TableCell align="right">{formatTime(project.avgEngagement)}</TableCell>
                     <TableCell align="right">
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, justifyContent: 'flex-end' }}>
-                        <TrendingUpIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                        <TrendingUpOutlinedIcon sx={{ fontSize: 16, color: 'success.main' }} />
                         <Typography color="success.main" fontWeight={500}>
                           {project.topConversion}%
                         </Typography>
@@ -291,7 +291,7 @@ function ProjectView({ projectId }: { projectId: string }) {
           <StatCard
             title="Total Views"
             value={formatNumber(project.totalViews)}
-            icon={<VisibilityIcon />}
+            icon={<VisibilityOutlinedIcon />}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -426,7 +426,7 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
               <StatCard
                 title="Views"
                 value={formatNumber(variant.views)}
-                icon={<VisibilityIcon />}
+                icon={<VisibilityOutlinedIcon />}
               />
             </Grid>
             <Grid item xs={6} md={3}>

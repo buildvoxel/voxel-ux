@@ -5,8 +5,8 @@ import CardActions from '@mui/material/CardActions';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import Checkbox from '@mui/material/Checkbox';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
 
 interface ThumbnailCardProps {
   title: string;
@@ -67,7 +67,7 @@ export function ThumbnailCard({
         }}
       >
         {thumbnailContent || (
-          <InsertDriveFileIcon sx={{ fontSize: 48, color: 'rgba(255,255,255,0.5)' }} />
+          <InsertDriveFileOutlinedIcon sx={{ fontSize: 48, color: 'rgba(255,255,255,0.5)' }} />
         )}
 
         {/* Selection checkbox overlay */}
@@ -111,7 +111,7 @@ export function ThumbnailCard({
               '&:hover': { opacity: 1 },
             }}
           >
-            <VisibilityIcon sx={{ fontSize: 32, color: 'white' }} />
+            <VisibilityOutlinedIcon sx={{ fontSize: 32, color: 'white' }} />
           </Box>
         )}
       </Box>

@@ -4,7 +4,7 @@ import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import InputAdornment from '@mui/material/InputAdornment';
-import SearchIcon from '@mui/icons-material/Search';
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { DataGrid, type GridColDef, type GridRowsProp } from '@mui/x-data-grid';
 
@@ -72,7 +72,7 @@ export function DataTable({
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
+                    <SearchOutlinedIcon fontSize="small" />
                   </InputAdornment>
                 ),
               }}

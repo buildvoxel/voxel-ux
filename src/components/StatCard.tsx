@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 
 interface StatCardProps {
@@ -31,7 +31,7 @@ export function StatCard({ title, value, icon, trend, color }: StatCardProps) {
             {trend && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1 }}>
                 {trend.direction === 'up' ? (
-                  <TrendingUpIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                  <TrendingUpOutlinedIcon sx={{ fontSize: 16, color: 'success.main' }} />
                 ) : (
                   <TrendingDownIcon sx={{ fontSize: 16, color: 'error.main' }} />
                 )}

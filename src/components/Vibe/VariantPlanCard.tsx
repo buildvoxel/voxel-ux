@@ -15,9 +15,9 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
-import EditIcon from '@mui/icons-material/Edit';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import CheckIcon from '@mui/icons-material/Check';
-import CloseIcon from '@mui/icons-material/Close';
+import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import BrushIcon from '@mui/icons-material/Brush';
@@ -103,7 +103,7 @@ export const VariantPlanCard: React.FC<VariantPlanCardProps> = ({
                   setIsEditing(true);
                 }}
               >
-                <EditIcon fontSize="small" />
+                <EditOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
           )
@@ -191,7 +191,7 @@ export const VariantPlanCard: React.FC<VariantPlanCardProps> = ({
               </Button>
               <Button
                 size="small"
-                startIcon={<CloseIcon />}
+                startIcon={<CloseOutlinedIcon />}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleCancel();

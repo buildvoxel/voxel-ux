@@ -18,10 +18,10 @@ import Tooltip from '@mui/material/Tooltip';
 import CircularProgress from '@mui/material/CircularProgress';
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 import CloseFullscreenIcon from '@mui/icons-material/CloseFullscreen';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
-import CodeIcon from '@mui/icons-material/Code';
-import VisibilityIcon from '@mui/icons-material/Visibility';
+import CodeOutlinedIcon from '@mui/icons-material/CodeOutlined';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import CheckIcon from '@mui/icons-material/Check';
 import DesktopWindowsIcon from '@mui/icons-material/DesktopWindows';
 import TabletIcon from '@mui/icons-material/Tablet';
@@ -156,8 +156,8 @@ export const VariantPreviewModal: React.FC<VariantPreviewModalProps> = ({
       <DialogActions sx={{ justifyContent: 'space-between', px: 3, py: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Tabs value={viewMode} onChange={(_, v) => setViewMode(v)} sx={{ minHeight: 36, '& .MuiTab-root': { minHeight: 36, py: 0 } }}>
-            <Tab value="preview" label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><VisibilityIcon fontSize="small" /> Preview</Box>} />
-            <Tab value="code" label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><CodeIcon fontSize="small" /> Code</Box>} />
+            <Tab value="preview" label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><VisibilityOutlinedIcon fontSize="small" /> Preview</Box>} />
+            <Tab value="code" label={<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><CodeOutlinedIcon fontSize="small" /> Code</Box>} />
           </Tabs>
           {viewMode === 'preview' && (
             <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -170,7 +170,7 @@ export const VariantPreviewModal: React.FC<VariantPreviewModalProps> = ({
         <Box sx={{ display: 'flex', gap: 1 }}>
           {viewMode === 'code' && (
             <>
-              <Button startIcon={<ContentCopyIcon />} onClick={handleCopyHtml} disabled={!htmlContent}>Copy HTML</Button>
+              <Button startIcon={<ContentCopyOutlinedIcon />} onClick={handleCopyHtml} disabled={!htmlContent}>Copy HTML</Button>
               <Button startIcon={<DownloadIcon />} onClick={handleDownloadHtml} disabled={!htmlContent}>Download</Button>
             </>
           )}

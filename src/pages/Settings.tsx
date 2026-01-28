@@ -29,8 +29,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 import CircularProgress from '@mui/material/CircularProgress';
 import Autocomplete from '@mui/material/Autocomplete';
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SecurityIcon from '@mui/icons-material/Security';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
@@ -182,7 +182,7 @@ function ApiKeysTab() {
       <Card sx={{ mb: 3 }}>
         <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
           <Typography variant="h6">Configured Providers</Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openModal}>
+          <Button variant="contained" startIcon={<AddOutlinedIcon />} onClick={openModal}>
             Add Provider
           </Button>
         </Box>
@@ -243,7 +243,7 @@ function ApiKeysTab() {
                           setDeleteConfirmOpen(true);
                         }}
                       >
-                        <DeleteIcon fontSize="small" />
+                        <DeleteOutlinedIcon fontSize="small" />
                       </IconButton>
                     </TableCell>
                   </TableRow>

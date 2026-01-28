@@ -17,7 +17,7 @@ import Alert from '@mui/material/Alert';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import CodeIcon from '@mui/icons-material/Code';
+import CodeOutlinedIcon from '@mui/icons-material/CodeOutlined';
 import { getVibeVariantColor, getVibeVariantLabel } from '../../store/vibeStore';
 import type { VibeVariant } from '../../services/variantCodeService';
 import type { VariantPlan } from '../../services/variantPlanService';
@@ -69,7 +69,7 @@ export const GenerationProgress: React.FC<GenerationProgressProps> = ({
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {/* Header */}
           <Box sx={{ textAlign: 'center' }}>
-            <CodeIcon sx={{ fontSize: 32, color: 'primary.main', mb: 1 }} />
+            <CodeOutlinedIcon sx={{ fontSize: 32, color: 'primary.main', mb: 1 }} />
             <Typography variant="h6" gutterBottom>
               Generating Variants
             </Typography>
