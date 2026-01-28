@@ -236,56 +236,59 @@ export function Integrations() {
                 <Grid item xs={12} sm={6} md={4} lg={3} key={integration.id}>
                   <Card
                     sx={{
-                      height: '100%',
+                      height: 140,
+                      display: 'flex',
+                      flexDirection: 'column',
                       border: integration.connected ? `2px solid ${config.colors.success}` : `1px solid ${config.colors.border}`,
                     }}
                   >
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                    <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 2, '&:last-child': { pb: 2 } }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           {/* Icon box with brand logo */}
                           <Box
                             sx={{
-                              width: 40,
-                              height: 40,
+                              width: 36,
+                              height: 36,
                               borderRadius: 1,
                               backgroundColor: config.colors.bgSecondary,
                               color,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              fontWeight: 700,
-                              fontSize: 14,
-                              fontFamily: config.fonts.body,
+                              flexShrink: 0,
                             }}
                           >
                             {BrandLogos[integration.id] ? (
-                              BrandLogos[integration.id]({ size: 24 })
+                              BrandLogos[integration.id]({ size: 20 })
                             ) : (
-                              <FallbackLogo icon={integration.icon} size={24} color={color} />
+                              <FallbackLogo icon={integration.icon} size={20} color={color} />
                             )}
                           </Box>
-                          <Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography variant="subtitle1" fontWeight={600}>
-                                {integration.name}
-                              </Typography>
-                              {integration.popular && (
-                                <Chip label="Popular" size="small" color="primary" />
-                              )}
-                            </Box>
-                          </Box>
+                          <Typography variant="subtitle2" fontWeight={600} sx={{ lineHeight: 1.2 }}>
+                            {integration.name}
+                          </Typography>
                         </Box>
                         {integration.connected && (
-                          <CheckCircleOutlinedIcon sx={{ color: config.colors.success, fontSize: 20 }} />
+                          <CheckCircleOutlinedIcon sx={{ color: config.colors.success, fontSize: 18 }} />
                         )}
                       </Box>
 
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2, minHeight: 40 }}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          flex: 1,
+                          overflow: 'hidden',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                        }}
+                      >
                         {integration.description}
                       </Typography>
 
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
                         <Typography
                           variant="caption"
                           sx={{ color: integration.connected ? config.colors.success : config.colors.textSecondary }}

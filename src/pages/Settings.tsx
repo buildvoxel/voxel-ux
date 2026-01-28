@@ -404,6 +404,28 @@ function ApiKeysTab() {
 
 function AccountTab() {
   const { user } = useAuthStore();
+  const { showSuccess } = useSnackbar();
+  const { config } = useThemeStore();
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    companyName: '',
+    jobTitle: '',
+  });
+
+  const subscriptionPlans = [
+    { id: 'free', name: 'Free', features: '3 projects, 5 variants/project' },
+    { id: 'pro', name: 'Pro', features: 'Unlimited projects, 20 variants/project, Priority support' },
+    { id: 'enterprise', name: 'Enterprise', features: 'Unlimited everything, Custom integrations, SSO' },
+  ];
+
+  const currentPlan = subscriptionPlans[0]; // Mock - Free plan
+
+  const handleSave = () => {
+    showSuccess('Profile updated successfully');
+    setIsEditing(false);
+  };
 
   return (
     <Box>
@@ -411,39 +433,159 @@ function AccountTab() {
         Account Settings
       </Typography>
 
-      <Card>
-        <CardContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <Box>
-              <Typography variant="caption" color="text.secondary">Email</Typography>
-              <Typography fontWeight={500}>{user?.email}</Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="caption" color="text.secondary">Name</Typography>
-              <Typography fontWeight={500}>{user?.name || 'Not set'}</Typography>
-            </Box>
-
-            <Box>
-              <Typography variant="caption" color="text.secondary">Role</Typography>
-              <Box sx={{ mt: 0.5 }}>
-                <Chip
-                  label={user?.role?.toUpperCase()}
-                  color={user?.role === 'admin' ? 'warning' : 'primary'}
-                  size="small"
-                />
+      <Grid container spacing={3}>
+        {/* Profile Section */}
+        <Grid item xs={12} md={8}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h6" fontWeight={600}>Profile Information</Typography>
+                {!isEditing ? (
+                  <Button variant="outlined" size="small" onClick={() => setIsEditing(true)}>
+                    Edit Profile
+                  </Button>
+                ) : (
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button size="small" onClick={() => setIsEditing(false)}>Cancel</Button>
+                    <Button variant="contained" size="small" onClick={handleSave}>Save</Button>
+                  </Box>
+                )}
               </Box>
-            </Box>
 
-            <Box>
-              <Typography variant="caption" color="text.secondary">Member Since</Typography>
-              <Typography>
-                {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
-              </Typography>
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
+              <Box sx={{ display: 'flex', gap: 3, mb: 3 }}>
+                {/* Avatar */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                  <Box
+                    sx={{
+                      width: 80,
+                      height: 80,
+                      borderRadius: '50%',
+                      backgroundColor: config.colors.primary,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontSize: 28,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {(formData.name || user?.email || 'U').charAt(0).toUpperCase()}
+                  </Box>
+                  {isEditing && (
+                    <Button size="small" variant="text">
+                      Change Photo
+                    </Button>
+                  )}
+                </Box>
+
+                {/* Form Fields */}
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {isEditing ? (
+                    <>
+                      <TextField
+                        fullWidth
+                        label="Full Name"
+                        size="small"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      />
+                      <TextField
+                        fullWidth
+                        label="Email"
+                        size="small"
+                        value={formData.email}
+                        disabled
+                        helperText="Email cannot be changed"
+                      />
+                      <TextField
+                        fullWidth
+                        label="Company Name"
+                        size="small"
+                        value={formData.companyName}
+                        onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                      />
+                      <TextField
+                        fullWidth
+                        label="Job Title"
+                        size="small"
+                        value={formData.jobTitle}
+                        onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">Full Name</Typography>
+                        <Typography fontWeight={500}>{formData.name || 'Not set'}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">Email</Typography>
+                        <Typography fontWeight={500}>{user?.email}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">Company</Typography>
+                        <Typography fontWeight={500}>{formData.companyName || 'Not set'}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">Job Title</Typography>
+                        <Typography fontWeight={500}>{formData.jobTitle || 'Not set'}</Typography>
+                      </Box>
+                    </>
+                  )}
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Role</Typography>
+                  <Box sx={{ mt: 0.5 }}>
+                    <Chip
+                      label={user?.role?.toUpperCase() || 'USER'}
+                      color={user?.role === 'admin' ? 'warning' : 'primary'}
+                      size="small"
+                    />
+                  </Box>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Member Since</Typography>
+                  <Typography>
+                    {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Subscription Section */}
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} gutterBottom>Subscription</Typography>
+
+              <Box sx={{
+                p: 2,
+                borderRadius: 1,
+                backgroundColor: `${config.colors.primary}10`,
+                border: `1px solid ${config.colors.primary}`,
+                mb: 2
+              }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="subtitle1" fontWeight={600}>{currentPlan.name}</Typography>
+                  <Chip label="Current" size="small" color="primary" />
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  {currentPlan.features}
+                </Typography>
+              </Box>
+
+              <Button variant="outlined" fullWidth>
+                Upgrade Plan
+              </Button>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
     </Box>
   );
 }
@@ -451,6 +593,11 @@ function AccountTab() {
 function UserManagementTab() {
   const { isAdmin } = useAuthStore();
   const { config } = useThemeStore();
+  const { showSuccess } = useSnackbar();
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'user' | 'admin'>('user');
+  const [inviteTeam, setInviteTeam] = useState('');
 
   if (!isAdmin()) {
     return (
@@ -460,21 +607,121 @@ function UserManagementTab() {
     );
   }
 
-  // Mock users data
+  // Mock users data with usage stats
   const users = [
-    { id: '1', name: 'John Doe', email: 'john@example.com', role: 'admin', createdAt: '2024-01-01' },
-    { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'user', createdAt: '2024-01-15' },
+    { id: '1', name: 'John Doe', email: 'john@example.com', role: 'admin', team: 'Design', createdAt: '2024-01-01', projects: 12, variants: 48, lastActive: '2025-01-28' },
+    { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'user', team: 'Product', createdAt: '2024-01-15', projects: 8, variants: 24, lastActive: '2025-01-27' },
+    { id: '3', name: 'Mike Johnson', email: 'mike@example.com', role: 'user', team: 'Design', createdAt: '2024-02-01', projects: 5, variants: 15, lastActive: '2025-01-26' },
+    { id: '4', name: 'Sarah Wilson', email: 'sarah@example.com', role: 'user', team: 'Engineering', createdAt: '2024-02-15', projects: 3, variants: 9, lastActive: '2025-01-25' },
   ];
+
+  // Mock teams data
+  const teams = [
+    { id: '1', name: 'Design', members: 2, color: '#764ba2' },
+    { id: '2', name: 'Product', members: 1, color: '#667eea' },
+    { id: '3', name: 'Engineering', members: 1, color: '#52c41a' },
+  ];
+
+  const handleInvite = () => {
+    showSuccess(`Invitation sent to ${inviteEmail}`);
+    setInviteDialogOpen(false);
+    setInviteEmail('');
+    setInviteRole('user');
+    setInviteTeam('');
+  };
+
+  const totalProjects = users.reduce((sum, u) => sum + u.projects, 0);
+  const totalVariants = users.reduce((sum, u) => sum + u.variants, 0);
 
   return (
     <Box>
-      <Typography variant="h5" fontWeight={600} gutterBottom>
-        User Management
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Manage team members and their permissions.
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+        <Box>
+          <Typography variant="h5" fontWeight={600} gutterBottom>
+            User Management
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Manage team members, teams, and permissions.
+          </Typography>
+        </Box>
+        <Button variant="contained" startIcon={<Plus size={16} />} onClick={() => setInviteDialogOpen(true)}>
+          Invite User
+        </Button>
+      </Box>
 
+      {/* Usage Stats */}
+      <Grid container spacing={2} sx={{ mb: 4 }}>
+        <Grid item xs={6} md={3}>
+          <Card>
+            <CardContent sx={{ textAlign: 'center', py: 2 }}>
+              <Typography variant="h4" fontWeight={700} color="primary">{users.length}</Typography>
+              <Typography variant="body2" color="text.secondary">Total Users</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={6} md={3}>
+          <Card>
+            <CardContent sx={{ textAlign: 'center', py: 2 }}>
+              <Typography variant="h4" fontWeight={700} color="primary">{teams.length}</Typography>
+              <Typography variant="body2" color="text.secondary">Teams</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={6} md={3}>
+          <Card>
+            <CardContent sx={{ textAlign: 'center', py: 2 }}>
+              <Typography variant="h4" fontWeight={700} color="primary">{totalProjects}</Typography>
+              <Typography variant="body2" color="text.secondary">Total Projects</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={6} md={3}>
+          <Card>
+            <CardContent sx={{ textAlign: 'center', py: 2 }}>
+              <Typography variant="h4" fontWeight={700} color="primary">{totalVariants}</Typography>
+              <Typography variant="body2" color="text.secondary">Total Variants</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Teams Section */}
+      <Typography
+        variant="overline"
+        sx={{
+          color: config.colors.textSecondary,
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          letterSpacing: '0.05em',
+          display: 'block',
+          mb: 1.5,
+        }}
+      >
+        Teams
+      </Typography>
+      <Grid container spacing={2} sx={{ mb: 4 }}>
+        {teams.map((team) => (
+          <Grid item xs={12} sm={6} md={4} key={team.id}>
+            <Card sx={{ borderLeft: `4px solid ${team.color}` }}>
+              <CardContent sx={{ py: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography fontWeight={600}>{team.name}</Typography>
+                  <Chip label={`${team.members} members`} size="small" />
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+        <Grid item xs={12} sm={6} md={4}>
+          <Card sx={{ border: '1px dashed', borderColor: 'divider', height: '100%' }}>
+            <CardContent sx={{ py: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Button startIcon={<Plus size={16} />} size="small">Add Team</Button>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Users Table */}
       <Typography
         variant="overline"
         sx={{
@@ -492,17 +739,52 @@ function UserManagementTab() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Email</TableCell>
+              <TableCell>User</TableCell>
+              <TableCell>Team</TableCell>
               <TableCell>Role</TableCell>
-              <TableCell>Joined</TableCell>
+              <TableCell align="center">Projects</TableCell>
+              <TableCell align="center">Variants</TableCell>
+              <TableCell>Last Active</TableCell>
+              <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {users.map((user) => (
               <TableRow key={user.id}>
-                <TableCell>{user.name}</TableCell>
-                <TableCell>{user.email}</TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        backgroundColor: config.colors.primary,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {user.name.charAt(0)}
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>{user.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">{user.email}</Typography>
+                    </Box>
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    label={user.team}
+                    size="small"
+                    sx={{
+                      backgroundColor: `${teams.find(t => t.name === user.team)?.color}20`,
+                      color: teams.find(t => t.name === user.team)?.color,
+                    }}
+                  />
+                </TableCell>
                 <TableCell>
                   <Chip
                     label={user.role}
@@ -510,12 +792,64 @@ function UserManagementTab() {
                     color={user.role === 'admin' ? 'warning' : 'default'}
                   />
                 </TableCell>
-                <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                <TableCell align="center">{user.projects}</TableCell>
+                <TableCell align="center">{user.variants}</TableCell>
+                <TableCell>{new Date(user.lastActive).toLocaleDateString()}</TableCell>
+                <TableCell align="right">
+                  <Button size="small">Edit</Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Invite User Dialog */}
+      <Dialog open={inviteDialogOpen} onClose={() => setInviteDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Invite User</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              fullWidth
+              label="Email Address"
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="colleague@company.com"
+            />
+            <FormControl fullWidth>
+              <InputLabel>Role</InputLabel>
+              <Select
+                value={inviteRole}
+                label="Role"
+                onChange={(e) => setInviteRole(e.target.value as 'user' | 'admin')}
+              >
+                <MenuItem value="user">User</MenuItem>
+                <MenuItem value="admin">Admin</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl fullWidth>
+              <InputLabel>Team</InputLabel>
+              <Select
+                value={inviteTeam}
+                label="Team"
+                onChange={(e) => setInviteTeam(e.target.value)}
+              >
+                <MenuItem value="">No Team</MenuItem>
+                {teams.map((team) => (
+                  <MenuItem key={team.id} value={team.name}>{team.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInviteDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleInvite} disabled={!inviteEmail}>
+            Send Invitation
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

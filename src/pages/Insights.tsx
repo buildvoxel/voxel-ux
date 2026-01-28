@@ -10,18 +10,11 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
-import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
-import IconButton from '@mui/material/IconButton';
 import {
-  ArrowLeft,
   Eye,
-  CursorClick,
-  Timer,
   Trophy,
 } from '@phosphor-icons/react';
-import { StatCard } from '@/components';
-import { BreadcrumbNav } from '@/components/BreadcrumbNav';
 import { useThemeStore } from '@/store/themeStore';
 
 // Mock data - Updated to match wireframe columns
@@ -112,13 +105,6 @@ const variantsData = [
     isTopPerformer: false,
   },
 ];
-
-const formatNumber = (num: number) => {
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K';
-  }
-  return num.toString();
-};
 
 const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -219,101 +205,87 @@ function AllProjectsView() {
   );
 }
 
-// Project View
+// Project View - Per wireframe: Insights > Project name
 function ProjectView({ projectId }: { projectId: string }) {
   const navigate = useNavigate();
-  const { config } = useThemeStore();
   const project = projectsData.find((p) => p.id === projectId);
 
   if (!project) {
     return <Typography>Project not found</Typography>;
   }
 
+  // Project-specific variants data with wireframe columns
+  const projectVariants = [
+    { id: 'a', name: 'Variant A', description: '', sessions: 45, participants: 12, comments: 8, totalTimeSpent: '1h 15m', isTopPerformer: false },
+    { id: 'b', name: 'Modern UX', description: 'Clean, minimalist approach', sessions: 62, participants: 18, comments: 12, totalTimeSpent: '2h 32m', isTopPerformer: true },
+    { id: 'c', name: 'Gradual discovery', description: 'Progressive disclosure pattern', sessions: 38, participants: 9, comments: 5, totalTimeSpent: '58m', isTopPerformer: false },
+    { id: 'd', name: 'Variant D', description: '', sessions: 28, participants: 6, comments: 3, totalTimeSpent: '42m', isTopPerformer: false },
+  ];
+
+  // Stats per wireframe
+  const totalVariants = projectVariants.length;
+  const avgVariants = Math.round(totalVariants / 1); // Per project
+  const totalParticipants = projectVariants.reduce((sum, v) => sum + v.participants, 0);
+
   return (
     <Box>
-      <BreadcrumbNav
-        items={[
-          { label: 'Insights', path: '/insights' },
-          { label: project.name },
-        ]}
-      />
+      {/* Breadcrumb title per wireframe */}
+      <Typography variant="h5" fontWeight={500} sx={{ mb: 3 }}>
+        Insights {'>'} {project.name}
+      </Typography>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-        <IconButton onClick={() => navigate('/insights')} size="small">
-          <ArrowLeft size={20} />
-        </IconButton>
-        <Typography variant="h4" fontWeight={600}>
-          {project.name}
-        </Typography>
-        <Chip
-          label={project.status}
-          color={project.status === 'deployed' ? 'success' : 'primary'}
-        />
-      </Box>
-
-      {/* Stats Row */}
+      {/* Stats Row - Per wireframe: 3 cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Total Views"
-            value={formatNumber(project.totalViews)}
-            icon={<Eye size={20} />}
-          />
+        <Grid item xs={12} sm={4}>
+          <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Number of projects
+            </Typography>
+            <Typography variant="h5" fontWeight={500}>
+              1/1
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              (active/total)
+            </Typography>
+          </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Total Clicks"
-            value={formatNumber(project.totalClicks)}
-            icon={<CursorClick size={20} />}
-            color="#52c41a"
-          />
+        <Grid item xs={12} sm={4}>
+          <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Avg. number variants per projects
+            </Typography>
+            <Typography variant="h5" fontWeight={500}>
+              {avgVariants}
+            </Typography>
+          </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Avg. Engagement"
-            value={formatTime(project.avgEngagement)}
-            icon={<Timer size={20} />}
-            color="#faad14"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Top Conversion"
-            value={`${project.topConversion}%`}
-            icon={<Trophy size={20} />}
-            color="#eb2f96"
-          />
+        <Grid item xs={12} sm={4}>
+          <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Engaged participants
+            </Typography>
+            <Typography variant="h5" fontWeight={500}>
+              {totalParticipants}
+            </Typography>
+          </Card>
         </Grid>
       </Grid>
 
-      {/* Variants Table */}
-      <Box sx={{ mb: 2 }}>
-        <Typography
-          variant="overline"
-          sx={{
-            color: config.colors.textSecondary,
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            letterSpacing: '0.05em',
-          }}
-        >
-          Variant Performance
-        </Typography>
-      </Box>
+      {/* Variants Table - Columns per wireframe */}
       <TableContainer component={Card} sx={{ border: 'none' }}>
         <Table>
           <TableHead>
-            <TableRow>
-              <TableCell>Variant</TableCell>
-              <TableCell align="right">Views</TableCell>
-              <TableCell align="right">Clicks</TableCell>
-              <TableCell align="right">Conversion Rate</TableCell>
-              <TableCell align="right">Avg. Time</TableCell>
-              <TableCell>Scroll Depth</TableCell>
+            <TableRow sx={{ backgroundColor: 'grey.600' }}>
+              <TableCell sx={{ color: 'white', fontWeight: 500 }}>Variant name</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 500 }}>Description</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 500 }} align="center"># Sessions</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 500 }} align="center"># Participants</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 500 }} align="center"># Comments</TableCell>
+              <TableCell sx={{ color: 'white', fontWeight: 500 }} align="right">Total time spent</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {variantsData.map((variant) => (
+            {projectVariants.map((variant) => (
               <TableRow
                 key={variant.id}
                 hover
@@ -322,38 +294,17 @@ function ProjectView({ projectId }: { projectId: string }) {
               >
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {variant.label}
+                    {variant.name}
                     {variant.isTopPerformer && (
-                      <Chip label="Top" size="small" color="warning" icon={<Trophy size={12} />} />
+                      <Trophy size={16} weight="fill" />
                     )}
                   </Box>
                 </TableCell>
-                <TableCell align="right">{formatNumber(variant.views)}</TableCell>
-                <TableCell align="right">{formatNumber(variant.clicks)}</TableCell>
-                <TableCell align="right">
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color: variant.isTopPerformer ? config.colors.success : 'inherit',
-                      fontWeight: variant.isTopPerformer ? 500 : 400,
-                    }}
-                  >
-                    {variant.conversionRate}%
-                  </Typography>
-                </TableCell>
-                <TableCell align="right">{formatTime(variant.avgTimeSpent)}</TableCell>
-                <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <LinearProgress
-                      variant="determinate"
-                      value={variant.scrollDepth}
-                      sx={{ flex: 1, height: 6, borderRadius: 3 }}
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                      {variant.scrollDepth}%
-                    </Typography>
-                  </Box>
-                </TableCell>
+                <TableCell>{variant.description}</TableCell>
+                <TableCell align="center">{variant.sessions}</TableCell>
+                <TableCell align="center">{variant.participants}</TableCell>
+                <TableCell align="center">{variant.comments}</TableCell>
+                <TableCell align="right">{variant.totalTimeSpent}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -363,9 +314,8 @@ function ProjectView({ projectId }: { projectId: string }) {
   );
 }
 
-// Variant View
+// Variant View - Per wireframe: Insights > Project name > Variant name
 function VariantView({ projectId, variantId }: { projectId: string; variantId: string }) {
-  const navigate = useNavigate();
   const { config } = useThemeStore();
   const project = projectsData.find((p) => p.id === projectId);
   const variant = variantsData.find((v) => v.id === variantId);
@@ -374,213 +324,179 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
     return <Typography>Not found</Typography>;
   }
 
+  // Mock feedback data
+  const feedbackComments = [
+    { id: 1, user: 'Sarah Chen', comment: 'Love the clean layout! Very intuitive.', time: '2h ago' },
+    { id: 2, user: 'Mike Johnson', comment: 'The CTA button could be more prominent.', time: '4h ago' },
+    { id: 3, user: 'Emma Wilson', comment: 'Great flow, easy to navigate.', time: '1d ago' },
+  ];
+
+  // Funnel data
+  const funnelSteps = [
+    { label: 'Viewed', count: variant.views, percent: 100 },
+    { label: 'Engaged', count: Math.round(variant.views * 0.65), percent: 65 },
+    { label: 'Clicked CTA', count: variant.clicks, percent: Math.round((variant.clicks / variant.views) * 100) },
+    { label: 'Completed', count: Math.round(variant.clicks * 0.4), percent: Math.round((variant.clicks * 0.4 / variant.views) * 100) },
+  ];
+
   return (
     <Box>
-      <BreadcrumbNav
-        items={[
-          { label: 'Insights', path: '/insights' },
-          { label: project.name, path: `/insights/${projectId}` },
-          { label: variant.label },
-        ]}
-      />
+      {/* Breadcrumb title per wireframe */}
+      <Typography variant="h5" fontWeight={500} sx={{ mb: 3 }}>
+        Insights {'>'} {project.name} {'>'} {variant.label}
+      </Typography>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-        <IconButton onClick={() => navigate(`/insights/${projectId}`)} size="small">
-          <ArrowLeft size={20} />
-        </IconButton>
-        <Typography variant="h4" fontWeight={600}>
-          {variant.label}
-        </Typography>
-        {variant.isTopPerformer && (
-          <Chip label="Top Performer" color="warning" icon={<Trophy size={14} />} />
-        )}
-      </Box>
-
-      <Grid container spacing={3}>
-        {/* Stats */}
+      {/* Top Section: Stats (2x2) + Thumbnail */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        {/* Stats 2x2 Grid */}
         <Grid item xs={12} md={8}>
-          <Grid container spacing={3}>
-            <Grid item xs={6} md={3}>
-              <StatCard
-                title="Views"
-                value={formatNumber(variant.views)}
-                icon={<Eye size={20} />}
-              />
+          <Grid container spacing={2}>
+            <Grid item xs={6}>
+              <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Total sessions
+                </Typography>
+                <Typography variant="h5" fontWeight={500}>
+                  {variant.views}
+                </Typography>
+              </Card>
             </Grid>
-            <Grid item xs={6} md={3}>
-              <StatCard
-                title="Clicks"
-                value={formatNumber(variant.clicks)}
-                icon={<CursorClick size={20} />}
-                color="#52c41a"
-              />
+            <Grid item xs={6}>
+              <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Unique participants
+                </Typography>
+                <Typography variant="h5" fontWeight={500}>
+                  {Math.round(variant.views * 0.4)}
+                </Typography>
+              </Card>
             </Grid>
-            <Grid item xs={6} md={3}>
-              <StatCard
-                title="Conversion"
-                value={`${variant.conversionRate}%`}
-                icon={<Trophy size={20} />}
-                color="#eb2f96"
-              />
+            <Grid item xs={6}>
+              <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Time spent per session
+                </Typography>
+                <Typography variant="h5" fontWeight={500}>
+                  {formatTime(variant.avgTimeSpent)}
+                </Typography>
+              </Card>
             </Grid>
-            <Grid item xs={6} md={3}>
-              <StatCard
-                title="Avg. Time"
-                value={formatTime(variant.avgTimeSpent)}
-                icon={<Timer size={20} />}
-                color="#faad14"
-              />
+            <Grid item xs={6}>
+              <Card variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Feedback shared
+                </Typography>
+                <Typography variant="h5" fontWeight={500}>
+                  {feedbackComments.length}
+                </Typography>
+              </Card>
             </Grid>
           </Grid>
-
-          {/* Scroll Depth */}
-          <Box sx={{ mt: 3 }}>
-            <Typography
-              variant="overline"
-              sx={{
-                color: config.colors.textSecondary,
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                letterSpacing: '0.05em',
-                display: 'block',
-                mb: 1,
-              }}
-            >
-              Scroll Depth Analysis
-            </Typography>
-            <Card>
-              <CardContent>
-                <Box sx={{ py: 1 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Average Scroll Depth
-                    </Typography>
-                    <Typography variant="body2" fontWeight={500}>
-                      {variant.scrollDepth}%
-                    </Typography>
-                  </Box>
-                  <LinearProgress
-                    variant="determinate"
-                    value={variant.scrollDepth}
-                    sx={{ height: 8, borderRadius: 4 }}
-                  />
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
-
-          {/* Feedback Summary */}
-          <Box sx={{ mt: 3 }}>
-            <Typography
-              variant="overline"
-              sx={{
-                color: config.colors.textSecondary,
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                letterSpacing: '0.05em',
-                display: 'block',
-                mb: 1,
-              }}
-            >
-              User Feedback Summary
-            </Typography>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <Box
-                    sx={{
-                      p: 2,
-                      bgcolor: config.colors.successBg,
-                      borderRadius: 1,
-                      borderLeft: '3px solid',
-                      borderColor: config.colors.success,
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: config.colors.success,
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                      }}
-                    >
-                      Positive Feedback (12)
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      Users appreciated the clean layout and intuitive navigation flow.
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      p: 2,
-                      bgcolor: config.colors.warningBg,
-                      borderRadius: 1,
-                      borderLeft: '3px solid',
-                      borderColor: config.colors.warning,
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: config.colors.warning,
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                      }}
-                    >
-                      Suggestions (5)
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 0.5 }}>
-                      Some users requested larger buttons and more contrast on CTAs.
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
         </Grid>
 
-        {/* Preview */}
+        {/* Variant Thumbnail */}
         <Grid item xs={12} md={4}>
-          <Typography
-            variant="overline"
-            sx={{
-              color: config.colors.textSecondary,
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              letterSpacing: '0.05em',
-              display: 'block',
-              mb: 1,
-            }}
-          >
-            Preview
-          </Typography>
-          <Card>
+          <Card variant="outlined" sx={{ height: '100%', minHeight: 180 }}>
             <Box
               sx={{
-                height: 300,
-                backgroundColor: config.colors.bgDark,
+                height: '100%',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
+                backgroundColor: config.colors.bgSecondary,
+                p: 2,
               }}
             >
-              <Typography variant="body2" color="white" sx={{ opacity: 0.6 }}>
-                {variant.label} Preview
+              <Eye size={32} color={config.colors.textSecondary} />
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Variant Thumbnail
               </Typography>
             </Box>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Feedback Summary + Feedback Shared (side by side) */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} md={6}>
+          <Card variant="outlined" sx={{ height: '100%' }}>
             <CardContent>
-              <Typography variant="body2" fontWeight={500}>
-                {project.name}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {variant.label}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <Typography variant="subtitle1" fontWeight={500}>
+                  Feedback summary
+                </Typography>
+                <Box component="span" sx={{ fontSize: 14 }}>📋</Box>
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                Overall positive reception. Users appreciated the clean layout and intuitive navigation.
+                Main suggestions focus on improving CTA visibility and button contrast.
               </Typography>
             </CardContent>
           </Card>
         </Grid>
+        <Grid item xs={12} md={6}>
+          <Card variant="outlined" sx={{ height: '100%' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <Typography variant="subtitle1" fontWeight={500}>
+                  Feedback shared
+                </Typography>
+                <Box component="span" sx={{ fontSize: 14 }}>💬</Box>
+              </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                {feedbackComments.map((fb) => (
+                  <Box key={fb.id} sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" fontWeight={500}>{fb.user}</Typography>
+                      <Typography variant="caption" color="text.secondary">{fb.time}</Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">{fb.comment}</Typography>
+                  </Box>
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
+
+      {/* Participants Funnel */}
+      <Card variant="outlined">
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <Typography variant="subtitle1" fontWeight={500}>
+              Participants funnel
+            </Typography>
+            <Box component="span" sx={{ fontSize: 14 }}>📊</Box>
+          </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            {funnelSteps.map((step, index) => (
+              <Box key={step.label}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                  <Typography variant="body2">{step.label}</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {step.count} ({step.percent}%)
+                  </Typography>
+                </Box>
+                <LinearProgress
+                  variant="determinate"
+                  value={step.percent}
+                  sx={{
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: 'grey.200',
+                    '& .MuiLinearProgress-bar': {
+                      backgroundColor: index === 0 ? config.colors.primary :
+                        index === funnelSteps.length - 1 ? config.colors.success :
+                        config.colors.textSecondary,
+                    },
+                  }}
+                />
+              </Box>
+            ))}
+          </Box>
+        </CardContent>
+      </Card>
     </Box>
   );
 }

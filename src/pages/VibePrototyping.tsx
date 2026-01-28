@@ -1,10 +1,10 @@
 /**
- * VibePrototyping Page - "Vibe Coding" Style Interface
+ * VibePrototyping Page - Redesigned to match wireframes
  *
- * Split-panel layout:
- * - Left: Screen preview with variant tabs
- * - Right: Chat panel for prompts and AI responses
- * - Bottom: Expandable sections for plans and source analysis
+ * Layout:
+ * - Top: Toolbar with project name, icons, Pages dropdown, Share button
+ * - Left: Gray panel with AI phases, variant cards, and prompt input
+ * - Right: White canvas with 2x2 variant grid or single focused variant
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -13,21 +13,13 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
-import Chip from '@mui/material/Chip';
+import TextField from '@mui/material/TextField';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CardActionArea from '@mui/material/CardActionArea';
 import CircularProgress from '@mui/material/CircularProgress';
-import Alert from '@mui/material/Alert';
-import Accordion from '@mui/material/Accordion';
-import AccordionSummary from '@mui/material/AccordionSummary';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import Badge from '@mui/material/Badge';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import BoltIcon from '@mui/icons-material/Bolt';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import AppsIcon from '@mui/icons-material/Apps';
-import FindInPageIcon from '@mui/icons-material/FindInPage';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import Grid from '@mui/material/Grid';
+import { Code, At, Flag, DownloadSimple, ArrowCounterClockwise, Paperclip, ShareNetwork, Microphone, Warning } from '@phosphor-icons/react';
 
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { useScreensStore } from '@/store/screensStore';
@@ -45,31 +37,14 @@ import {
   getVibeSession,
   getVariantPlans,
   approvePlan,
-  updateVariantPlan,
-  type VariantPlan,
 } from '@/services/variantPlanService';
 import {
   generateAllVariants,
   getVariants,
-  selectVariant,
 } from '@/services/variantCodeService';
 
-import {
-  SourceAnalysisPanel,
-  PlanReviewGrid,
-  VariantPreviewModal,
-  ChatPanel,
-  ScreenPreview,
-  ModelSelector,
-  type SelectedTab,
-} from '@/components/Vibe';
-
-// Result component for not found state
-function NotFoundResult({
-  onBack,
-}: {
-  onBack: () => void;
-}) {
+// Not found component
+function NotFoundResult({ onBack }: { onBack: () => void }) {
   return (
     <Box
       sx={{
@@ -81,7 +56,7 @@ function NotFoundResult({
         textAlign: 'center',
       }}
     >
-      <ErrorOutlineIcon sx={{ fontSize: 64, color: 'warning.main', mb: 2 }} />
+      <Warning size={64} weight="light" style={{ color: '#faad14', marginBottom: 16 }} />
       <Typography variant="h5" gutterBottom>
         Screen Not Found
       </Typography>
@@ -92,6 +67,155 @@ function NotFoundResult({
         Go to Screens
       </Button>
     </Box>
+  );
+}
+
+// AI Phase component for Understanding, Planning, Summary
+function AIPhase({
+  label,
+  description,
+  isActive = false
+}: {
+  label: string;
+  description: string;
+  isActive?: boolean;
+}) {
+  return (
+    <Box sx={{ mb: 2 }}>
+      <Typography
+        sx={{
+          color: '#26a69a', // Teal color from wireframe
+          fontSize: 14,
+          fontWeight: 500,
+          mb: 0.5,
+        }}
+      >
+        {label}
+        {isActive && '...'}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5 }}>
+        {description}
+      </Typography>
+    </Box>
+  );
+}
+
+// Variant Card in the left panel
+function VariantCard({
+  title,
+  description,
+  isSelected = false,
+  onClick
+}: {
+  title: string;
+  description: string;
+  isSelected?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        mb: 1.5,
+        cursor: onClick ? 'pointer' : 'default',
+        border: isSelected ? '2px solid #764ba2' : '1px solid #e0e0e0',
+        backgroundColor: 'white',
+        '&:hover': onClick ? {
+          borderColor: '#764ba2',
+        } : {},
+      }}
+      onClick={onClick}
+    >
+      <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+        <Typography variant="subtitle2" fontWeight={600} gutterBottom>
+          {title}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
+          {description}
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Canvas variant preview card (in 2x2 grid)
+function CanvasVariantCard({
+  label,
+  isLoading = false,
+  htmlUrl,
+  onClick,
+}: {
+  label: string;
+  isLoading?: boolean;
+  htmlUrl?: string | null;
+  onClick?: () => void;
+}) {
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        cursor: onClick ? 'pointer' : 'default',
+        '&:hover': onClick ? {
+          borderColor: '#764ba2',
+          boxShadow: 2,
+        } : {},
+      }}
+    >
+      <CardActionArea
+        sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+        onClick={onClick}
+        disabled={!onClick}
+      >
+        <Box
+          sx={{
+            flex: 1,
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#fafafa',
+            position: 'relative',
+            minHeight: 200,
+          }}
+        >
+          {isLoading ? (
+            <Box sx={{ textAlign: 'center' }}>
+              <CircularProgress size={24} sx={{ mb: 1 }} />
+              <Typography variant="body2" color="text.secondary">
+                Loading state of {label}
+              </Typography>
+            </Box>
+          ) : htmlUrl ? (
+            <Box
+              sx={{
+                width: '100%',
+                height: '100%',
+                overflow: 'hidden',
+                position: 'relative',
+              }}
+            >
+              <iframe
+                src={htmlUrl}
+                title={label}
+                style={{
+                  width: '200%',
+                  height: '200%',
+                  border: 'none',
+                  transform: 'scale(0.5)',
+                  transformOrigin: 'top left',
+                  pointerEvents: 'none',
+                }}
+              />
+            </Box>
+          ) : (
+            <Typography color="text.secondary">{label}</Typography>
+          )}
+        </Box>
+      </CardActionArea>
+    </Card>
   );
 }
 
@@ -106,34 +230,22 @@ export const VibePrototyping: React.FC = () => {
 
   // Vibe store
   const {
-    currentSession,
     sourceMetadata,
     plan,
     variants,
-    messages,
     status,
-    progress,
-    error,
-    selectedVariantIndex,
-    previewVariantIndex,
-    previewTab,
     initSession,
     setSession,
     clearSession,
     setSourceMetadata,
     setAnalyzing,
     setPlan,
-    updatePlanItem,
     approvePlan: storeApprovePlan,
     setVariants,
     setStatus,
     setProgress,
     setError,
-    selectVariant: storeSelectVariant,
-    setPreviewVariant,
-    setPreviewTab,
     addMessage,
-    updateMessage,
     getPlanByIndex,
     getVariantByIndex,
   } = useVibeStore();
@@ -141,7 +253,8 @@ export const VibePrototyping: React.FC = () => {
   // Local state
   const [isLoading, setIsLoading] = useState(true);
   const [screen, setScreen] = useState<ReturnType<typeof getScreenById> | null>(null);
-  const [expandedSections, setExpandedSections] = useState<string[]>([]);
+  const [promptValue, setPromptValue] = useState('');
+  const [focusedVariantIndex, setFocusedVariantIndex] = useState<number | null>(null);
 
   // Initialize screen data
   useEffect(() => {
@@ -180,14 +293,6 @@ export const VibePrototyping: React.FC = () => {
               const existingVariants = await getVariants(sessionId);
               if (existingVariants.length > 0) {
                 setVariants(existingVariants);
-
-                // Auto-select the first completed variant tab, or the selected one
-                const completedVariant = existingVariants.find((v) => v.status === 'complete');
-                if (session.selected_variant_index) {
-                  setPreviewTab(session.selected_variant_index as 1 | 2 | 3 | 4);
-                } else if (completedVariant) {
-                  setPreviewTab(completedVariant.variant_index as 1 | 2 | 3 | 4);
-                }
               }
             }
           } else {
@@ -216,137 +321,83 @@ export const VibePrototyping: React.FC = () => {
     [addMessage]
   );
 
-  // Handle chat message submission
-  const handleSendMessage = useCallback(
-    async (prompt: string) => {
-      if (!screen?.editedHtml || !screenId) return;
+  // Handle Build button click
+  const handleBuild = useCallback(async () => {
+    if (!screen?.editedHtml || !screenId || !promptValue.trim()) return;
 
-      try {
-        // Add user message
-        addChatMessage('user', prompt);
-
-        // Create new session
-        const sessionName = `Vibe: ${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}`;
-        const session = await createVibeSession(screenId, sessionName, prompt);
-
-        if (!session) {
-          throw new Error('Failed to create session');
-        }
-
-        // Initialize store with session
-        initSession(session, screen.editedHtml);
-
-        // Re-add user message after init (which clears messages)
-        addChatMessage('user', prompt);
-
-        // Update URL with session ID
-        navigate(`/prototypes/${screenId}/${session.id}`, { replace: true });
-
-        // Add analyzing message
-        const analyzingMsgId = addChatMessage(
-          'assistant',
-          'Analyzing the screen design...',
-          'pending'
-        );
-
-        // Analyze screen if not cached
-        setAnalyzing(true, 'Analyzing screen design...');
-
-        let metadata = sourceMetadata;
-        if (!metadata) {
-          const result = await analyzeScreen(screenId, screen.editedHtml, (p) => {
-            setProgress({
-              stage: 'analyzing',
-              message: p.message,
-              percent: p.percent,
-            });
-          });
-          metadata = result.metadata;
-          setSourceMetadata(metadata);
-        }
-
-        // Update analyzing message
-        updateMessage(analyzingMsgId, {
-          content: 'Screen analysis complete. Now designing 4 variant concepts...',
-          status: 'complete',
-        });
-
-        // Add planning message
-        const planningMsgId = addChatMessage(
-          'assistant',
-          'AI is designing 4 different approaches based on your prompt...',
-          'pending'
-        );
-
-        // Generate variant plan
-        setStatus('planning');
-        setProgress({
-          stage: 'planning',
-          message: 'AI is designing 4 variants...',
-          percent: 30,
-        });
-
-        const result = await generateVariantPlan(
-          session.id,
-          prompt,
-          screen.editedHtml,
-          metadata,
-          undefined,
-          (p) => {
-            setProgress({
-              stage: 'planning',
-              message: p.message,
-              percent: 30 + p.percent * 0.4,
-            });
-          }
-        );
-
-        setPlan({
-          plans: result.plans,
-          model: result.model,
-          provider: result.provider,
-        });
-
-        setSession(result.session);
-
-        // Update planning message
-        updateMessage(planningMsgId, {
-          content: `Here are 4 variant concepts:\n\n${result.plans
-            .map((p, i) => `${i + 1}. **${p.title}**: ${p.description}`)
-            .join('\n\n')}\n\nReview and approve to generate the code.`,
-          status: 'complete',
-        });
-
-        // Expand plans section
-        setExpandedSections(['plans']);
-      } catch (err) {
-        console.error('Error generating plan:', err);
-        const errorMsg = err instanceof Error ? err.message : 'Failed to generate plan';
-        setError(errorMsg);
-        addChatMessage('assistant', `Error: ${errorMsg}`, 'error');
-        showError('Failed to generate variant plan');
-      }
-    },
-    [screen, screenId, sourceMetadata, contexts]
-  );
-
-  // Handle plan approval
-  const handleApprovePlan = useCallback(async () => {
-    if (!currentSession?.id || !plan || !screen?.editedHtml) return;
+    const prompt = promptValue.trim();
+    setPromptValue('');
 
     try {
-      // Approve plan in database
-      const session = await approvePlan(currentSession.id);
-      if (session) {
-        storeApprovePlan();
+      // Add user message
+      addChatMessage('user', prompt);
+
+      // Create new session
+      const sessionName = `Vibe: ${prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}`;
+      const session = await createVibeSession(screenId, sessionName, prompt);
+
+      if (!session) {
+        throw new Error('Failed to create session');
       }
 
-      // Add generating message
-      const generatingMsgId = addChatMessage(
-        'assistant',
-        'Starting code generation for all 4 variants...',
-        'pending'
+      // Initialize store with session
+      initSession(session, screen.editedHtml);
+
+      // Update URL with session ID
+      navigate(`/prototypes/${screenId}/${session.id}`, { replace: true });
+
+      // Analyze screen if not cached
+      setAnalyzing(true, 'Analyzing screen design...');
+
+      let metadata = sourceMetadata;
+      if (!metadata) {
+        const result = await analyzeScreen(screenId, screen.editedHtml, (p) => {
+          setProgress({
+            stage: 'analyzing',
+            message: p.message,
+            percent: p.percent,
+          });
+        });
+        metadata = result.metadata;
+        setSourceMetadata(metadata);
+      }
+
+      // Generate variant plan
+      setStatus('planning');
+      setProgress({
+        stage: 'planning',
+        message: 'AI is designing 4 variants...',
+        percent: 30,
+      });
+
+      const result = await generateVariantPlan(
+        session.id,
+        prompt,
+        screen.editedHtml,
+        metadata,
+        undefined,
+        (p) => {
+          setProgress({
+            stage: 'planning',
+            message: p.message,
+            percent: 30 + p.percent * 0.4,
+          });
+        }
       );
+
+      setPlan({
+        plans: result.plans,
+        model: result.model,
+        provider: result.provider,
+      });
+
+      setSession(result.session);
+
+      // Auto-approve and start generating
+      const approvedSession = await approvePlan(session.id);
+      if (approvedSession) {
+        storeApprovePlan();
+      }
 
       // Start generating variants
       setStatus('generating');
@@ -356,12 +407,12 @@ export const VibePrototyping: React.FC = () => {
         percent: 0,
       });
 
-      // Generate all variants sequentially
+      // Generate all variants
       const generatedVariants = await generateAllVariants(
-        currentSession.id,
-        plan.plans,
+        session.id,
+        result.plans,
         screen.editedHtml,
-        sourceMetadata || undefined,
+        metadata || undefined,
         undefined,
         (p) => {
           setProgress({
@@ -372,19 +423,9 @@ export const VibePrototyping: React.FC = () => {
             variantTitle: p.title,
           });
 
-          // Update message with progress
-          updateMessage(generatingMsgId, {
-            content: `Generating variants...\n\n${p.message}`,
-          });
-
           // Update individual variant in store as it completes
           if (p.stage === 'complete') {
-            getVariants(currentSession.id).then(setVariants);
-
-            // Auto-switch to completed variant tab
-            if (p.variantIndex) {
-              setPreviewTab(p.variantIndex as SelectedTab);
-            }
+            getVariants(session.id).then(setVariants);
           }
         }
       );
@@ -393,87 +434,25 @@ export const VibePrototyping: React.FC = () => {
       setStatus('complete');
       setProgress(null);
 
-      // Update final message
-      updateMessage(generatingMsgId, {
-        content:
-          'All 4 variants have been generated! Use the tabs below the preview to switch between them, and click to select a winner.',
-        status: 'complete',
-      });
-
-      // Collapse plans section
-      setExpandedSections([]);
-
       showSuccess('All variants generated successfully!');
     } catch (err) {
-      console.error('Error generating variants:', err);
-      const errorMsg = err instanceof Error ? err.message : 'Failed to generate variants';
+      console.error('Error generating plan:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Failed to generate plan';
       setError(errorMsg);
-      addChatMessage('assistant', `Error generating variants: ${errorMsg}`, 'error');
-      showError('Failed to generate variant code');
+      showError('Failed to generate variant plan');
     }
-  }, [currentSession, plan, screen, sourceMetadata]);
+  }, [screen, screenId, promptValue, sourceMetadata, contexts]);
 
-  // Handle plan item update
-  const handleUpdatePlan = useCallback(
-    async (variantIndex: number, updates: Partial<VariantPlan>) => {
-      const planItem = getPlanByIndex(variantIndex);
-      if (!planItem) return;
-
-      try {
-        await updateVariantPlan(planItem.id, updates);
-        updatePlanItem(variantIndex, updates);
-      } catch (err) {
-        console.error('Error updating plan:', err);
-        showError('Failed to update plan');
-      }
-    },
-    [getPlanByIndex]
-  );
-
-  // Handle regenerate plan
-  const handleRegeneratePlan = useCallback(() => {
-    setStatus('idle');
-    setPlan(null as unknown as { plans: VariantPlan[]; model: string; provider: string });
-    addChatMessage('system', 'Plan cleared. Enter a new prompt to generate variants.');
+  // Handle variant selection (from canvas)
+  const handleVariantClick = useCallback((index: number) => {
+    setFocusedVariantIndex(index);
   }, []);
 
-  // Handle variant selection
-  const handleSelectVariant = useCallback(
-    async (index: number) => {
-      if (!currentSession?.id) return;
+  // Handle back from focused variant
+  const handleBackToGrid = useCallback(() => {
+    setFocusedVariantIndex(null);
+  }, []);
 
-      try {
-        await selectVariant(currentSession.id, index);
-        storeSelectVariant(index);
-        addChatMessage(
-          'assistant',
-          `Variant ${index} has been selected as the winner! You can now apply it to your screen.`,
-          'complete',
-          { variantIndex: index }
-        );
-        showSuccess(`Variant ${index} selected as winner!`);
-      } catch (err) {
-        console.error('Error selecting variant:', err);
-        showError('Failed to select variant');
-      }
-    },
-    [currentSession]
-  );
-
-  // Handle tab change
-  const handleTabChange = useCallback(
-    (tab: SelectedTab) => {
-      setPreviewTab(tab);
-    },
-    [setPreviewTab]
-  );
-
-  // Handle section expansion
-  const handleSectionChange = (section: string) => (_: React.SyntheticEvent, isExpanded: boolean) => {
-    setExpandedSections((prev) =>
-      isExpanded ? [...prev, section] : prev.filter((s) => s !== section)
-    );
-  };
 
   // Loading state
   if (isLoading) {
@@ -489,41 +468,25 @@ export const VibePrototyping: React.FC = () => {
     return <NotFoundResult onBack={() => navigate('/repository/screens')} />;
   }
 
-  // Preview modal variant
-  const previewPlan = previewVariantIndex ? getPlanByIndex(previewVariantIndex) : null;
-  const previewVariant = previewVariantIndex ? getVariantByIndex(previewVariantIndex) : null;
+  // Get current phase
+  const isAnalyzing = status === 'analyzing';
+  const isPlanning = status === 'planning';
+  const isGenerating = status === 'generating';
+  const isComplete = status === 'complete';
+  const hasVariants = variants.length > 0;
 
-  // Status chip
-  const getStatusChip = () => {
-    switch (status) {
-      case 'analyzing':
-        return <Chip label="Analyzing" color="primary" size="small" />;
-      case 'planning':
-        return <Chip label="Planning" color="primary" size="small" />;
-      case 'plan_ready':
-        return <Chip label="Review Plan" color="warning" size="small" />;
-      case 'generating':
-        return <Chip label="Generating" color="primary" size="small" />;
-      case 'complete':
-        return <Chip label="Complete" color="success" size="small" icon={<CheckCircleIcon />} />;
-      case 'failed':
-        return <Chip label="Failed" color="error" size="small" />;
-      default:
-        return <Chip label="Ready" size="small" variant="outlined" />;
-    }
-  };
-
-  // Check if chat is active
-  const isChatActive = status === 'idle' || status === 'complete';
-  const isGenerating = status === 'analyzing' || status === 'planning' || status === 'generating';
+  // Project name for header
+  const projectName = screen.name || 'Project name';
+  const focusedVariant = focusedVariantIndex ? getVariantByIndex(focusedVariantIndex) : null;
+  const focusedPlan = focusedVariantIndex ? getPlanByIndex(focusedVariantIndex) : null;
 
   return (
     <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
+      {/* Toolbar */}
       <Box
         sx={{
-          py: 1.5,
-          px: 3,
+          height: 48,
+          px: 2,
           borderBottom: '1px solid',
           borderColor: 'divider',
           display: 'flex',
@@ -532,213 +495,272 @@ export const VibePrototyping: React.FC = () => {
           bgcolor: 'background.paper',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/repository/screens')}
+        {/* Left: Project name / breadcrumb */}
+        <Typography variant="subtitle1" fontWeight={500}>
+          {focusedVariantIndex && focusedPlan
+            ? `${projectName} > ${focusedPlan.title}`
+            : projectName}
+        </Typography>
+
+        {/* Center: Icons and Pages dropdown */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <IconButton size="small">
+            <Code size={20} />
+          </IconButton>
+          <IconButton size="small">
+            <At size={20} />
+          </IconButton>
+          <IconButton size="small">
+            <Flag size={20} />
+          </IconButton>
+          <IconButton size="small">
+            <DownloadSimple size={20} />
+          </IconButton>
+          <Box sx={{ width: 1, height: 24, bgcolor: 'divider', mx: 1 }} />
+          <IconButton size="small" onClick={handleBackToGrid} disabled={!focusedVariantIndex}>
+            <ArrowCounterClockwise size={20} />
+          </IconButton>
+          <Box
+            sx={{
+              px: 2,
+              py: 0.5,
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1,
+              minWidth: 100,
+              textAlign: 'center',
+            }}
           >
-            Back
-          </Button>
-          <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <BoltIcon sx={{ fontSize: 20, color: 'primary.main' }} />
-              <Typography variant="h6" sx={{ mb: 0 }}>
-                Vibe Prototyping
-              </Typography>
-              {getStatusChip()}
-            </Box>
-            <Typography variant="body2" color="text.secondary">
-              {screen.name}
-            </Typography>
+            <Typography variant="body2">Pages /</Typography>
           </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ModelSelector size="small" />
-          {selectedVariantIndex && (
-            <Chip
-              label={`Winner: Variant ${selectedVariantIndex}`}
-              color="warning"
-              icon={<CheckCircleIcon />}
-            />
-          )}
-          <IconButton>
-            <SettingsOutlinedIcon />
-          </IconButton>
-        </Box>
+        {/* Right: Share button */}
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<ShareNetwork size={18} />}
+          sx={{ textTransform: 'none' }}
+        >
+          Share
+        </Button>
       </Box>
 
-      {/* Error Alert */}
-      {error && (
-        <Alert
-          severity="error"
-          onClose={() => setError(null)}
-          sx={{ mx: 3, mt: 1 }}
-        >
-          {error}
-        </Alert>
-      )}
-
-      {/* Variant Plans Section - Prominent when plans are ready */}
-      {status === 'plan_ready' && plan && (
-        <Box
-          sx={{
-            py: 1.5,
-            px: 3,
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-            bgcolor: 'warning.lighter',
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <AppsIcon sx={{ color: 'warning.main' }} />
-              <Typography fontWeight={600}>Review Variant Plans</Typography>
-              <Badge badgeContent={plan.plans.length} color="primary" />
-              <Chip label="Awaiting Approval" color="warning" size="small" />
-            </Box>
-            <Button
-              variant="contained"
-              onClick={handleApprovePlan}
-              startIcon={<BoltIcon />}
-            >
-              Approve & Generate All
-            </Button>
-          </Box>
-          <PlanReviewGrid
-            plans={plan.plans}
-            onUpdatePlan={handleUpdatePlan}
-            onApprove={handleApprovePlan}
-            onRegenerate={handleRegeneratePlan}
-            isApproved={false}
-            modelInfo={{ model: plan.model, provider: plan.provider }}
-            compact
-          />
-        </Box>
-      )}
-
-      {/* Main Content - Split Panel */}
+      {/* Main content area */}
       <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* Left - Screen Preview */}
-        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ flex: 1, p: 2, overflow: 'hidden' }}>
-            <ScreenPreview
-              sourceHtml={screen.editedHtml || null}
-              variants={variants}
-              selectedTab={previewTab}
-              onTabChange={handleTabChange}
-              selectedVariantIndex={selectedVariantIndex}
-              onExpandPreview={
-                previewTab !== 'source' && getVariantByIndex(previewTab as number)
-                  ? () => setPreviewVariant(previewTab as number)
-                  : undefined
-              }
-              isGenerating={isGenerating}
-              currentGeneratingIndex={progress?.variantIndex}
-            />
-          </Box>
-        </Box>
-
-        {/* Right - Chat Panel */}
+        {/* Left Panel - Gray AI Panel */}
         <Box
           sx={{
-            width: 400,
-            borderLeft: '1px solid',
-            borderColor: 'divider',
+            width: 320,
+            bgcolor: '#f5f5f5',
             display: 'flex',
             flexDirection: 'column',
+            borderRight: '1px solid',
+            borderColor: 'divider',
           }}
         >
-          <Box sx={{ flex: 1, p: 2, overflow: 'hidden' }}>
-            <ChatPanel
-              messages={messages}
-              onSendMessage={handleSendMessage}
-              isLoading={isGenerating}
-              disabled={!isChatActive && !isGenerating}
-              placeholder={
-                status === 'plan_ready'
-                  ? 'Approve the plan first to generate variants'
-                  : 'Describe your design changes...'
-              }
+          {/* AI Phases and Variant Cards */}
+          <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+            {/* Initial empty state */}
+            {status === 'idle' && !plan && (
+              <Box sx={{ height: '100%' }} />
+            )}
+
+            {/* Understanding phase */}
+            {(isAnalyzing || isPlanning || isGenerating || isComplete) && (
+              <AIPhase
+                label="Understanding"
+                description="Acknowledging the request and providing a summary of the task understanding"
+                isActive={isAnalyzing}
+              />
+            )}
+
+            {/* Planning phase */}
+            {(isPlanning || isGenerating || isComplete) && (
+              <AIPhase
+                label="Planning"
+                description="Explaining the planning strategy and breaking this into 4 solution directions"
+                isActive={isPlanning}
+              />
+            )}
+
+            {/* Variant cards during planning/generating */}
+            {(isPlanning || isGenerating) && plan?.plans && (
+              <Box sx={{ mt: 2 }}>
+                {plan.plans.map((p, idx) => (
+                  <VariantCard
+                    key={p.id || idx}
+                    title={p.title || `Variant ${idx + 1}`}
+                    description={p.description || 'Description of the UI and UX approach of this variant'}
+                  />
+                ))}
+              </Box>
+            )}
+
+            {/* Summary phase when complete */}
+            {isComplete && (
+              <AIPhase
+                label="Summary"
+                description="Explaining the 4 variants approached in high level details. Calling to action to click on each, explore and switch between them to see in full screen."
+              />
+            )}
+          </Box>
+
+          {/* Prompt Input at bottom */}
+          <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+            <TextField
+              fullWidth
+              multiline
+              minRows={2}
+              maxRows={4}
+              placeholder="Create a invite option to this page"
+              value={promptValue}
+              onChange={(e) => setPromptValue(e.target.value)}
+              disabled={isAnalyzing || isPlanning || isGenerating}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && promptValue.trim()) {
+                  e.preventDefault();
+                  handleBuild();
+                }
+              }}
+              sx={{
+                bgcolor: 'white',
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                },
+              }}
             />
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+              <IconButton size="small">
+                <Microphone size={20} />
+              </IconButton>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <IconButton size="small">
+                  <Paperclip size={20} />
+                </IconButton>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={handleBuild}
+                  disabled={!promptValue.trim() || isAnalyzing || isPlanning || isGenerating}
+                  sx={{
+                    textTransform: 'none',
+                    minWidth: 60,
+                    bgcolor: 'grey.700',
+                    '&:hover': { bgcolor: 'grey.800' },
+                  }}
+                >
+                  Build
+                </Button>
+              </Box>
+            </Box>
           </Box>
         </Box>
-      </Box>
 
-      {/* Bottom - Expandable Sections */}
-      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', bgcolor: 'grey.50' }}>
-        {/* Variant Plans - Only show in collapsed section after approval */}
-        {plan && status !== 'plan_ready' && (
-          <Accordion
-            expanded={expandedSections.includes('plans')}
-            onChange={handleSectionChange('plans')}
-            disableGutters
-            sx={{ '&:before': { display: 'none' } }}
-          >
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <AppsIcon />
-                <Typography>Variant Plans</Typography>
-                <Badge badgeContent={plan.plans.length} color="primary" />
-                {currentSession?.plan_approved && (
-                  <Chip label="Approved" color="success" size="small" icon={<CheckCircleIcon />} />
-                )}
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails sx={{ py: 1 }}>
-              <PlanReviewGrid
-                plans={plan.plans}
-                onUpdatePlan={handleUpdatePlan}
-                onApprove={handleApprovePlan}
-                onRegenerate={handleRegeneratePlan}
-                isApproved={currentSession?.plan_approved}
-                modelInfo={{ model: plan.model, provider: plan.provider }}
-                compact
-              />
-            </AccordionDetails>
-          </Accordion>
-        )}
-
-        {/* Source Analysis */}
-        <Accordion
-          expanded={expandedSections.includes('analysis')}
-          onChange={handleSectionChange('analysis')}
-          disableGutters
-          sx={{ '&:before': { display: 'none' } }}
+        {/* Right Panel - White Canvas */}
+        <Box
+          sx={{
+            flex: 1,
+            bgcolor: 'white',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
         >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <FindInPageIcon />
-              <Typography>Source Analysis</Typography>
-              {sourceMetadata && (
-                <Chip
-                  label={`${sourceMetadata.components.length} components`}
-                  color="success"
-                  size="small"
-                />
-              )}
-            </Box>
-          </AccordionSummary>
-          <AccordionDetails sx={{ py: 1, maxHeight: 300, overflow: 'auto' }}>
-            <SourceAnalysisPanel
-              sourceHtml={screen.editedHtml || null}
-              metadata={sourceMetadata}
-              isAnalyzing={status === 'analyzing'}
-              analysisMessage={progress?.message}
-            />
-          </AccordionDetails>
-        </Accordion>
-      </Box>
+          {/* Initial empty state */}
+          {status === 'idle' && !hasVariants && (
+            <Box sx={{ flex: 1 }} />
+          )}
 
-      {/* Preview Modal */}
-      <VariantPreviewModal
-        open={previewVariantIndex !== null}
-        onClose={() => setPreviewVariant(null)}
-        variant={previewVariant || null}
-        plan={previewPlan || null}
-        onSelect={() => previewVariantIndex && handleSelectVariant(previewVariantIndex)}
-        isSelected={selectedVariantIndex === previewVariantIndex}
-      />
+          {/* Loading/Planning state - 2x2 grid with loading indicators */}
+          {(isAnalyzing || isPlanning || isGenerating) && !focusedVariantIndex && (
+            <Box sx={{ flex: 1, p: 2, overflow: 'auto' }}>
+              <Grid container spacing={2} sx={{ height: '100%' }}>
+                {['Variant A', 'Variant B', 'Variant C', 'Variant D'].map((label, idx) => {
+                  const variant = variants.find((v) => v.variant_index === idx + 1);
+                  return (
+                    <Grid item xs={6} key={label} sx={{ height: '50%' }}>
+                      <CanvasVariantCard
+                        label={label}
+                        isLoading={!variant || variant.status !== 'complete'}
+                        htmlUrl={variant?.html_url}
+                        onClick={variant?.status === 'complete' ? () => handleVariantClick(idx + 1) : undefined}
+                      />
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            </Box>
+          )}
+
+          {/* Complete state - 2x2 grid with variants */}
+          {isComplete && !focusedVariantIndex && (
+            <Box sx={{ flex: 1, p: 2, overflow: 'auto' }}>
+              <Grid container spacing={2} sx={{ height: '100%' }}>
+                {['Variant A', 'Variant B', 'Variant C', 'Variant D'].map((label, idx) => {
+                  const variant = getVariantByIndex(idx + 1);
+                  return (
+                    <Grid item xs={6} key={label} sx={{ height: '50%' }}>
+                      <CanvasVariantCard
+                        label={label}
+                        htmlUrl={variant?.html_url}
+                        onClick={() => handleVariantClick(idx + 1)}
+                      />
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            </Box>
+          )}
+
+          {/* Focused variant - single full preview */}
+          {focusedVariantIndex && focusedVariant && (
+            <Box sx={{ flex: 1, p: 2, overflow: 'hidden' }}>
+              <Card
+                variant="outlined"
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                <Box
+                  sx={{
+                    flex: 1,
+                    position: 'relative',
+                    backgroundColor: '#fafafa',
+                  }}
+                >
+                  {focusedVariant.html_url ? (
+                    <iframe
+                      src={focusedVariant.html_url}
+                      title={`Preview Variant ${focusedVariantIndex}`}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        border: 'none',
+                      }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Typography color="text.secondary">
+                        Preview Variant {String.fromCharCode(64 + focusedVariantIndex)}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Card>
+            </Box>
+          )}
+        </Box>
+      </Box>
     </Box>
   );
 };
