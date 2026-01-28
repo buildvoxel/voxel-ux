@@ -11,7 +11,7 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
-import { voxelColors } from '@/theme/muiTheme';
+import { useThemeStore, useBackgroundStyle } from '@/store/themeStore';
 
 const SIDEBAR_WIDTH = 48;
 
@@ -34,6 +34,12 @@ const sidebarItems: SidebarItem[] = [
 export function VibeLayout() {
   const navigate = useNavigate();
   const [activeItem, setActiveItem] = useState('/prototypes');
+  const { config, mode } = useThemeStore();
+  const backgroundStyle = useBackgroundStyle();
+
+  const navHoverBg = mode === 'craftsman'
+    ? 'rgba(184, 134, 11, 0.1)'
+    : 'rgba(20, 184, 166, 0.15)';
 
   const handleNavigate = (path: string) => {
     setActiveItem(path);
@@ -42,11 +48,11 @@ export function VibeLayout() {
 
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      {/* Icon-only Sidebar - Deep Charcoal */}
+      {/* Icon-only Sidebar */}
       <Box
         sx={{
           width: SIDEBAR_WIDTH,
-          backgroundColor: voxelColors.bgDark,
+          backgroundColor: config.colors.bgDark,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -54,12 +60,14 @@ export function VibeLayout() {
           gap: 0.5,
         }}
       >
-        {/* Logo - Aged Brass */}
+        {/* Logo */}
         <Box
           sx={{
             width: 32,
             height: 32,
-            backgroundColor: voxelColors.primary,
+            background: mode === 'modern' && config.gradients
+              ? config.gradients.primary
+              : config.colors.primary,
             borderRadius: 1,
             display: 'flex',
             alignItems: 'center',
@@ -68,7 +76,7 @@ export function VibeLayout() {
             cursor: 'pointer',
             transition: 'background-color 0.2s',
             '&:hover': {
-              backgroundColor: voxelColors.primaryDark,
+              opacity: 0.9,
             },
           }}
           onClick={() => navigate('/')}
@@ -83,11 +91,11 @@ export function VibeLayout() {
             <IconButton
               onClick={() => handleNavigate(item.path)}
               sx={{
-                color: activeItem === item.path ? voxelColors.primary : '#A8A29E',
+                color: activeItem === item.path ? config.colors.primary : '#A8A29E',
                 borderRadius: 1,
                 '&:hover': {
                   color: 'white',
-                  backgroundColor: 'rgba(184, 134, 11, 0.1)',
+                  backgroundColor: navHoverBg,
                 },
               }}
             >
@@ -104,12 +112,7 @@ export function VibeLayout() {
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          backgroundColor: voxelColors.bgPrimary,
-          backgroundImage: `
-            linear-gradient(to right, ${voxelColors.grid} 1px, transparent 1px),
-            linear-gradient(to bottom, ${voxelColors.grid} 1px, transparent 1px)
-          `,
-          backgroundSize: '24px 24px',
+          ...backgroundStyle,
         }}
       >
         <Outlet />

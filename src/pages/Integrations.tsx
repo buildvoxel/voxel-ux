@@ -19,7 +19,7 @@ import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import CodeOutlinedIcon from '@mui/icons-material/CodeOutlined';
 import { useSnackbar } from '@/components/SnackbarProvider';
-import { voxelColors, voxelFonts } from '@/theme/muiTheme';
+import { useThemeStore } from '@/store/themeStore';
 
 interface Integration {
   id: string;
@@ -66,23 +66,25 @@ const categoryIcons: Record<string, React.ReactNode> = {
   'Dev Tools': <CodeOutlinedIcon />,
 };
 
-// Craftsman-aligned warm category colors
-const categoryColors: Record<string, string> = {
-  'Design Tools': voxelColors.primary, // Aged Brass
+// Category colors - will be dynamically set based on theme
+const getCategoryColors = (primary: string, textSecondary: string): Record<string, string> => ({
+  'Design Tools': primary,
   'AI & Code Gen': '#4D7C0F', // Olive (success tone)
   'Deployment': '#1E40AF', // Slate Blue (info tone)
   'Project Management': '#92400E', // Amber (warning tone)
-  'Dev Tools': voxelColors.textSecondary, // Walnut
-};
+  'Dev Tools': textSecondary,
+});
 
 export function Integrations() {
   const { showSuccess } = useSnackbar();
+  const { config, mode } = useThemeStore();
   const [localIntegrations, setLocalIntegrations] = useState(integrations);
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
   const [apiKey, setApiKey] = useState('');
 
   const categories = [...new Set(integrations.map((i) => i.category))];
+  const categoryColors = getCategoryColors(config.colors.primary, config.colors.textSecondary);
 
   const handleToggleConnection = (integration: Integration) => {
     if (integration.connected) {
@@ -115,15 +117,15 @@ export function Integrations() {
 
   return (
     <Box>
-      {/* Header - Instrument Serif */}
+      {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography
           variant="h1"
           sx={{
-            fontFamily: voxelFonts.display,
+            fontFamily: config.fonts.display,
             fontSize: '2.25rem',
-            fontWeight: 400,
-            color: voxelColors.textPrimary,
+            fontWeight: mode === 'craftsman' ? 400 : 700,
+            color: config.colors.textPrimary,
             mb: 1,
           }}
         >
@@ -137,7 +139,7 @@ export function Integrations() {
       {/* Categories */}
       {categories.map((category) => {
         const categoryIntegrations = localIntegrations.filter((i) => i.category === category);
-        const color = categoryColors[category] || voxelColors.primary;
+        const color = categoryColors[category] || config.colors.primary;
 
         return (
           <Box key={category} sx={{ mb: 4 }}>
@@ -146,7 +148,7 @@ export function Integrations() {
               <Typography
                 variant="h3"
                 sx={{
-                  fontFamily: voxelFonts.display,
+                  fontFamily: config.fonts.display,
                   fontSize: '1.25rem',
                   fontWeight: 400,
                 }}
@@ -157,7 +159,7 @@ export function Integrations() {
                 label={`${categoryIntegrations.filter((i) => i.connected).length}/${categoryIntegrations.length}`}
                 size="small"
                 variant="outlined"
-                sx={{ borderColor: voxelColors.border }}
+                sx={{ borderColor: config.colors.border }}
               />
             </Box>
 
@@ -167,7 +169,7 @@ export function Integrations() {
                   <Card
                     sx={{
                       height: '100%',
-                      border: integration.connected ? `2px solid ${voxelColors.success}` : `1px solid ${voxelColors.border}`,
+                      border: integration.connected ? `2px solid ${config.colors.success}` : `1px solid ${config.colors.border}`,
                     }}
                   >
                     <CardContent>
@@ -179,14 +181,14 @@ export function Integrations() {
                               width: 40,
                               height: 40,
                               borderRadius: 1,
-                              backgroundColor: voxelColors.bgDark,
+                              backgroundColor: config.colors.bgDark,
                               color,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               fontWeight: 700,
                               fontSize: 14,
-                              fontFamily: voxelFonts.body,
+                              fontFamily: config.fonts.body,
                             }}
                           >
                             {integration.icon}
@@ -203,7 +205,7 @@ export function Integrations() {
                           </Box>
                         </Box>
                         {integration.connected && (
-                          <CheckCircleOutlinedIcon sx={{ color: voxelColors.success, fontSize: 20 }} />
+                          <CheckCircleOutlinedIcon sx={{ color: config.colors.success, fontSize: 20 }} />
                         )}
                       </Box>
 
@@ -214,7 +216,7 @@ export function Integrations() {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Typography
                           variant="caption"
-                          sx={{ color: integration.connected ? voxelColors.success : voxelColors.textSecondary }}
+                          sx={{ color: integration.connected ? config.colors.success : config.colors.textSecondary }}
                         >
                           {integration.connected ? 'Connected' : 'Not connected'}
                         </Typography>
@@ -235,7 +237,7 @@ export function Integrations() {
 
       {/* Connect Dialog */}
       <Dialog open={connectDialogOpen} onClose={() => setConnectDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontFamily: voxelFonts.display, fontWeight: 400 }}>
+        <DialogTitle sx={{ fontFamily: config.fonts.display, fontWeight: 400 }}>
           Connect to {selectedIntegration?.name}
         </DialogTitle>
         <DialogContent>

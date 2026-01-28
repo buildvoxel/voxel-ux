@@ -4,7 +4,7 @@ import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import TrendingDownOutlinedIcon from '@mui/icons-material/TrendingDownOutlined';
-import { voxelColors, voxelFonts } from '@/theme/muiTheme';
+import { useThemeStore } from '@/store/themeStore';
 
 interface StatCardProps {
   title: string;
@@ -18,7 +18,8 @@ interface StatCardProps {
 }
 
 export function StatCard({ title, value, icon, trend, color }: StatCardProps) {
-  const iconColor = color || voxelColors.primary;
+  const { config, mode } = useThemeStore();
+  const iconColor = color || config.colors.primary;
 
   return (
     <Card>
@@ -28,8 +29,8 @@ export function StatCard({ title, value, icon, trend, color }: StatCardProps) {
             <Typography
               variant="overline"
               sx={{
-                color: voxelColors.textSecondary,
-                fontFamily: voxelFonts.body,
+                color: config.colors.textSecondary,
+                fontFamily: config.fonts.body,
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 letterSpacing: '0.05em',
@@ -41,10 +42,10 @@ export function StatCard({ title, value, icon, trend, color }: StatCardProps) {
               variant="h4"
               component="div"
               sx={{
-                fontFamily: voxelFonts.display,
-                fontWeight: 400,
+                fontFamily: config.fonts.display,
+                fontWeight: mode === 'craftsman' ? 400 : 700,
                 fontSize: '1.75rem',
-                color: voxelColors.textPrimary,
+                color: config.colors.textPrimary,
                 mt: 0.5,
               }}
             >
@@ -53,14 +54,14 @@ export function StatCard({ title, value, icon, trend, color }: StatCardProps) {
             {trend && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1 }}>
                 {trend.direction === 'up' ? (
-                  <TrendingUpOutlinedIcon sx={{ fontSize: 16, color: voxelColors.success }} />
+                  <TrendingUpOutlinedIcon sx={{ fontSize: 16, color: config.colors.success }} />
                 ) : (
-                  <TrendingDownOutlinedIcon sx={{ fontSize: 16, color: voxelColors.error }} />
+                  <TrendingDownOutlinedIcon sx={{ fontSize: 16, color: config.colors.error }} />
                 )}
                 <Typography
                   variant="caption"
                   sx={{
-                    color: trend.direction === 'up' ? voxelColors.success : voxelColors.error,
+                    color: trend.direction === 'up' ? config.colors.success : config.colors.error,
                     fontWeight: 500,
                   }}
                 >
@@ -75,7 +76,7 @@ export function StatCard({ title, value, icon, trend, color }: StatCardProps) {
                 width: 40,
                 height: 40,
                 borderRadius: 1,
-                backgroundColor: voxelColors.bgDark,
+                backgroundColor: config.colors.bgDark,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',

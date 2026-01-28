@@ -15,7 +15,7 @@ import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { StatCard } from '@/components';
 import { useAuthStore } from '@/store/authStore';
-import { voxelColors, voxelFonts } from '@/theme/muiTheme';
+import { useThemeStore } from '@/store/themeStore';
 
 // Mock data
 const recentPrototypes = [
@@ -97,18 +97,19 @@ const getStatusColor = (status: string) => {
 export function Home() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { config, mode } = useThemeStore();
 
   return (
     <Box>
-      {/* Header - Instrument Serif for main heading */}
+      {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography
           variant="h1"
           sx={{
-            fontFamily: voxelFonts.display,
+            fontFamily: config.fonts.display,
             fontSize: '2.25rem',
-            fontWeight: 400,
-            color: voxelColors.textPrimary,
+            fontWeight: mode === 'craftsman' ? 400 : 700,
+            color: config.colors.textPrimary,
             mb: 1,
           }}
         >
@@ -149,7 +150,7 @@ export function Home() {
             title="Deployed"
             value={3}
             icon={<RocketLaunchOutlinedIcon />}
-            color={voxelColors.success}
+            color={config.colors.success}
           />
         </Grid>
       </Grid>
@@ -163,7 +164,7 @@ export function Home() {
                 <Typography
                   variant="h3"
                   sx={{
-                    fontFamily: voxelFonts.display,
+                    fontFamily: config.fonts.display,
                     fontSize: '1.25rem',
                     fontWeight: 400,
                   }}
@@ -191,13 +192,13 @@ export function Home() {
                               width: 48,
                               height: 48,
                               borderRadius: 1,
-                              backgroundColor: voxelColors.bgDark,
+                              backgroundColor: config.colors.bgDark,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                             }}
                           >
-                            <ScienceOutlinedIcon sx={{ color: voxelColors.primary }} />
+                            <ScienceOutlinedIcon sx={{ color: config.colors.primary }} />
                           </Box>
                           <Box>
                             <Typography variant="subtitle1" fontWeight={500}>
@@ -237,7 +238,7 @@ export function Home() {
               <Typography
                 variant="h3"
                 sx={{
-                  fontFamily: voxelFonts.display,
+                  fontFamily: config.fonts.display,
                   fontSize: '1.25rem',
                   fontWeight: 400,
                   mb: 2,
@@ -255,7 +256,7 @@ export function Home() {
                       alignItems: 'center',
                       p: 1.5,
                       borderRadius: 1,
-                      backgroundColor: voxelColors.bgSecondary,
+                      backgroundColor: config.colors.bgSecondary,
                     }}
                   >
                     <Box>
@@ -267,8 +268,8 @@ export function Home() {
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <TrendingUpOutlinedIcon sx={{ fontSize: 16, color: voxelColors.success }} />
-                      <Typography variant="body2" sx={{ color: voxelColors.success, fontWeight: 600 }}>
+                      <TrendingUpOutlinedIcon sx={{ fontSize: 16, color: config.colors.success }} />
+                      <Typography variant="body2" sx={{ color: config.colors.success, fontWeight: 600 }}>
                         {insight.value}
                       </Typography>
                     </Box>
@@ -292,7 +293,7 @@ export function Home() {
               <Typography
                 variant="h3"
                 sx={{
-                  fontFamily: voxelFonts.display,
+                  fontFamily: config.fonts.display,
                   fontSize: '1.25rem',
                   fontWeight: 400,
                   mb: 2,

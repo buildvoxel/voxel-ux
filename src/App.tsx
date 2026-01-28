@@ -5,7 +5,6 @@ import CssBaseline from '@mui/material/CssBaseline';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { muiTheme } from '@/theme/muiTheme';
 import { SnackbarProvider } from '@/components/SnackbarProvider';
 import { AppLayout, AuthLayout, VibeLayout } from '@/layouts';
 import {
@@ -24,6 +23,7 @@ import {
   Integrations,
 } from '@/pages';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeStore } from '@/store/themeStore';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,6 +57,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   const { initialize, isLoading } = useAuthStore();
+  const { config } = useThemeStore();
 
   useEffect(() => {
     initialize();
@@ -64,7 +65,7 @@ function App() {
 
   if (isLoading) {
     return (
-      <ThemeProvider theme={muiTheme}>
+      <ThemeProvider theme={config.muiTheme}>
         <CssBaseline />
         <Box
           sx={{
@@ -82,7 +83,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={muiTheme}>
+      <ThemeProvider theme={config.muiTheme}>
         <CssBaseline />
         <SnackbarProvider>
           <BrowserRouter>

@@ -30,7 +30,7 @@ import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import { EmptyState } from '@/components';
 import { useSnackbar } from '@/components/SnackbarProvider';
-import { voxelColors, voxelFonts } from '@/theme/muiTheme';
+import { useThemeStore } from '@/store/themeStore';
 
 interface Prototype {
   id: string;
@@ -96,6 +96,7 @@ const getStatusColor = (status: string) => {
 export function Prototypes() {
   const navigate = useNavigate();
   const { showSuccess } = useSnackbar();
+  const { config, mode } = useThemeStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [tabValue, setTabValue] = useState(0);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -143,15 +144,15 @@ export function Prototypes() {
 
   return (
     <Box>
-      {/* Header - Instrument Serif */}
+      {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography
           variant="h1"
           sx={{
-            fontFamily: voxelFonts.display,
+            fontFamily: config.fonts.display,
             fontSize: '2.25rem',
-            fontWeight: 400,
-            color: voxelColors.textPrimary,
+            fontWeight: mode === 'craftsman' ? 400 : 700,
+            color: config.colors.textPrimary,
           }}
         >
           Prototypes
@@ -176,7 +177,7 @@ export function Prototypes() {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchOutlinedIcon fontSize="small" sx={{ color: voxelColors.textSecondary }} />
+                <SearchOutlinedIcon fontSize="small" sx={{ color: config.colors.textSecondary }} />
               </InputAdornment>
             ),
           }}
@@ -210,14 +211,14 @@ export function Prototypes() {
                   <Box
                     sx={{
                       height: 160,
-                      backgroundColor: voxelColors.bgDark,
+                      backgroundColor: config.colors.bgDark,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       position: 'relative',
                     }}
                   >
-                    <ScienceOutlinedIcon sx={{ fontSize: 48, color: voxelColors.primary, opacity: 0.6 }} />
+                    <ScienceOutlinedIcon sx={{ fontSize: 48, color: config.colors.primary, opacity: 0.6 }} />
                     <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
                       <Chip
                         label={prototype.status}
@@ -243,7 +244,7 @@ export function Prototypes() {
                     <IconButton
                       size="small"
                       onClick={(e) => handleMenuOpen(e, prototype)}
-                      sx={{ color: voxelColors.textSecondary }}
+                      sx={{ color: config.colors.textSecondary }}
                     >
                       <MoreVertOutlinedIcon fontSize="small" />
                     </IconButton>
@@ -262,26 +263,26 @@ export function Prototypes() {
         onClose={handleMenuClose}
       >
         <MenuItem onClick={() => { handleMenuClose(); navigate(`/prototypes/${selectedPrototype?.id}`); }}>
-          <ListItemIcon><EditOutlinedIcon fontSize="small" sx={{ color: voxelColors.textSecondary }} /></ListItemIcon>
+          <ListItemIcon><EditOutlinedIcon fontSize="small" sx={{ color: config.colors.textSecondary }} /></ListItemIcon>
           Edit
         </MenuItem>
         <MenuItem onClick={handleMenuClose}>
-          <ListItemIcon><ContentCopyOutlinedIcon fontSize="small" sx={{ color: voxelColors.textSecondary }} /></ListItemIcon>
+          <ListItemIcon><ContentCopyOutlinedIcon fontSize="small" sx={{ color: config.colors.textSecondary }} /></ListItemIcon>
           Duplicate
         </MenuItem>
         <MenuItem onClick={handleMenuClose}>
-          <ListItemIcon><ShareOutlinedIcon fontSize="small" sx={{ color: voxelColors.textSecondary }} /></ListItemIcon>
+          <ListItemIcon><ShareOutlinedIcon fontSize="small" sx={{ color: config.colors.textSecondary }} /></ListItemIcon>
           Share
         </MenuItem>
-        <MenuItem onClick={handleMenuClose} sx={{ color: voxelColors.error }}>
-          <ListItemIcon><DeleteOutlinedIcon fontSize="small" sx={{ color: voxelColors.error }} /></ListItemIcon>
+        <MenuItem onClick={handleMenuClose} sx={{ color: config.colors.error }}>
+          <ListItemIcon><DeleteOutlinedIcon fontSize="small" sx={{ color: config.colors.error }} /></ListItemIcon>
           Delete
         </MenuItem>
       </Menu>
 
       {/* Create Dialog */}
       <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontFamily: voxelFonts.display, fontWeight: 400 }}>
+        <DialogTitle sx={{ fontFamily: config.fonts.display, fontWeight: 400 }}>
           Create New Prototype
         </DialogTitle>
         <DialogContent>

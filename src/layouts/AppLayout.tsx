@@ -32,7 +32,8 @@ import ExpandMoreOutlinedIcon from '@mui/icons-material/ExpandMoreOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import { useAuthStore } from '@/store/authStore';
-import { voxelColors, voxelFonts } from '@/theme/muiTheme';
+import { useThemeStore, useBackgroundStyle } from '@/store/themeStore';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const drawerWidth = 240;
 const collapsedWidth = 64;
@@ -68,6 +69,8 @@ export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthStore();
+  const { config, mode } = useThemeStore();
+  const backgroundStyle = useBackgroundStyle();
 
   const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -94,14 +97,19 @@ export function AppLayout() {
 
   const currentWidth = collapsed ? collapsedWidth : drawerWidth;
 
-  // Craftsman Design System colors
+  // Dynamic theme colors
   const navTextColor = '#A8A29E'; // Muted text on dark
   const navActiveTextColor = '#FFFFFF'; // Active text
-  const navHoverBg = 'rgba(184, 134, 11, 0.1)'; // Brass hover
+  const navHoverBg = mode === 'craftsman'
+    ? 'rgba(184, 134, 11, 0.1)'
+    : 'rgba(20, 184, 166, 0.15)';
+  const navActiveBg = mode === 'craftsman'
+    ? 'rgba(184, 134, 11, 0.15)'
+    : 'rgba(20, 184, 166, 0.2)';
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Sidebar Drawer - Deep Charcoal */}
+      {/* Sidebar Drawer - Deep Charcoal/Void */}
       <Drawer
         variant="permanent"
         sx={{
@@ -112,12 +120,12 @@ export function AppLayout() {
             boxSizing: 'border-box',
             transition: 'width 0.2s ease-in-out',
             overflowX: 'hidden',
-            backgroundColor: voxelColors.bgDark,
+            backgroundColor: config.colors.bgDark,
             borderRight: 'none',
           },
         }}
       >
-        {/* Logo - Instrument Serif for brand name */}
+        {/* Logo */}
         <Toolbar
           sx={{
             display: 'flex',
@@ -132,7 +140,9 @@ export function AppLayout() {
             sx={{
               width: 32,
               height: 32,
-              backgroundColor: voxelColors.primary,
+              background: mode === 'modern' && config.gradients
+                ? config.gradients.primary
+                : config.colors.primary,
               borderRadius: 1,
               display: 'flex',
               alignItems: 'center',
@@ -145,9 +155,9 @@ export function AppLayout() {
           {!collapsed && (
             <Typography
               sx={{
-                fontFamily: voxelFonts.display,
+                fontFamily: config.fonts.display,
                 fontSize: '1.125rem',
-                fontWeight: 400,
+                fontWeight: mode === 'craftsman' ? 400 : 700,
                 color: 'white',
               }}
             >
@@ -189,7 +199,7 @@ export function AppLayout() {
                           minWidth: 0,
                           mr: collapsed ? 0 : 2,
                           justifyContent: 'center',
-                          color: isParentActive ? voxelColors.primary : navTextColor,
+                          color: isParentActive ? config.colors.primary : navTextColor,
                         }}
                       >
                         {item.icon}
@@ -225,16 +235,16 @@ export function AppLayout() {
                                 py: 0.75,
                                 mb: 0.25,
                                 borderRadius: 1,
-                                backgroundColor: isChildActive ? 'rgba(184, 134, 11, 0.15)' : 'transparent',
+                                backgroundColor: isChildActive ? navActiveBg : 'transparent',
                                 '&:hover': {
-                                  backgroundColor: isChildActive ? 'rgba(184, 134, 11, 0.2)' : navHoverBg,
+                                  backgroundColor: isChildActive ? navHoverBg : navHoverBg,
                                 },
                               }}
                             >
                               <ListItemIcon
                                 sx={{
                                   minWidth: 32,
-                                  color: isChildActive ? voxelColors.primary : navTextColor,
+                                  color: isChildActive ? config.colors.primary : navTextColor,
                                 }}
                               >
                                 {child.icon}
@@ -267,9 +277,9 @@ export function AppLayout() {
                     justifyContent: collapsed ? 'center' : 'flex-start',
                     px: 1.5,
                     borderRadius: 1,
-                    backgroundColor: isItemActive ? 'rgba(184, 134, 11, 0.15)' : 'transparent',
+                    backgroundColor: isItemActive ? navActiveBg : 'transparent',
                     '&:hover': {
-                      backgroundColor: isItemActive ? 'rgba(184, 134, 11, 0.2)' : navHoverBg,
+                      backgroundColor: isItemActive ? navHoverBg : navHoverBg,
                     },
                   }}
                 >
@@ -278,7 +288,7 @@ export function AppLayout() {
                       minWidth: 0,
                       mr: collapsed ? 0 : 2,
                       justifyContent: 'center',
-                      color: isItemActive ? voxelColors.primary : navTextColor,
+                      color: isItemActive ? config.colors.primary : navTextColor,
                     }}
                   >
                     {item.icon}
@@ -319,19 +329,22 @@ export function AppLayout() {
           position="static"
           elevation={0}
           sx={{
-            backgroundColor: voxelColors.surface,
-            borderBottom: `1px solid ${voxelColors.border}`,
+            backgroundColor: config.colors.surface,
+            borderBottom: `1px solid ${config.colors.border}`,
           }}
         >
           <Toolbar>
             <Box sx={{ flexGrow: 1 }} />
-            <IconButton onClick={handleUserMenuOpen} size="small">
+            <ThemeToggle />
+            <IconButton onClick={handleUserMenuOpen} size="small" sx={{ ml: 1 }}>
               <Avatar
                 sx={{
                   width: 32,
                   height: 32,
-                  bgcolor: voxelColors.primary,
-                  fontFamily: voxelFonts.body,
+                  background: mode === 'modern' && config.gradients
+                    ? config.gradients.primary
+                    : config.colors.primary,
+                  fontFamily: config.fonts.body,
                   fontSize: 14,
                   fontWeight: 500,
                 }}
@@ -348,7 +361,7 @@ export function AppLayout() {
               slotProps={{
                 paper: {
                   sx: {
-                    border: `1px solid ${voxelColors.border}`,
+                    border: `1px solid ${config.colors.border}`,
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                     mt: 0.5,
                   },
@@ -363,13 +376,13 @@ export function AppLayout() {
               <Divider />
               <MenuItem onClick={() => { handleUserMenuClose(); navigate('/settings'); }}>
                 <ListItemIcon>
-                  <PersonOutlinedIcon fontSize="small" sx={{ color: voxelColors.textSecondary }} />
+                  <PersonOutlinedIcon fontSize="small" sx={{ color: config.colors.textSecondary }} />
                 </ListItemIcon>
                 Settings
               </MenuItem>
               <MenuItem onClick={handleLogout}>
                 <ListItemIcon>
-                  <LogoutOutlinedIcon fontSize="small" sx={{ color: voxelColors.textSecondary }} />
+                  <LogoutOutlinedIcon fontSize="small" sx={{ color: config.colors.textSecondary }} />
                 </ListItemIcon>
                 Logout
               </MenuItem>
@@ -377,18 +390,13 @@ export function AppLayout() {
           </Toolbar>
         </AppBar>
 
-        {/* Page Content - Parchment background with grid */}
+        {/* Page Content - Dynamic background */}
         <Box
           component="main"
           sx={{
             flexGrow: 1,
             p: 3,
-            backgroundColor: voxelColors.bgPrimary,
-            backgroundImage: `
-              linear-gradient(to right, ${voxelColors.grid} 1px, transparent 1px),
-              linear-gradient(to bottom, ${voxelColors.grid} 1px, transparent 1px)
-            `,
-            backgroundSize: '24px 24px',
+            ...backgroundStyle,
             overflow: 'auto',
           }}
         >
