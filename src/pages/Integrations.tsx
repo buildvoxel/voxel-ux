@@ -12,13 +12,14 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import TextField from '@mui/material/TextField';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import DesignServicesIcon from '@mui/icons-material/DesignServices';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import AssignmentIcon from '@mui/icons-material/Assignment';
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
+import DesignServicesOutlinedIcon from '@mui/icons-material/DesignServicesOutlined';
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
+import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import CodeOutlinedIcon from '@mui/icons-material/CodeOutlined';
 import { useSnackbar } from '@/components/SnackbarProvider';
+import { voxelColors, voxelFonts } from '@/theme/muiTheme';
 
 interface Integration {
   id: string;
@@ -58,19 +59,20 @@ const integrations: Integration[] = [
 ];
 
 const categoryIcons: Record<string, React.ReactNode> = {
-  'Design Tools': <DesignServicesIcon />,
-  'AI & Code Gen': <SmartToyIcon />,
-  'Deployment': <CloudUploadIcon />,
-  'Project Management': <AssignmentIcon />,
+  'Design Tools': <DesignServicesOutlinedIcon />,
+  'AI & Code Gen': <SmartToyOutlinedIcon />,
+  'Deployment': <CloudUploadOutlinedIcon />,
+  'Project Management': <AssignmentOutlinedIcon />,
   'Dev Tools': <CodeOutlinedIcon />,
 };
 
+// Craftsman-aligned warm category colors
 const categoryColors: Record<string, string> = {
-  'Design Tools': '#ff6b6b',
-  'AI & Code Gen': '#4ecdc4',
-  'Deployment': '#45b7d1',
-  'Project Management': '#96ceb4',
-  'Dev Tools': '#dda0dd',
+  'Design Tools': voxelColors.primary, // Aged Brass
+  'AI & Code Gen': '#4D7C0F', // Olive (success tone)
+  'Deployment': '#1E40AF', // Slate Blue (info tone)
+  'Project Management': '#92400E', // Amber (warning tone)
+  'Dev Tools': voxelColors.textSecondary, // Walnut
 };
 
 export function Integrations() {
@@ -113,9 +115,18 @@ export function Integrations() {
 
   return (
     <Box>
-      {/* Header */}
+      {/* Header - Instrument Serif */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={600} gutterBottom>
+        <Typography
+          variant="h1"
+          sx={{
+            fontFamily: voxelFonts.display,
+            fontSize: '2.25rem',
+            fontWeight: 400,
+            color: voxelColors.textPrimary,
+            mb: 1,
+          }}
+        >
           Integrations
         </Typography>
         <Typography variant="body1" color="text.secondary">
@@ -126,19 +137,27 @@ export function Integrations() {
       {/* Categories */}
       {categories.map((category) => {
         const categoryIntegrations = localIntegrations.filter((i) => i.category === category);
-        const color = categoryColors[category] || '#764ba2';
+        const color = categoryColors[category] || voxelColors.primary;
 
         return (
           <Box key={category} sx={{ mb: 4 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <Box sx={{ color }}>{categoryIcons[category]}</Box>
-              <Typography variant="h6" fontWeight={600}>
+              <Typography
+                variant="h3"
+                sx={{
+                  fontFamily: voxelFonts.display,
+                  fontSize: '1.25rem',
+                  fontWeight: 400,
+                }}
+              >
                 {category}
               </Typography>
               <Chip
                 label={`${categoryIntegrations.filter((i) => i.connected).length}/${categoryIntegrations.length}`}
                 size="small"
                 variant="outlined"
+                sx={{ borderColor: voxelColors.border }}
               />
             </Box>
 
@@ -148,25 +167,26 @@ export function Integrations() {
                   <Card
                     sx={{
                       height: '100%',
-                      border: integration.connected ? '2px solid' : '1px solid',
-                      borderColor: integration.connected ? 'success.main' : 'divider',
+                      border: integration.connected ? `2px solid ${voxelColors.success}` : `1px solid ${voxelColors.border}`,
                     }}
                   >
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          {/* Icon box - Deep Charcoal with category color icon */}
                           <Box
                             sx={{
                               width: 40,
                               height: 40,
                               borderRadius: 1,
-                              backgroundColor: `${color}20`,
+                              backgroundColor: voxelColors.bgDark,
                               color,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               fontWeight: 700,
                               fontSize: 14,
+                              fontFamily: voxelFonts.body,
                             }}
                           >
                             {integration.icon}
@@ -183,7 +203,7 @@ export function Integrations() {
                           </Box>
                         </Box>
                         {integration.connected && (
-                          <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} />
+                          <CheckCircleOutlinedIcon sx={{ color: voxelColors.success, fontSize: 20 }} />
                         )}
                       </Box>
 
@@ -192,14 +212,16 @@ export function Integrations() {
                       </Typography>
 
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography variant="caption" color={integration.connected ? 'success.main' : 'text.secondary'}>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: integration.connected ? voxelColors.success : voxelColors.textSecondary }}
+                        >
                           {integration.connected ? 'Connected' : 'Not connected'}
                         </Typography>
                         <Switch
                           checked={integration.connected}
                           onChange={() => handleToggleConnection(integration)}
                           size="small"
-                          color="success"
                         />
                       </Box>
                     </CardContent>
@@ -213,7 +235,7 @@ export function Integrations() {
 
       {/* Connect Dialog */}
       <Dialog open={connectDialogOpen} onClose={() => setConnectDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
+        <DialogTitle sx={{ fontFamily: voxelFonts.display, fontWeight: 400 }}>
           Connect to {selectedIntegration?.name}
         </DialogTitle>
         <DialogContent>
@@ -230,7 +252,9 @@ export function Integrations() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConnectDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setConnectDialogOpen(false)} variant="outlined">
+            Cancel
+          </Button>
           <Button variant="contained" onClick={handleConnect}>
             Connect
           </Button>

@@ -15,6 +15,7 @@ import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { StatCard } from '@/components';
 import { useAuthStore } from '@/store/authStore';
+import { voxelColors, voxelFonts } from '@/theme/muiTheme';
 
 // Mock data
 const recentPrototypes = [
@@ -99,9 +100,18 @@ export function Home() {
 
   return (
     <Box>
-      {/* Header */}
+      {/* Header - Instrument Serif for main heading */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={600} gutterBottom>
+        <Typography
+          variant="h1"
+          sx={{
+            fontFamily: voxelFonts.display,
+            fontSize: '2.25rem',
+            fontWeight: 400,
+            color: voxelColors.textPrimary,
+            mb: 1,
+          }}
+        >
           Welcome back, {user?.name?.split(' ')[0] || 'there'}
         </Typography>
         <Typography variant="body1" color="text.secondary">
@@ -139,7 +149,7 @@ export function Home() {
             title="Deployed"
             value={3}
             icon={<RocketLaunchOutlinedIcon />}
-            color="#52c41a"
+            color={voxelColors.success}
           />
         </Grid>
       </Grid>
@@ -150,7 +160,14 @@ export function Home() {
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6" fontWeight={600}>
+                <Typography
+                  variant="h3"
+                  sx={{
+                    fontFamily: voxelFonts.display,
+                    fontSize: '1.25rem',
+                    fontWeight: 400,
+                  }}
+                >
                   Recent Prototypes
                 </Typography>
                 <Button
@@ -168,18 +185,19 @@ export function Home() {
                     <CardActionArea onClick={() => navigate(`/prototypes/${prototype.id}`)}>
                       <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          {/* Icon box - Deep Charcoal with Brass icon */}
                           <Box
                             sx={{
                               width: 48,
                               height: 48,
                               borderRadius: 1,
-                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                              backgroundColor: voxelColors.bgDark,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                             }}
                           >
-                            <ScienceOutlinedIcon sx={{ color: 'white' }} />
+                            <ScienceOutlinedIcon sx={{ color: voxelColors.primary }} />
                           </Box>
                           <Box>
                             <Typography variant="subtitle1" fontWeight={500}>
@@ -216,7 +234,15 @@ export function Home() {
           {/* Recent Insights */}
           <Card sx={{ mb: 3 }}>
             <CardContent>
-              <Typography variant="h6" fontWeight={600} gutterBottom>
+              <Typography
+                variant="h3"
+                sx={{
+                  fontFamily: voxelFonts.display,
+                  fontSize: '1.25rem',
+                  fontWeight: 400,
+                  mb: 2,
+                }}
+              >
                 Recent Insights
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -229,7 +255,7 @@ export function Home() {
                       alignItems: 'center',
                       p: 1.5,
                       borderRadius: 1,
-                      backgroundColor: 'grey.50',
+                      backgroundColor: voxelColors.bgSecondary,
                     }}
                   >
                     <Box>
@@ -241,8 +267,8 @@ export function Home() {
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <TrendingUpOutlinedIcon sx={{ fontSize: 16, color: 'success.main' }} />
-                      <Typography variant="body2" color="success.main" fontWeight={600}>
+                      <TrendingUpOutlinedIcon sx={{ fontSize: 16, color: voxelColors.success }} />
+                      <Typography variant="body2" sx={{ color: voxelColors.success, fontWeight: 600 }}>
                         {insight.value}
                       </Typography>
                     </Box>
@@ -263,7 +289,15 @@ export function Home() {
           {/* Deployed Prototypes */}
           <Card>
             <CardContent>
-              <Typography variant="h6" fontWeight={600} gutterBottom>
+              <Typography
+                variant="h3"
+                sx={{
+                  fontFamily: voxelFonts.display,
+                  fontSize: '1.25rem',
+                  fontWeight: 400,
+                  mb: 2,
+                }}
+              >
                 Deployments
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

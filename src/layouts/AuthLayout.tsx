@@ -2,6 +2,8 @@ import { Outlet } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
+import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
+import { voxelColors, voxelFonts } from '@/theme/muiTheme';
 
 export function AuthLayout() {
   return (
@@ -11,7 +13,12 @@ export function AuthLayout() {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'background.default',
+        backgroundColor: voxelColors.bgPrimary,
+        backgroundImage: `
+          linear-gradient(to right, ${voxelColors.grid} 1px, transparent 1px),
+          linear-gradient(to bottom, ${voxelColors.grid} 1px, transparent 1px)
+        `,
+        backgroundSize: '24px 24px',
         p: 3,
       }}
     >
@@ -21,20 +28,36 @@ export function AuthLayout() {
           width: '100%',
           maxWidth: 400,
           p: 4,
-          borderRadius: 2,
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+          borderRadius: 3,
+          border: `1px solid ${voxelColors.border}`,
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
         }}
       >
         <Box sx={{ textAlign: 'center', mb: 4 }}>
+          {/* Logo */}
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              backgroundColor: voxelColors.primary,
+              borderRadius: 1.5,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mx: 'auto',
+              mb: 2,
+            }}
+          >
+            <ScienceOutlinedIcon sx={{ color: 'white', fontSize: 24 }} />
+          </Box>
           <Typography
             variant="h4"
             component="h1"
-            fontWeight={600}
             sx={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
+              fontFamily: voxelFonts.display,
+              fontWeight: 400,
+              fontSize: '1.75rem',
+              color: voxelColors.textPrimary,
             }}
           >
             Voxel

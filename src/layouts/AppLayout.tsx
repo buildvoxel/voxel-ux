@@ -32,6 +32,7 @@ import ExpandMoreOutlinedIcon from '@mui/icons-material/ExpandMoreOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import { useAuthStore } from '@/store/authStore';
+import { voxelColors, voxelFonts } from '@/theme/muiTheme';
 
 const drawerWidth = 240;
 const collapsedWidth = 64;
@@ -93,9 +94,14 @@ export function AppLayout() {
 
   const currentWidth = collapsed ? collapsedWidth : drawerWidth;
 
+  // Craftsman Design System colors
+  const navTextColor = '#A8A29E'; // Muted text on dark
+  const navActiveTextColor = '#FFFFFF'; // Active text
+  const navHoverBg = 'rgba(184, 134, 11, 0.1)'; // Brass hover
+
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Sidebar Drawer */}
+      {/* Sidebar Drawer - Deep Charcoal */}
       <Drawer
         variant="permanent"
         sx={{
@@ -106,48 +112,59 @@ export function AppLayout() {
             boxSizing: 'border-box',
             transition: 'width 0.2s ease-in-out',
             overflowX: 'hidden',
+            backgroundColor: voxelColors.bgDark,
+            borderRight: 'none',
           },
         }}
       >
-        {/* Logo */}
+        {/* Logo - Instrument Serif for brand name */}
         <Toolbar
           sx={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'flex-start',
             px: collapsed ? 1 : 2,
-            gap: 1,
+            gap: 1.5,
+            minHeight: 64,
           }}
         >
           <Box
             sx={{
-              width: 36,
-              height: 36,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: 1.5,
+              width: 32,
+              height: 32,
+              backgroundColor: voxelColors.primary,
+              borderRadius: 1,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
             }}
           >
-            <ScienceOutlinedIcon sx={{ color: 'white', fontSize: 20 }} />
+            <ScienceOutlinedIcon sx={{ color: 'white', fontSize: 18 }} />
           </Box>
           {!collapsed && (
-            <Typography variant="h6" fontWeight={600}>
+            <Typography
+              sx={{
+                fontFamily: voxelFonts.display,
+                fontSize: '1.125rem',
+                fontWeight: 400,
+                color: 'white',
+              }}
+            >
               Voxel
             </Typography>
           )}
         </Toolbar>
-        <Divider />
+        <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
 
         {/* Navigation */}
-        <List sx={{ flex: 1, pt: 1 }}>
+        <List sx={{ flex: 1, pt: 1, px: 1 }}>
           {navItems.map((item) => {
             if (item.children) {
+              const isParentActive = isActive('/repository');
               return (
                 <Box key={item.label}>
-                  <ListItem disablePadding>
+                  <ListItem disablePadding sx={{ mb: 0.5 }}>
                     <ListItemButton
                       onClick={() => {
                         if (collapsed) {
@@ -160,7 +177,11 @@ export function AppLayout() {
                       sx={{
                         minHeight: 44,
                         justifyContent: collapsed ? 'center' : 'flex-start',
-                        px: 2.5,
+                        px: 1.5,
+                        borderRadius: 1,
+                        '&:hover': {
+                          backgroundColor: navHoverBg,
+                        },
                       }}
                     >
                       <ListItemIcon
@@ -168,7 +189,7 @@ export function AppLayout() {
                           minWidth: 0,
                           mr: collapsed ? 0 : 2,
                           justifyContent: 'center',
-                          color: isActive('/repository') ? 'primary.main' : 'inherit',
+                          color: isParentActive ? voxelColors.primary : navTextColor,
                         }}
                       >
                         {item.icon}
@@ -179,11 +200,13 @@ export function AppLayout() {
                             primary={item.label}
                             primaryTypographyProps={{
                               fontSize: 14,
-                              fontWeight: isActive('/repository') ? 600 : 400,
-                              color: isActive('/repository') ? 'primary.main' : 'inherit',
+                              fontWeight: isParentActive ? 500 : 400,
+                              color: isParentActive ? navActiveTextColor : navTextColor,
                             }}
                           />
-                          {repositoryOpen ? <ExpandLessOutlinedIcon /> : <ExpandMoreOutlinedIcon />}
+                          <Box sx={{ color: navTextColor }}>
+                            {repositoryOpen ? <ExpandLessOutlinedIcon fontSize="small" /> : <ExpandMoreOutlinedIcon fontSize="small" />}
+                          </Box>
                         </>
                       )}
                     </ListItemButton>
@@ -191,35 +214,42 @@ export function AppLayout() {
                   {!collapsed && (
                     <Collapse in={repositoryOpen} timeout="auto" unmountOnExit>
                       <List component="div" disablePadding>
-                        {item.children.map((child) => (
-                          <ListItemButton
-                            key={child.path}
-                            onClick={() => handleNavigate(child.path)}
-                            selected={isActive(child.path)}
-                            sx={{
-                              pl: 4,
-                              minHeight: 40,
-                              '&.Mui-selected': {
-                                backgroundColor: 'primary.main',
-                                color: 'white',
+                        {item.children.map((child) => {
+                          const isChildActive = isActive(child.path);
+                          return (
+                            <ListItemButton
+                              key={child.path}
+                              onClick={() => handleNavigate(child.path)}
+                              sx={{
+                                pl: 4,
+                                py: 0.75,
+                                mb: 0.25,
+                                borderRadius: 1,
+                                backgroundColor: isChildActive ? 'rgba(184, 134, 11, 0.15)' : 'transparent',
                                 '&:hover': {
-                                  backgroundColor: 'primary.dark',
+                                  backgroundColor: isChildActive ? 'rgba(184, 134, 11, 0.2)' : navHoverBg,
                                 },
-                                '& .MuiListItemIcon-root': {
-                                  color: 'white',
-                                },
-                              },
-                            }}
-                          >
-                            <ListItemIcon sx={{ minWidth: 36, fontSize: 18 }}>
-                              {child.icon}
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={child.label}
-                              primaryTypographyProps={{ fontSize: 13 }}
-                            />
-                          </ListItemButton>
-                        ))}
+                              }}
+                            >
+                              <ListItemIcon
+                                sx={{
+                                  minWidth: 32,
+                                  color: isChildActive ? voxelColors.primary : navTextColor,
+                                }}
+                              >
+                                {child.icon}
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={child.label}
+                                primaryTypographyProps={{
+                                  fontSize: 13,
+                                  fontWeight: isChildActive ? 500 : 400,
+                                  color: isChildActive ? navActiveTextColor : navTextColor,
+                                }}
+                              />
+                            </ListItemButton>
+                          );
+                        })}
                       </List>
                     </Collapse>
                   )}
@@ -227,24 +257,19 @@ export function AppLayout() {
               );
             }
 
+            const isItemActive = item.path ? isActive(item.path) : false;
             return (
-              <ListItem key={item.label} disablePadding>
+              <ListItem key={item.label} disablePadding sx={{ mb: 0.5 }}>
                 <ListItemButton
                   onClick={() => item.path && handleNavigate(item.path)}
-                  selected={item.path ? isActive(item.path) : false}
                   sx={{
                     minHeight: 44,
                     justifyContent: collapsed ? 'center' : 'flex-start',
-                    px: 2.5,
-                    '&.Mui-selected': {
-                      backgroundColor: 'primary.main',
-                      color: 'white',
-                      '&:hover': {
-                        backgroundColor: 'primary.dark',
-                      },
-                      '& .MuiListItemIcon-root': {
-                        color: 'white',
-                      },
+                    px: 1.5,
+                    borderRadius: 1,
+                    backgroundColor: isItemActive ? 'rgba(184, 134, 11, 0.15)' : 'transparent',
+                    '&:hover': {
+                      backgroundColor: isItemActive ? 'rgba(184, 134, 11, 0.2)' : navHoverBg,
                     },
                   }}
                 >
@@ -253,6 +278,7 @@ export function AppLayout() {
                       minWidth: 0,
                       mr: collapsed ? 0 : 2,
                       justifyContent: 'center',
+                      color: isItemActive ? voxelColors.primary : navTextColor,
                     }}
                   >
                     {item.icon}
@@ -260,7 +286,11 @@ export function AppLayout() {
                   {!collapsed && (
                     <ListItemText
                       primary={item.label}
-                      primaryTypographyProps={{ fontSize: 14 }}
+                      primaryTypographyProps={{
+                        fontSize: 14,
+                        fontWeight: isItemActive ? 500 : 400,
+                        color: isItemActive ? navActiveTextColor : navTextColor,
+                      }}
                     />
                   )}
                 </ListItemButton>
@@ -270,9 +300,13 @@ export function AppLayout() {
         </List>
 
         {/* Collapse Toggle */}
-        <Divider />
+        <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
         <Box sx={{ p: 1, display: 'flex', justifyContent: 'center' }}>
-          <IconButton onClick={() => setCollapsed(!collapsed)} size="small">
+          <IconButton
+            onClick={() => setCollapsed(!collapsed)}
+            size="small"
+            sx={{ color: navTextColor, '&:hover': { color: navActiveTextColor } }}
+          >
             {collapsed ? <MenuOutlinedIcon /> : <ChevronLeftOutlinedIcon />}
           </IconButton>
         </Box>
@@ -280,17 +314,28 @@ export function AppLayout() {
 
       {/* Main Content */}
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* App Bar */}
+        {/* App Bar - Clean white header */}
         <AppBar
           position="static"
-          color="inherit"
           elevation={0}
-          sx={{ backgroundColor: 'background.paper' }}
+          sx={{
+            backgroundColor: voxelColors.surface,
+            borderBottom: `1px solid ${voxelColors.border}`,
+          }}
         >
           <Toolbar>
             <Box sx={{ flexGrow: 1 }} />
             <IconButton onClick={handleUserMenuOpen} size="small">
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+              <Avatar
+                sx={{
+                  width: 32,
+                  height: 32,
+                  bgcolor: voxelColors.primary,
+                  fontFamily: voxelFonts.body,
+                  fontSize: 14,
+                  fontWeight: 500,
+                }}
+              >
                 {user?.name?.charAt(0) || 'U'}
               </Avatar>
             </IconButton>
@@ -300,6 +345,15 @@ export function AppLayout() {
               onClose={handleUserMenuClose}
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
               transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              slotProps={{
+                paper: {
+                  sx: {
+                    border: `1px solid ${voxelColors.border}`,
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    mt: 0.5,
+                  },
+                },
+              }}
             >
               <MenuItem disabled>
                 <Typography variant="body2" color="text.secondary">
@@ -309,13 +363,13 @@ export function AppLayout() {
               <Divider />
               <MenuItem onClick={() => { handleUserMenuClose(); navigate('/settings'); }}>
                 <ListItemIcon>
-                  <PersonOutlinedIcon fontSize="small" />
+                  <PersonOutlinedIcon fontSize="small" sx={{ color: voxelColors.textSecondary }} />
                 </ListItemIcon>
                 Settings
               </MenuItem>
               <MenuItem onClick={handleLogout}>
                 <ListItemIcon>
-                  <LogoutOutlinedIcon fontSize="small" />
+                  <LogoutOutlinedIcon fontSize="small" sx={{ color: voxelColors.textSecondary }} />
                 </ListItemIcon>
                 Logout
               </MenuItem>
@@ -323,13 +377,18 @@ export function AppLayout() {
           </Toolbar>
         </AppBar>
 
-        {/* Page Content */}
+        {/* Page Content - Parchment background with grid */}
         <Box
           component="main"
           sx={{
             flexGrow: 1,
             p: 3,
-            backgroundColor: 'background.default',
+            backgroundColor: voxelColors.bgPrimary,
+            backgroundImage: `
+              linear-gradient(to right, ${voxelColors.grid} 1px, transparent 1px),
+              linear-gradient(to bottom, ${voxelColors.grid} 1px, transparent 1px)
+            `,
+            backgroundSize: '24px 24px',
             overflow: 'auto',
           }}
         >

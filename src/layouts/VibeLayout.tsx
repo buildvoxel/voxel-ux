@@ -11,6 +11,7 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import ExtensionOutlinedIcon from '@mui/icons-material/ExtensionOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import { voxelColors } from '@/theme/muiTheme';
 
 const SIDEBAR_WIDTH = 48;
 
@@ -41,11 +42,11 @@ export function VibeLayout() {
 
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      {/* Icon-only Sidebar */}
+      {/* Icon-only Sidebar - Deep Charcoal */}
       <Box
         sx={{
           width: SIDEBAR_WIDTH,
-          backgroundColor: 'grey.900',
+          backgroundColor: voxelColors.bgDark,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -53,24 +54,28 @@ export function VibeLayout() {
           gap: 0.5,
         }}
       >
-        {/* Logo */}
+        {/* Logo - Aged Brass */}
         <Box
           sx={{
             width: 32,
             height: 32,
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            backgroundColor: voxelColors.primary,
             borderRadius: 1,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             mb: 1,
             cursor: 'pointer',
+            transition: 'background-color 0.2s',
+            '&:hover': {
+              backgroundColor: voxelColors.primaryDark,
+            },
           }}
           onClick={() => navigate('/')}
         >
           <ScienceOutlinedIcon sx={{ color: 'white', fontSize: 18 }} />
         </Box>
-        <Divider sx={{ width: '80%', borderColor: 'grey.700', mb: 1 }} />
+        <Divider sx={{ width: '80%', borderColor: 'rgba(255,255,255,0.1)', mb: 1 }} />
 
         {/* Navigation Items */}
         {sidebarItems.map((item) => (
@@ -78,10 +83,11 @@ export function VibeLayout() {
             <IconButton
               onClick={() => handleNavigate(item.path)}
               sx={{
-                color: activeItem === item.path ? 'primary.light' : 'grey.500',
+                color: activeItem === item.path ? voxelColors.primary : '#A8A29E',
+                borderRadius: 1,
                 '&:hover': {
                   color: 'white',
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  backgroundColor: 'rgba(184, 134, 11, 0.1)',
                 },
               }}
             >
@@ -98,7 +104,12 @@ export function VibeLayout() {
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          backgroundColor: 'background.default',
+          backgroundColor: voxelColors.bgPrimary,
+          backgroundImage: `
+            linear-gradient(to right, ${voxelColors.grid} 1px, transparent 1px),
+            linear-gradient(to bottom, ${voxelColors.grid} 1px, transparent 1px)
+          `,
+          backgroundSize: '24px 24px',
         }}
       >
         <Outlet />
