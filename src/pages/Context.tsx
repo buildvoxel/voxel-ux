@@ -488,7 +488,7 @@ export function Context() {
   const totalFiles = Object.values(files).reduce((sum, arr) => sum + arr.length, 0);
 
   return (
-    <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
+    <Box>
       {/* Header */}
       <PageHeader
         title="Product Context"

@@ -908,7 +908,7 @@ export const DesignSystem: React.FC = () => {
   ];
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box>
       {/* Header */}
       <PageHeader
         title="Design System"
