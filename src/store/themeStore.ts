@@ -175,16 +175,12 @@ export const useThemeFonts = () => {
 
 // Helper to get background style
 export const useBackgroundStyle = () => {
-  const { config } = useThemeStore();
+  const { config, mode } = useThemeStore();
 
-  if (config.backgroundStyle === 'grid') {
+  if (mode === 'craftsman') {
+    // Craftsman: Clean solid background (no grid)
     return {
       backgroundColor: config.colors.bgPrimary,
-      backgroundImage: `
-        linear-gradient(to right, ${config.colors.border}40 1px, transparent 1px),
-        linear-gradient(to bottom, ${config.colors.border}40 1px, transparent 1px)
-      `,
-      backgroundSize: '24px 24px',
     };
   } else {
     // Modern gradient mesh - Indigo & Mint

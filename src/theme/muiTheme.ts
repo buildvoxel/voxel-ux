@@ -41,9 +41,9 @@ export const voxelColors = {
   infoBg: '#DBEAFE',
 };
 
-// Typography
+// Typography - Wide, elegant display font
 export const voxelFonts = {
-  display: "'Instrument Serif', Georgia, 'Times New Roman', serif",
+  display: "'Libre Baskerville', 'Georgia', 'Times New Roman', serif", // Wide serif
   body: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   mono: "'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace",
 };
@@ -102,7 +102,7 @@ export const muiTheme = createTheme({
       fontSize: '2.25rem',
       fontWeight: 400,
       lineHeight: 1.2,
-      letterSpacing: '-0.02em',
+      letterSpacing: '0.01em', // Wider spacing
       color: voxelColors.textPrimary,
     },
     h2: {
@@ -110,7 +110,7 @@ export const muiTheme = createTheme({
       fontSize: '1.875rem',
       fontWeight: 400,
       lineHeight: 1.25,
-      letterSpacing: '-0.01em',
+      letterSpacing: '0.01em', // Wider spacing
       color: voxelColors.textPrimary,
     },
     h3: {
@@ -118,6 +118,7 @@ export const muiTheme = createTheme({
       fontSize: '1.5rem',
       fontWeight: 400,
       lineHeight: 1.3,
+      letterSpacing: '0.005em', // Wider spacing
       color: voxelColors.textPrimary,
     },
     h4: {
@@ -181,14 +182,9 @@ export const muiTheme = createTheme({
       styleOverrides: {
         body: {
           backgroundColor: voxelColors.bgPrimary,
-          // Mathematical grid background pattern
-          backgroundImage: `
-            linear-gradient(to right, ${voxelColors.grid} 1px, transparent 1px),
-            linear-gradient(to bottom, ${voxelColors.grid} 1px, transparent 1px)
-          `,
-          backgroundSize: '24px 24px',
+          // Clean solid background (no grid)
         },
-        // Global smooth transitions (Linear-style)
+        // Global smooth transitions
         '*, *::before, *::after': {
           transition: 'background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease, transform 150ms ease',
         },
