@@ -22,14 +22,8 @@ const themeOptions: { mode: ThemeMode; name: string; description: string; previe
   {
     mode: 'modern',
     name: 'Modern Gradient',
-    description: 'Dynamic precision',
-    preview: ['#0D9488', '#7C3AED', '#0EA5E9'],
-  },
-  {
-    mode: 'indigo',
-    name: 'Indigo Mint',
-    description: 'Technical but approachable',
-    preview: ['#4F46E5', '#34D399', '#1E1B4B'],
+    description: 'Indigo & Mint',
+    preview: ['#4F46E5', '#34D399', '#6366F1'],
   },
 ];
 

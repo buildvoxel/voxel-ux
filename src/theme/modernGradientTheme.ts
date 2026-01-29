@@ -1,69 +1,80 @@
 import { createTheme } from '@mui/material/styles';
 
 // Voxel Modern Gradient Design System
-// "Dynamic precision" — A bold, ultra-modern design language that commands attention.
+// "Dynamic precision" — A bold, ultra-modern design language with Indigo & Mint
 
-// Color Palette
+// Color Palette - Indigo Mint inspired
 export const modernColors = {
-  // Primary - Teal
-  primary: '#0D9488', // Vivid Teal
-  primaryLight: '#14B8A6', // Bright Teal
-  primaryBright: '#2DD4BF', // Cyan Glow
-  primaryDark: '#0F766E', // Deep Teal
+  // Primary - Indigo
+  primary: '#4F46E5', // Electric Indigo
+  primaryLight: '#6366F1', // Indigo Light
+  primaryBright: '#818CF8', // Bright Indigo
+  primaryDark: '#3730A3', // Deep Indigo
 
-  // Secondary - Violet
-  secondary: '#7C3AED', // Electric Violet
-  secondaryLight: '#8B5CF6', // Bright Violet
-  secondaryBright: '#A78BFA', // Soft Violet
-  secondaryDark: '#6D28D9', // Deep Violet
+  // Secondary - Mint
+  secondary: '#34D399', // Fresh Mint
+  secondaryLight: '#6EE7B7', // Mint Light
+  secondaryBright: '#A7F3D0', // Soft Mint
+  secondaryDark: '#059669', // Deep Mint
 
-  // Accent - Sky Blue
-  accent: '#0EA5E9', // Sky Blue
-  accentLight: '#38BDF8', // Light Sky
-  accentBright: '#22D3EE', // Bright Cyan
-  accentDark: '#0284C7', // Deep Sky
+  // Accent - Mint Medium
+  accent: '#10B981', // Emerald
+  accentLight: '#34D399', // Fresh Mint
+  accentBright: '#6EE7B7', // Light Mint
+  accentDark: '#047857', // Deep Emerald
 
   // Neutrals
-  void: '#030712', // Dark mode, nav bar
-  textPrimary: '#0F172A', // Deep Space
-  surfaceDark: '#1E293B', // Slate 800
-  textSecondary: '#64748B', // Slate 500
-  textTertiary: '#94A3B8', // Slate 400
-  border: '#E2E8F0', // Slate 300
-  bgSecondary: '#F1F5F9', // Slate 100
-  bgPrimary: '#FAFBFC', // Snow
+  void: '#1E1B4B', // Deep Indigo (nav bar)
+  textPrimary: '#1E1B4B', // Deep Indigo
+  surfaceDark: '#312E81', // Indigo 900
+  textSecondary: '#374151', // Gray 700
+  textTertiary: '#6B7280', // Gray 500
+  border: '#E5E7EB', // Gray 200
+  bgSecondary: '#F3F4F6', // Gray 100
+  bgPrimary: '#FAFBFF', // Snow with hint of indigo
   surface: '#FFFFFF', // White
 
   // Semantic
-  success: '#059669', // Emerald
+  success: '#059669', // Mint Dark
   successBg: '#D1FAE5',
   warning: '#D97706', // Amber
   warningBg: '#FEF3C7',
-  error: '#E11D48', // Rose
-  errorBg: '#FFE4E6',
-  info: '#0EA5E9', // Sky
-  infoBg: '#E0F2FE',
+  error: '#DC2626', // Red
+  errorBg: '#FEE2E2',
+  info: '#4F46E5', // Indigo
+  infoBg: '#EEF2FF',
 };
 
 // Gradients
 export const modernGradients = {
-  primary: 'linear-gradient(135deg, #14B8A6 0%, #7C3AED 100%)',
-  teal: 'linear-gradient(135deg, #14B8A6 0%, #0D9488 100%)',
-  violet: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
-  spectrum: 'linear-gradient(135deg, #2DD4BF 0%, #14B8A6 25%, #7C3AED 50%, #8B5CF6 75%, #38BDF8 100%)',
-  hero: 'linear-gradient(135deg, #0D9488 0%, #7C3AED 50%, #0EA5E9 100%)',
+  primary: 'linear-gradient(135deg, #4F46E5 0%, #34D399 100%)', // Indigo to Mint
+  indigo: 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)', // Indigo only
+  mint: 'linear-gradient(135deg, #34D399 0%, #10B981 100%)', // Mint only
+  spectrum: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 25%, #34D399 50%, #10B981 75%, #6EE7B7 100%)',
+  hero: 'linear-gradient(135deg, #4F46E5 0%, #34D399 50%, #10B981 100%)',
   meshSubtle: `
-    radial-gradient(ellipse 80% 50% at 20% 40%, rgba(20, 184, 166, 0.15), transparent),
-    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(124, 58, 237, 0.12), transparent),
-    radial-gradient(ellipse 50% 60% at 60% 80%, rgba(14, 165, 233, 0.10), transparent)
+    radial-gradient(ellipse 80% 50% at 20% 40%, rgba(79, 70, 229, 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(52, 211, 153, 0.10), transparent),
+    radial-gradient(ellipse 50% 60% at 60% 80%, rgba(99, 102, 241, 0.08), transparent)
   `,
 };
 
 // Typography
 export const modernFonts = {
-  display: "'Cabinet Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+  display: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   body: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   mono: "'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace",
+};
+
+// Shadows with Indigo glow
+const shadows = {
+  sm: '0 1px 2px rgba(0, 0, 0, 0.05)',
+  md: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+  lg: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+  glowIndigo: '0 4px 14px rgba(79, 70, 229, 0.35)',
+  glowIndigoLg: '0 6px 20px rgba(79, 70, 229, 0.45)',
+  glowMint: '0 4px 14px rgba(52, 211, 153, 0.35)',
+  glowMintLg: '0 6px 20px rgba(52, 211, 153, 0.45)',
 };
 
 export const modernGradientTheme = createTheme({
@@ -111,7 +122,7 @@ export const modernGradientTheme = createTheme({
     },
   },
   shape: {
-    borderRadius: 4,
+    borderRadius: 8,
   },
   typography: {
     fontFamily: modernFonts.body,
@@ -201,10 +212,8 @@ export const modernGradientTheme = createTheme({
       styleOverrides: {
         body: {
           backgroundColor: modernColors.bgPrimary,
-          // Gradient mesh background
           backgroundImage: modernGradients.meshSubtle,
         },
-        // Global smooth transitions (Linear-style)
         '*, *::before, *::after': {
           transition: 'background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease, transform 150ms ease, box-shadow 150ms ease',
         },
@@ -215,19 +224,19 @@ export const modernGradientTheme = createTheme({
         root: {
           textTransform: 'none',
           fontWeight: 600,
-          borderRadius: 6,
-          padding: '6px 12px',
-          fontSize: '0.8125rem',
-          transition: 'all 150ms ease',
+          borderRadius: 8,
+          padding: '8px 16px',
+          fontSize: '0.875rem',
+          transition: 'all 200ms ease',
         },
         sizeSmall: {
-          padding: '4px 10px',
-          fontSize: '0.75rem',
+          padding: '6px 12px',
+          fontSize: '0.8125rem',
         },
         contained: {
-          boxShadow: 'none',
+          boxShadow: shadows.glowIndigo,
           '&:hover': {
-            boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)',
+            boxShadow: shadows.glowIndigoLg,
             transform: 'translateY(-1px)',
           },
           '&:active': {
@@ -235,33 +244,34 @@ export const modernGradientTheme = createTheme({
           },
         },
         containedPrimary: {
-          background: modernGradients.teal,
+          background: modernGradients.indigo,
           '&:hover': {
-            background: `linear-gradient(135deg, ${modernColors.primaryBright} 0%, ${modernColors.primaryLight} 100%)`,
+            background: `linear-gradient(135deg, ${modernColors.primaryLight} 0%, ${modernColors.primary} 100%)`,
           },
         },
         containedSecondary: {
-          background: modernGradients.violet,
+          background: modernGradients.mint,
+          boxShadow: shadows.glowMint,
           '&:hover': {
-            background: `linear-gradient(135deg, ${modernColors.secondaryBright} 0%, ${modernColors.secondaryLight} 100%)`,
-            boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)',
+            background: `linear-gradient(135deg, ${modernColors.secondaryLight} 0%, ${modernColors.secondary} 100%)`,
+            boxShadow: shadows.glowMintLg,
           },
         },
         outlined: {
-          borderColor: 'rgba(0, 0, 0, 0.12)',
-          borderWidth: 1,
+          borderColor: modernColors.border,
+          borderWidth: 2,
           color: modernColors.textPrimary,
+          backgroundColor: modernColors.surface,
           '&:hover': {
-            borderColor: 'rgba(0, 0, 0, 0.24)',
-            backgroundColor: 'rgba(0, 0, 0, 0.04)',
-            borderWidth: 1,
+            borderColor: modernColors.primary,
+            backgroundColor: modernColors.bgPrimary,
+            borderWidth: 2,
           },
         },
         text: {
-          color: modernColors.textSecondary,
+          color: modernColors.primary,
           '&:hover': {
-            backgroundColor: 'rgba(0, 0, 0, 0.04)',
-            color: modernColors.textPrimary,
+            backgroundColor: 'rgba(79, 70, 229, 0.1)',
           },
         },
       },
@@ -273,12 +283,13 @@ export const modernGradientTheme = createTheme({
       styleOverrides: {
         root: {
           backgroundColor: modernColors.surface,
-          border: '1px solid rgba(0, 0, 0, 0.06)',
-          borderRadius: 8,
-          boxShadow: 'none',
-          transition: 'border-color 150ms ease, box-shadow 150ms ease',
+          border: `1px solid ${modernColors.border}`,
+          borderRadius: 12,
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+          transition: 'all 200ms ease',
           '&:hover': {
-            borderColor: 'rgba(0, 0, 0, 0.12)',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+            transform: 'translateY(-2px)',
           },
         },
       },
@@ -288,7 +299,7 @@ export const modernGradientTheme = createTheme({
         root: {
           transition: 'background-color 150ms ease',
           '&:hover': {
-            backgroundColor: 'rgba(0, 0, 0, 0.02)',
+            backgroundColor: 'rgba(79, 70, 229, 0.04)',
           },
         },
       },
@@ -296,9 +307,9 @@ export const modernGradientTheme = createTheme({
     MuiCardContent: {
       styleOverrides: {
         root: {
-          padding: '12px',
+          padding: '16px',
           '&:last-child': {
-            paddingBottom: '12px',
+            paddingBottom: '16px',
           },
         },
       },
@@ -314,32 +325,37 @@ export const modernGradientTheme = createTheme({
       styleOverrides: {
         root: {
           fontWeight: 600,
-          borderRadius: 4,
-          height: '24px',
+          borderRadius: 9999,
+          fontSize: '0.75rem',
         },
         sizeSmall: {
-          height: '20px',
+          height: '22px',
           fontSize: '0.6875rem',
         },
         colorPrimary: {
-          background: `linear-gradient(135deg, rgba(20, 184, 166, 0.15) 0%, rgba(45, 212, 191, 0.15) 100%)`,
+          backgroundColor: 'rgba(79, 70, 229, 0.15)',
           color: modernColors.primary,
-          border: `1px solid rgba(20, 184, 166, 0.3)`,
+          border: '1px solid rgba(79, 70, 229, 0.3)',
+        },
+        colorSecondary: {
+          backgroundColor: 'rgba(52, 211, 153, 0.15)',
+          color: modernColors.secondaryDark,
+          border: '1px solid rgba(52, 211, 153, 0.3)',
         },
         colorSuccess: {
-          background: `linear-gradient(135deg, rgba(5, 150, 105, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%)`,
+          backgroundColor: 'rgba(5, 150, 105, 0.15)',
           color: modernColors.success,
-          border: `1px solid rgba(5, 150, 105, 0.3)`,
+          border: '1px solid rgba(5, 150, 105, 0.3)',
         },
         colorWarning: {
-          background: `linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%)`,
+          backgroundColor: 'rgba(217, 119, 6, 0.15)',
           color: modernColors.warning,
-          border: `1px solid rgba(217, 119, 6, 0.3)`,
+          border: '1px solid rgba(217, 119, 6, 0.3)',
         },
         colorError: {
-          background: `linear-gradient(135deg, rgba(225, 29, 72, 0.15) 0%, rgba(244, 63, 94, 0.15) 100%)`,
+          backgroundColor: 'rgba(220, 38, 38, 0.15)',
           color: modernColors.error,
-          border: `1px solid rgba(225, 29, 72, 0.3)`,
+          border: '1px solid rgba(220, 38, 38, 0.3)',
         },
       },
     },
@@ -369,20 +385,20 @@ export const modernGradientTheme = createTheme({
         root: {
           '& .MuiOutlinedInput-root': {
             backgroundColor: modernColors.surface,
-            borderRadius: 6,
+            borderRadius: 8,
             transition: 'all 150ms ease',
             '& fieldset': {
-              borderColor: 'rgba(0, 0, 0, 0.12)',
-              borderWidth: 1,
+              borderColor: modernColors.border,
+              borderWidth: 2,
               transition: 'border-color 150ms ease',
             },
             '&:hover fieldset': {
-              borderColor: 'rgba(0, 0, 0, 0.24)',
+              borderColor: modernColors.primaryLight,
             },
             '&.Mui-focused fieldset': {
               borderColor: modernColors.primary,
-              borderWidth: 1,
-              boxShadow: `0 0 0 3px rgba(20, 184, 166, 0.1)`,
+              borderWidth: 2,
+              boxShadow: '0 0 0 4px rgba(79, 70, 229, 0.1)',
             },
           },
         },
@@ -391,17 +407,17 @@ export const modernGradientTheme = createTheme({
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
-          borderRadius: 6,
+          borderRadius: 8,
           '& fieldset': {
-            borderColor: 'rgba(0, 0, 0, 0.12)',
-            borderWidth: 1,
+            borderColor: modernColors.border,
+            borderWidth: 2,
           },
           '&:hover fieldset': {
-            borderColor: 'rgba(0, 0, 0, 0.24)',
+            borderColor: modernColors.primaryLight,
           },
           '&.Mui-focused fieldset': {
             borderColor: modernColors.primary,
-            borderWidth: 1,
+            borderWidth: 2,
           },
         },
       },
@@ -410,8 +426,7 @@ export const modernGradientTheme = createTheme({
       styleOverrides: {
         paper: {
           borderRadius: 12,
-          border: '1px solid rgba(0, 0, 0, 0.08)',
-          boxShadow: '0 16px 70px rgba(0, 0, 0, 0.15)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
           backgroundImage: 'none',
         },
       },
@@ -420,7 +435,7 @@ export const modernGradientTheme = createTheme({
       styleOverrides: {
         root: {
           padding: '16px 20px 12px',
-          fontSize: '1rem',
+          fontSize: '1.125rem',
           fontWeight: 600,
         },
       },
@@ -443,16 +458,16 @@ export const modernGradientTheme = createTheme({
     MuiListItemButton: {
       styleOverrides: {
         root: {
-          borderRadius: 6,
-          padding: '6px 12px',
+          borderRadius: 8,
+          padding: '8px 12px',
           transition: 'background-color 150ms ease',
           '&:hover': {
-            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+            backgroundColor: 'rgba(79, 70, 229, 0.08)',
           },
           '&.Mui-selected': {
-            backgroundColor: 'rgba(20, 184, 166, 0.1)',
+            backgroundColor: 'rgba(79, 70, 229, 0.12)',
             '&:hover': {
-              backgroundColor: 'rgba(20, 184, 166, 0.15)',
+              backgroundColor: 'rgba(79, 70, 229, 0.16)',
             },
           },
         },
@@ -461,18 +476,18 @@ export const modernGradientTheme = createTheme({
     MuiMenuItem: {
       styleOverrides: {
         root: {
-          borderRadius: 4,
+          borderRadius: 6,
           margin: '2px 4px',
-          padding: '6px 8px',
+          padding: '8px 12px',
           fontSize: '0.875rem',
           transition: 'background-color 150ms ease',
           '&:hover': {
-            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+            backgroundColor: 'rgba(79, 70, 229, 0.08)',
           },
           '&.Mui-selected': {
-            backgroundColor: 'rgba(20, 184, 166, 0.1)',
+            backgroundColor: 'rgba(79, 70, 229, 0.12)',
             '&:hover': {
-              backgroundColor: 'rgba(20, 184, 166, 0.15)',
+              backgroundColor: 'rgba(79, 70, 229, 0.16)',
             },
           },
         },
@@ -481,10 +496,10 @@ export const modernGradientTheme = createTheme({
     MuiIconButton: {
       styleOverrides: {
         root: {
-          borderRadius: 6,
+          borderRadius: 8,
           transition: 'background-color 150ms ease, color 150ms ease',
           '&:hover': {
-            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+            backgroundColor: 'rgba(79, 70, 229, 0.08)',
           },
         },
       },
@@ -492,24 +507,24 @@ export const modernGradientTheme = createTheme({
     MuiAlert: {
       styleOverrides: {
         standardSuccess: {
-          background: `linear-gradient(135deg, rgba(5, 150, 105, 0.15) 0%, rgba(16, 185, 129, 0.15) 100%)`,
+          backgroundColor: modernColors.successBg,
           color: modernColors.success,
-          border: `1px solid rgba(5, 150, 105, 0.3)`,
+          border: '1px solid rgba(5, 150, 105, 0.3)',
         },
         standardWarning: {
-          background: `linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%)`,
+          backgroundColor: modernColors.warningBg,
           color: modernColors.warning,
-          border: `1px solid rgba(217, 119, 6, 0.3)`,
+          border: '1px solid rgba(217, 119, 6, 0.3)',
         },
         standardError: {
-          background: `linear-gradient(135deg, rgba(225, 29, 72, 0.15) 0%, rgba(244, 63, 94, 0.15) 100%)`,
+          backgroundColor: modernColors.errorBg,
           color: modernColors.error,
-          border: `1px solid rgba(225, 29, 72, 0.3)`,
+          border: '1px solid rgba(220, 38, 38, 0.3)',
         },
         standardInfo: {
-          background: `linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(56, 189, 248, 0.15) 100%)`,
+          backgroundColor: modernColors.infoBg,
           color: modernColors.info,
-          border: `1px solid rgba(14, 165, 233, 0.3)`,
+          border: '1px solid rgba(79, 70, 229, 0.3)',
         },
       },
     },
@@ -519,6 +534,9 @@ export const modernGradientTheme = createTheme({
           backgroundColor: modernColors.void,
           fontFamily: modernFonts.body,
           fontSize: '0.75rem',
+          fontWeight: 500,
+          borderRadius: 6,
+          padding: '6px 12px',
         },
       },
     },
@@ -546,7 +564,7 @@ export const modernGradientTheme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 8,
-          border: '1px solid rgba(0, 0, 0, 0.06)',
+          border: `1px solid ${modernColors.border}`,
         },
       },
     },
@@ -560,8 +578,8 @@ export const modernGradientTheme = createTheme({
             fontWeight: 600,
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
-            padding: '8px 12px',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+            padding: '10px 16px',
+            borderBottom: `1px solid ${modernColors.border}`,
           },
         },
       },
@@ -572,7 +590,7 @@ export const modernGradientTheme = createTheme({
           '& .MuiTableRow-root': {
             transition: 'background-color 150ms ease',
             '&:hover': {
-              backgroundColor: 'rgba(0, 0, 0, 0.02)',
+              backgroundColor: 'rgba(79, 70, 229, 0.04)',
             },
             '&:last-child .MuiTableCell-body': {
               borderBottom: 'none',
@@ -584,11 +602,11 @@ export const modernGradientTheme = createTheme({
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderBottom: '1px solid rgba(0, 0, 0, 0.04)',
-          padding: '10px 12px',
+          borderBottom: `1px solid ${modernColors.border}`,
+          padding: '12px 16px',
         },
         body: {
-          fontSize: '0.8125rem',
+          fontSize: '0.875rem',
           fontWeight: 400,
           color: modernColors.textPrimary,
         },
@@ -597,9 +615,9 @@ export const modernGradientTheme = createTheme({
     MuiTabs: {
       styleOverrides: {
         indicator: {
-          background: modernGradients.primary,
+          backgroundColor: modernColors.primary,
           height: 3,
-          borderRadius: 3,
+          borderRadius: '3px 3px 0 0',
         },
       },
     },
@@ -608,8 +626,10 @@ export const modernGradientTheme = createTheme({
         root: {
           textTransform: 'none',
           fontWeight: 500,
+          fontSize: '0.875rem',
           '&.Mui-selected': {
             color: modernColors.primary,
+            fontWeight: 600,
           },
         },
       },
@@ -617,12 +637,12 @@ export const modernGradientTheme = createTheme({
     MuiLinearProgress: {
       styleOverrides: {
         root: {
-          backgroundColor: modernColors.bgSecondary,
           borderRadius: 4,
+          backgroundColor: 'rgba(79, 70, 229, 0.15)',
         },
         bar: {
-          background: modernGradients.primary,
           borderRadius: 4,
+          background: modernGradients.primary,
         },
       },
     },

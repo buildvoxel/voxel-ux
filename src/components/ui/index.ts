@@ -1,4 +1,4 @@
-// Polymorphic UI components that render MUI or shadcn based on theme
+// Re-export MUI components through wrapper files
 export { Button } from './Button';
 export type { ButtonProps } from './Button';
 

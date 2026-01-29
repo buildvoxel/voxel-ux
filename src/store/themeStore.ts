@@ -3,9 +3,8 @@ import { persist } from 'zustand/middleware';
 import type { Theme } from '@mui/material/styles';
 import { muiTheme, voxelColors, voxelFonts } from '@/theme/muiTheme';
 import { modernGradientTheme, modernColors, modernFonts, modernGradients } from '@/theme/modernGradientTheme';
-import { indigoMintTheme, indigoMintColors, indigoMintFonts, indigoMintGradients } from '@/theme/indigoMintTheme';
 
-export type ThemeMode = 'craftsman' | 'modern' | 'indigo';
+export type ThemeMode = 'craftsman' | 'modern';
 
 interface ThemeColors {
   primary: string;
@@ -42,7 +41,6 @@ interface ThemeConfig {
   fonts: ThemeFonts;
   muiTheme: Theme;
   backgroundStyle: 'grid' | 'mesh';
-  componentSystem: 'mui' | 'shadcn';
   gradients?: {
     primary: string;
     secondary: string;
@@ -82,13 +80,12 @@ const craftsmanConfig: ThemeConfig = {
   },
   muiTheme,
   backgroundStyle: 'grid',
-  componentSystem: 'mui',
 };
 
-// Modern Gradient theme config
+// Modern Gradient theme config (with Indigo Mint colors)
 const modernConfig: ThemeConfig = {
   name: 'Modern Gradient',
-  description: 'Dynamic precision — Bold and vibrant',
+  description: 'Dynamic precision — Indigo & Mint',
   colors: {
     primary: modernColors.primary,
     primaryLight: modernColors.primaryLight,
@@ -117,58 +114,16 @@ const modernConfig: ThemeConfig = {
   },
   muiTheme: modernGradientTheme,
   backgroundStyle: 'mesh',
-  componentSystem: 'mui',
   gradients: {
     primary: modernGradients.primary,
-    secondary: modernGradients.violet,
+    secondary: modernGradients.mint,
     hero: modernGradients.hero,
-  },
-};
-
-// Indigo Mint theme config
-const indigoConfig: ThemeConfig = {
-  name: 'Indigo Mint',
-  description: 'Technical but approachable — Fresh and innovative',
-  colors: {
-    primary: indigoMintColors.primary,
-    primaryLight: indigoMintColors.primaryLight,
-    primaryDark: indigoMintColors.primaryDark,
-    secondary: indigoMintColors.accent,
-    bgPrimary: indigoMintColors.bgPrimary,
-    bgSecondary: indigoMintColors.bgSecondary,
-    bgDark: indigoMintColors.bgDark,
-    surface: indigoMintColors.surface,
-    textPrimary: indigoMintColors.textPrimary,
-    textSecondary: indigoMintColors.textSecondary,
-    border: indigoMintColors.border,
-    success: indigoMintColors.success,
-    successBg: indigoMintColors.successBg,
-    warning: indigoMintColors.warning,
-    warningBg: indigoMintColors.warningBg,
-    error: indigoMintColors.error,
-    errorBg: indigoMintColors.errorBg,
-    info: indigoMintColors.info,
-    infoBg: indigoMintColors.infoBg,
-  },
-  fonts: {
-    display: indigoMintFonts.display,
-    body: indigoMintFonts.body,
-    mono: indigoMintFonts.mono,
-  },
-  muiTheme: indigoMintTheme,
-  backgroundStyle: 'mesh',
-  componentSystem: 'shadcn',
-  gradients: {
-    primary: indigoMintGradients.primary,
-    secondary: indigoMintGradients.mint,
-    hero: indigoMintGradients.indigo,
   },
 };
 
 const themeConfigs: Record<ThemeMode, ThemeConfig> = {
   craftsman: craftsmanConfig,
   modern: modernConfig,
-  indigo: indigoConfig,
 };
 
 interface ThemeStore {
@@ -186,10 +141,7 @@ export const useThemeStore = create<ThemeStore>()(
       setMode: (mode) => set({ mode, config: themeConfigs[mode] }),
       toggleMode: () => {
         const currentMode = get().mode;
-        // Cycle through: craftsman -> modern -> indigo -> craftsman
-        const modeOrder: ThemeMode[] = ['craftsman', 'modern', 'indigo'];
-        const currentIndex = modeOrder.indexOf(currentMode);
-        const newMode = modeOrder[(currentIndex + 1) % modeOrder.length];
+        const newMode = currentMode === 'craftsman' ? 'modern' : 'craftsman';
         set({ mode: newMode, config: themeConfigs[newMode] });
       },
     }),
@@ -198,7 +150,11 @@ export const useThemeStore = create<ThemeStore>()(
       partialize: (state) => ({ mode: state.mode }),
       onRehydrateStorage: () => (state) => {
         if (state) {
-          state.config = themeConfigs[state.mode];
+          // Handle legacy 'indigo' mode by falling back to 'modern'
+          const persistedMode = state.mode as string;
+          const validMode = persistedMode === 'indigo' ? 'modern' : persistedMode;
+          state.mode = validMode as ThemeMode;
+          state.config = themeConfigs[validMode as ThemeMode] || craftsmanConfig;
         }
       },
     }
@@ -219,7 +175,7 @@ export const useThemeFonts = () => {
 
 // Helper to get background style
 export const useBackgroundStyle = () => {
-  const { config, mode } = useThemeStore();
+  const { config } = useThemeStore();
 
   if (config.backgroundStyle === 'grid') {
     return {
@@ -230,24 +186,14 @@ export const useBackgroundStyle = () => {
       `,
       backgroundSize: '24px 24px',
     };
-  } else if (mode === 'indigo') {
-    // Indigo Mint mesh - Electric Indigo & Fresh Mint
+  } else {
+    // Modern gradient mesh - Indigo & Mint
     return {
       backgroundColor: config.colors.bgPrimary,
       backgroundImage: `
         radial-gradient(ellipse 80% 50% at 20% 40%, rgba(79, 70, 229, 0.12), transparent),
         radial-gradient(ellipse 60% 40% at 80% 20%, rgba(52, 211, 153, 0.10), transparent),
         radial-gradient(ellipse 50% 60% at 60% 80%, rgba(99, 102, 241, 0.08), transparent)
-      `,
-    };
-  } else {
-    // Modern gradient mesh - Teal, Violet, Sky
-    return {
-      backgroundColor: config.colors.bgPrimary,
-      backgroundImage: `
-        radial-gradient(ellipse 80% 50% at 20% 40%, rgba(20, 184, 166, 0.15), transparent),
-        radial-gradient(ellipse 60% 40% at 80% 20%, rgba(124, 58, 237, 0.12), transparent),
-        radial-gradient(ellipse 50% 60% at 60% 80%, rgba(14, 165, 233, 0.10), transparent)
       `,
     };
   }
