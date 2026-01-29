@@ -136,8 +136,8 @@ interface ThemeStore {
 export const useThemeStore = create<ThemeStore>()(
   persist(
     (set, get) => ({
-      mode: 'craftsman',
-      config: craftsmanConfig,
+      mode: 'modern',
+      config: modernConfig,
       setMode: (mode) => set({ mode, config: themeConfigs[mode] }),
       toggleMode: () => {
         const currentMode = get().mode;

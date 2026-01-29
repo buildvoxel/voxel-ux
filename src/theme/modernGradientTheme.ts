@@ -122,7 +122,7 @@ export const modernGradientTheme = createTheme({
     },
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: 4, // 50% sharper
   },
   typography: {
     fontFamily: modernFonts.body,
@@ -224,7 +224,7 @@ export const modernGradientTheme = createTheme({
         root: {
           textTransform: 'none',
           fontWeight: 500,
-          borderRadius: 6,
+          borderRadius: 3, // 50% sharper
           padding: '4px 10px', // Compact
           fontSize: '0.8125rem', // 13px
           minHeight: 28, // Linear-style compact height
@@ -294,7 +294,7 @@ export const modernGradientTheme = createTheme({
         root: {
           backgroundColor: modernColors.surface,
           border: `1px solid ${modernColors.border}`,
-          borderRadius: 8, // Tighter radius
+          borderRadius: 4, // 50% sharper
           boxShadow: 'none',
           transition: 'all 150ms ease',
           '&:hover': {
@@ -395,7 +395,7 @@ export const modernGradientTheme = createTheme({
         root: {
           '& .MuiOutlinedInput-root': {
             backgroundColor: modernColors.surface,
-            borderRadius: 6,
+            borderRadius: 3, // 50% sharper
             fontSize: '0.8125rem', // 13px
             transition: 'all 150ms ease',
             '& fieldset': {
@@ -421,7 +421,7 @@ export const modernGradientTheme = createTheme({
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
-          borderRadius: 6,
+          borderRadius: 3, // 50% sharper
           '& fieldset': {
             borderColor: modernColors.border,
             borderWidth: 1,
@@ -442,7 +442,7 @@ export const modernGradientTheme = createTheme({
     MuiDialog: {
       styleOverrides: {
         paper: {
-          borderRadius: 8,
+          borderRadius: 4, // 50% sharper
           boxShadow: '0 16px 40px -12px rgba(0, 0, 0, 0.2)',
           backgroundImage: 'none',
         },
@@ -515,7 +515,7 @@ export const modernGradientTheme = createTheme({
     MuiIconButton: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 4, // 50% sharper
           transition: 'background-color 150ms ease, color 150ms ease',
           '&:hover': {
             backgroundColor: 'rgba(79, 70, 229, 0.08)',
@@ -562,7 +562,7 @@ export const modernGradientTheme = createTheme({
     MuiMenu: {
       styleOverrides: {
         paper: {
-          borderRadius: 8,
+          borderRadius: 4, // 50% sharper
           border: '1px solid rgba(0, 0, 0, 0.08)',
           boxShadow: '0 4px 24px rgba(0, 0, 0, 0.12)',
           backgroundImage: 'none',
@@ -573,7 +573,7 @@ export const modernGradientTheme = createTheme({
     MuiPopover: {
       styleOverrides: {
         paper: {
-          borderRadius: 8,
+          borderRadius: 4, // 50% sharper
           border: '1px solid rgba(0, 0, 0, 0.08)',
           boxShadow: '0 4px 24px rgba(0, 0, 0, 0.12)',
         },
@@ -582,7 +582,7 @@ export const modernGradientTheme = createTheme({
     MuiTableContainer: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 4, // 50% sharper
           border: `1px solid ${modernColors.border}`,
         },
       },
