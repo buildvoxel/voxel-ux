@@ -7,12 +7,10 @@ import React from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import CardActions from '@mui/material/CardActions';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import IconButton from '@mui/material/IconButton';
 import Checkbox from '@mui/material/Checkbox';
-import Tooltip from '@mui/material/Tooltip';
 import { DotsThreeVertical, Sparkle } from '@phosphor-icons/react';
 import { useThemeStore } from '@/store/themeStore';
 
@@ -250,12 +248,12 @@ export const ThumbnailCard: React.FC<ThumbnailCardProps> = ({
         )}
       </Box>
 
-      {/* Card Content */}
+      {/* Card Content - Compact styling */}
       <CardContent
         sx={{
           flex: 1,
-          p: 2,
-          '&:last-child': { pb: 2 },
+          p: 1.5,
+          '&:last-child': { pb: 1.5 },
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -350,37 +348,6 @@ export const ThumbnailCard: React.FC<ThumbnailCardProps> = ({
         )}
       </CardContent>
 
-      {/* Card Actions (if primary action is set and not in selection mode) */}
-      {primaryAction && !isSelectionMode && (
-        <CardActions
-          sx={{
-            px: 2,
-            py: 1,
-            borderTop: '1px solid',
-            borderColor: 'divider',
-            opacity: 0,
-            transition: 'opacity 0.2s ease',
-            '.MuiCard-root:hover &': { opacity: 1 },
-          }}
-        >
-          <Tooltip title={primaryAction.label}>
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                primaryAction.onClick();
-              }}
-              sx={{
-                color: config.colors.primary,
-                transition: 'all 0.2s ease',
-                '&:hover': { transform: 'scale(1.1)' },
-              }}
-            >
-              {primaryAction.icon}
-            </IconButton>
-          </Tooltip>
-        </CardActions>
-      )}
     </Card>
   );
 };
