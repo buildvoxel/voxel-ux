@@ -40,6 +40,7 @@ import {
 import { useThemeStore } from '@/store/themeStore';
 import { useScreensStore } from '@/store/screensStore';
 import { useSnackbar } from '@/components/SnackbarProvider';
+import { PageHeader } from '@/components/PageHeader';
 import {
   labelColorsWithLLM,
   labelFontsWithLLM,
@@ -907,41 +908,34 @@ export const DesignSystem: React.FC = () => {
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Box>
-          <Typography variant="h5" fontWeight={600} sx={{ fontFamily: config.fonts.display }}>
-            Design System
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Auto-generated from {screens.filter(s => s.editedHtml).length} captured screens
-            {designSystem?.lastUpdated && (
-              <> · Last updated: {new Date(designSystem.lastUpdated).toLocaleString()}</>
+      <PageHeader
+        title="Design System"
+        subtitle={`Auto-generated from ${screens.filter(s => s.editedHtml).length} captured screens${designSystem?.lastUpdated ? ` · Last updated: ${new Date(designSystem.lastUpdated).toLocaleString()}` : ''}`}
+        actions={
+          <>
+            {llmAvailable && designSystem && (
+              <Tooltip title="Use AI to generate semantic labels for colors and fonts">
+                <Button
+                  variant="outlined"
+                  startIcon={<Robot size={18} />}
+                  onClick={handleGenerateAILabels}
+                  disabled={isLabeling || isExtracting}
+                >
+                  {isLabeling ? 'Labeling...' : 'AI Labels'}
+                </Button>
+              </Tooltip>
             )}
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          {llmAvailable && designSystem && (
-            <Tooltip title="Use AI to generate semantic labels for colors and fonts">
-              <Button
-                variant="outlined"
-                startIcon={<Robot size={18} />}
-                onClick={handleGenerateAILabels}
-                disabled={isLabeling || isExtracting}
-              >
-                {isLabeling ? 'Labeling...' : 'AI Labels'}
-              </Button>
-            </Tooltip>
-          )}
-          <Button
-            variant="outlined"
-            startIcon={<ArrowClockwise size={18} />}
-            onClick={extractDesignSystem}
-            disabled={isExtracting || screens.length === 0}
-          >
-            Re-extract
-          </Button>
-        </Box>
-      </Box>
+            <Button
+              variant="outlined"
+              startIcon={<ArrowClockwise size={18} />}
+              onClick={extractDesignSystem}
+              disabled={isExtracting || screens.length === 0}
+            >
+              Re-extract
+            </Button>
+          </>
+        }
+      />
 
       {/* Tabs */}
       <Tabs

@@ -496,6 +496,14 @@ export const VibePrototyping: React.FC = () => {
   // Track completed variants locally to prevent progress reset
   const [completedVariantIndices, setCompletedVariantIndices] = useState<Set<number>>(new Set());
 
+  // Processing state for immediate visual feedback
+  const [isProcessingPrompt, setIsProcessingPrompt] = useState(false);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
+
+  // Fetched HTML content for code view (variants store only URLs)
+  const [fetchedVariantHtml, setFetchedVariantHtml] = useState<string | null>(null);
+  const [isFetchingHtml, setIsFetchingHtml] = useState(false);
+
   // Product context files
   const [contextFiles, setContextFiles] = useState<ContextFile[]>([]);
   const [contextPanelOpen, setContextPanelOpen] = useState(false);
@@ -629,6 +637,11 @@ export const VibePrototyping: React.FC = () => {
     const prompt = promptValue.trim();
     setPromptValue('');
     setCurrentPrompt(prompt);
+
+    // Immediately show processing state for visual feedback
+    setIsProcessingPrompt(true);
+    setPendingPrompt(prompt);
+
     generatePhaseContent(prompt, screen.name || 'screen');
 
     try {
@@ -696,12 +709,20 @@ export const VibePrototyping: React.FC = () => {
       setStatus('plan_ready');
       setProgress(null);
 
+      // Clear processing state
+      setIsProcessingPrompt(false);
+      setPendingPrompt(null);
+
       addChatMessage('assistant', `I've analyzed your request and created 4 unique paradigms to explore. Review each approach below and click "Create Wireframes" when you're ready to see quick sketches of each concept.`);
     } catch (err) {
       console.error('Error generating plan:', err);
       const errorMsg = err instanceof Error ? err.message : 'Failed to generate plan';
       setError(errorMsg);
       showError('Failed to generate variant plan');
+
+      // Clear processing state on error
+      setIsProcessingPrompt(false);
+      setPendingPrompt(null);
     }
   }, [screen, screenId, promptValue, sourceMetadata, contexts, generatePhaseContent]);
 
@@ -881,6 +902,41 @@ export const VibePrototyping: React.FC = () => {
     }
   }, [screenId, editedName, updateScreen, showSuccess, showError]);
 
+  // Fetch HTML content when switching to code mode for a focused variant
+  useEffect(() => {
+    const fetchVariantHtml = async () => {
+      if (editMode !== 'code' || !focusedVariantIndex) {
+        setFetchedVariantHtml(null);
+        return;
+      }
+
+      const variant = getVariantByIndex(focusedVariantIndex);
+      if (!variant?.html_url) {
+        setFetchedVariantHtml(null);
+        return;
+      }
+
+      setIsFetchingHtml(true);
+      try {
+        const response = await fetch(variant.html_url);
+        if (response.ok) {
+          const html = await response.text();
+          setFetchedVariantHtml(html);
+        } else {
+          console.error('Failed to fetch variant HTML:', response.status);
+          setFetchedVariantHtml(null);
+        }
+      } catch (error) {
+        console.error('Error fetching variant HTML:', error);
+        setFetchedVariantHtml(null);
+      } finally {
+        setIsFetchingHtml(false);
+      }
+    };
+
+    fetchVariantHtml();
+  }, [editMode, focusedVariantIndex, getVariantByIndex]);
+
   // Computed values
   const isAnalyzing = status === 'analyzing';
   const isPlanning = status === 'planning';
@@ -946,11 +1002,92 @@ export const VibePrototyping: React.FC = () => {
           {/* AI Phases and Variant Cards */}
           <Box sx={{ flex: 1, overflow: 'auto', p: 2, minHeight: 0 }}>
             {/* Initial empty state */}
-            {status === 'idle' && !plan && (
+            {status === 'idle' && !plan && !isProcessingPrompt && (
               <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Typography color="text.secondary" textAlign="center">
                   Describe what you want to build
                 </Typography>
+              </Box>
+            )}
+
+            {/* Processing state - immediate feedback after clicking Build */}
+            {isProcessingPrompt && status === 'idle' && (
+              <Box sx={{ p: 2 }}>
+                {/* User's prompt */}
+                <Box
+                  sx={{
+                    mb: 3,
+                    p: 2,
+                    bgcolor: 'primary.50',
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'primary.200',
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'primary.main',
+                      fontWeight: 600,
+                      display: 'block',
+                      mb: 0.5,
+                    }}
+                  >
+                    Your request
+                  </Typography>
+                  <Typography variant="body2" color="text.primary">
+                    {pendingPrompt}
+                  </Typography>
+                </Box>
+
+                {/* Processing indicator */}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 2,
+                    py: 4,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: '50%',
+                      bgcolor: 'primary.50',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      animation: 'pulse 2s infinite',
+                      '@keyframes pulse': {
+                        '0%, 100%': { transform: 'scale(1)', opacity: 1 },
+                        '50%': { transform: 'scale(1.05)', opacity: 0.8 },
+                      },
+                    }}
+                  >
+                    <Robot size={28} weight="fill" color={config.colors.primary} />
+                  </Box>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ fontWeight: 600, color: 'text.primary', mb: 0.5 }}
+                    >
+                      Starting AI Analysis
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Initializing session and preparing context...
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    sx={{
+                      width: '60%',
+                      height: 4,
+                      borderRadius: 2,
+                      bgcolor: 'grey.200',
+                    }}
+                  />
+                </Box>
               </Box>
             )}
 
@@ -1725,14 +1862,28 @@ export const VibePrototyping: React.FC = () => {
                       />
                     )}
 
-                    {/* WYSIWYG Editor Mode */}
+                    {/* WYSIWYG Editor Mode - Respects preview size */}
                     {editMode === 'wysiwyg' && (
-                      <WYSIWYGEditor
-                        html={screen.editedHtml}
-                        onHtmlChange={(newHtml) => {
-                          updateScreen(screenId!, { editedHtml: newHtml });
+                      <Box
+                        sx={{
+                          width: previewSize === 'desktop' ? '100%' : PREVIEW_SIZES[previewSize].width,
+                          maxWidth: '100%',
+                          height: previewSize === 'desktop' ? '100%' : 'calc(100% - 16px)',
+                          border: previewSize !== 'desktop' ? '1px solid' : 'none',
+                          borderColor: 'divider',
+                          borderRadius: previewSize !== 'desktop' ? 2 : 0,
+                          overflow: 'hidden',
+                          boxShadow: previewSize !== 'desktop' ? 3 : 0,
+                          transition: 'all 0.3s ease',
                         }}
-                      />
+                      >
+                        <WYSIWYGEditor
+                          html={screen.editedHtml}
+                          onHtmlChange={(newHtml) => {
+                            updateScreen(screenId!, { editedHtml: newHtml });
+                          }}
+                        />
+                      </Box>
                     )}
                   </Box>
                 </Card>
@@ -1839,73 +1990,89 @@ export const VibePrototyping: React.FC = () => {
                     )
                   )}
 
-                  {/* Code Editor Mode - Show iframe with view source option */}
+                  {/* Code Editor Mode - HTML Tree View */}
                   {editMode === 'code' && (
-                    focusedVariant.html_url ? (
+                    isFetchingHtml ? (
+                      <Box
+                        sx={{
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 2,
+                        }}
+                      >
+                        <CircularProgress size={32} sx={{ color: '#26a69a' }} />
+                        <Typography color="text.secondary">
+                          Loading code...
+                        </Typography>
+                      </Box>
+                    ) : fetchedVariantHtml ? (
                       <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <iframe
-                          src={`view-source:${focusedVariant.html_url}`}
-                          title={`Code Variant ${focusedVariantIndex}`}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            border: 'none',
-                            display: 'none',
+                        {/* Toolbar for code view */}
+                        <Box
+                          sx={{
+                            px: 2,
+                            py: 1,
+                            bgcolor: '#252526',
+                            borderBottom: '1px solid #3c3c3c',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
                           }}
-                        />
-                        {/* Fallback: Show preview with code overlay info */}
-                        <Box sx={{ position: 'relative', flex: 1 }}>
-                          <iframe
-                            src={focusedVariant.html_url}
-                            title={`Preview Variant ${focusedVariantIndex}`}
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              border: 'none',
-                              filter: 'grayscale(30%)',
-                              opacity: 0.6,
+                        >
+                          <Typography variant="caption" sx={{ color: '#9cdcfe' }}>
+                            Variant {String.fromCharCode(64 + focusedVariantIndex)} - HTML
+                          </Typography>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Tooltip title="Open in new tab">
+                              <IconButton
+                                size="small"
+                                onClick={() => window.open(focusedVariant.html_url!, '_blank')}
+                                sx={{ color: '#cccccc', '&:hover': { color: '#ffffff' } }}
+                              >
+                                <LinkSimple size={16} />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Download HTML">
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  const link = document.createElement('a');
+                                  link.href = focusedVariant.html_url!;
+                                  link.download = `variant-${String.fromCharCode(96 + focusedVariantIndex)}.html`;
+                                  link.click();
+                                }}
+                                sx={{ color: '#cccccc', '&:hover': { color: '#ffffff' } }}
+                              >
+                                <Download size={16} />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Copy HTML">
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(fetchedVariantHtml);
+                                  showSuccess('HTML copied to clipboard');
+                                }}
+                                sx={{ color: '#cccccc', '&:hover': { color: '#ffffff' } }}
+                              >
+                                <Copy size={16} />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </Box>
+                        {/* HTML Tree Editor */}
+                        <Box sx={{ flex: 1, overflow: 'auto' }}>
+                          <HTMLTreeEditor
+                            html={fetchedVariantHtml}
+                            onHtmlChange={(newHtml) => {
+                              setFetchedVariantHtml(newHtml);
+                              // Note: Changes to generated variants are not persisted
+                              // This is read-only viewing with local editing capability
                             }}
                           />
-                          {/* Code mode overlay */}
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              bottom: 16,
-                              right: 16,
-                              display: 'flex',
-                              gap: 1,
-                            }}
-                          >
-                            <Button
-                              variant="contained"
-                              size="small"
-                              startIcon={<LinkSimple size={16} />}
-                              onClick={() => window.open(focusedVariant.html_url!, '_blank')}
-                              sx={{
-                                bgcolor: 'grey.800',
-                                '&:hover': { bgcolor: 'grey.700' },
-                              }}
-                            >
-                              View Source
-                            </Button>
-                            <Button
-                              variant="contained"
-                              size="small"
-                              startIcon={<Download size={16} />}
-                              onClick={() => {
-                                const link = document.createElement('a');
-                                link.href = focusedVariant.html_url!;
-                                link.download = `variant-${String.fromCharCode(96 + focusedVariantIndex)}.html`;
-                                link.click();
-                              }}
-                              sx={{
-                                bgcolor: 'primary.main',
-                                '&:hover': { bgcolor: 'primary.dark' },
-                              }}
-                            >
-                              Download
-                            </Button>
-                          </Box>
                         </Box>
                       </Box>
                     ) : (

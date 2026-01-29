@@ -25,9 +25,12 @@ import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
 import SlideshowOutlinedIcon from '@mui/icons-material/SlideshowOutlined';
 import TextSnippetOutlinedIcon from '@mui/icons-material/TextSnippetOutlined';
+import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined';
+import AudiotrackOutlinedIcon from '@mui/icons-material/AudiotrackOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import { useSnackbar } from '@/components/SnackbarProvider';
+import { PageHeader } from '@/components/PageHeader';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import {
   getContextFiles,
@@ -78,10 +81,25 @@ const categoryConfigs: CategoryConfig[] = [
   },
 ];
 
+// Supported file types for upload
+const SUPPORTED_FILE_TYPES = [
+  '.pdf', '.doc', '.docx', '.txt', '.rtf', '.md',  // Documents
+  '.xls', '.xlsx', '.csv',                          // Spreadsheets
+  '.ppt', '.pptx', '.key',                          // Presentations
+  '.mp4', '.mov', '.avi', '.webm', '.mkv',          // Video
+  '.mp3', '.wav', '.ogg', '.m4a', '.aac',           // Audio
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', // Images
+  '.json', '.xml',                                  // Data
+].join(',');
+
 function getFileIcon(fileType: string) {
   switch (fileType) {
     case 'image':
       return <ImageOutlinedIcon />;
+    case 'video':
+      return <VideocamOutlinedIcon />;
+    case 'audio':
+      return <AudiotrackOutlinedIcon />;
     case 'pdf':
       return <PictureAsPdfOutlinedIcon />;
     case 'document':
@@ -296,7 +314,7 @@ function CategoryCard({ config, files, onUpload, onDeleteFile, onOpenFile, uploa
             <Box
               sx={{
                 height: '100%',
-                minHeight: 120,
+                minHeight: 140,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -310,6 +328,9 @@ function CategoryCard({ config, files, onUpload, onDeleteFile, onOpenFile, uploa
               <CloudUploadOutlinedIcon sx={{ fontSize: 32, color: 'text.disabled', mb: 1 }} />
               <Typography variant="body2" color="text.secondary" align="center">
                 Drop files here or click to upload
+              </Typography>
+              <Typography variant="caption" color="text.disabled" align="center" sx={{ mt: 0.5 }}>
+                PDF, Docs, Sheets, Videos, Audio
               </Typography>
             </Box>
           ) : (
@@ -338,7 +359,7 @@ function CategoryCard({ config, files, onUpload, onDeleteFile, onOpenFile, uploa
           type="file"
           hidden
           onChange={handleFileSelect}
-          accept="*/*"
+          accept={SUPPORTED_FILE_TYPES}
         />
         <Button
           variant="outlined"
@@ -472,14 +493,10 @@ export function Context() {
   return (
     <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
       {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" fontWeight={600} gutterBottom>
-          Product Context
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {totalFiles} files across {categoryConfigs.length} categories
-        </Typography>
-      </Box>
+      <PageHeader
+        title="Product Context"
+        subtitle={`${totalFiles} files across ${categoryConfigs.length} categories`}
+      />
 
       {/* Info Alert */}
       <Alert severity="info" icon={<LightbulbIcon />} sx={{ mb: 3 }}>

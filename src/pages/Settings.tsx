@@ -49,6 +49,7 @@ import { useSnackbar } from '@/components/SnackbarProvider';
 import { useThemeStore } from '@/store/themeStore';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { EmptyState } from '@/components';
+import { PageHeader } from '@/components/PageHeader';
 import {
   getApiKeys,
   saveApiKey,
@@ -1282,9 +1283,7 @@ export function Settings() {
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight={600} sx={{ mb: 3 }}>
-        Settings
-      </Typography>
+      <PageHeader title="Settings" />
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>

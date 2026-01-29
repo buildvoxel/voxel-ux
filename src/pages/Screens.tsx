@@ -36,6 +36,7 @@ import {
   DotsThreeVertical,
 } from '@phosphor-icons/react';
 import { EmptyState, ThumbnailCard } from '@/components';
+import { PageHeader } from '@/components/PageHeader';
 import { FileUpload } from '@/components/FileUpload';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useSnackbar } from '@/components/SnackbarProvider';
@@ -263,90 +264,82 @@ export function Screens() {
       </Fade>
 
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography
-          variant="h1"
-          sx={{
-            fontFamily: config.fonts.display,
-            fontSize: '2.25rem',
-            fontWeight: mode === 'craftsman' ? 400 : 700,
-            color: config.colors.textPrimary,
-          }}
-        >
-          Captured Screens
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          <TextField
-            placeholder="Search screens..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            size="small"
-            sx={{
-              width: 250,
-              '& .MuiOutlinedInput-root': {
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                },
-                '&.Mui-focused': {
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
-                },
-              },
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <MagnifyingGlass size={18} color={config.colors.textSecondary} />
-                </InputAdornment>
-              ),
-            }}
-          />
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(_, v) => v && setViewMode(v)}
-            size="small"
-            sx={{
-              '& .MuiToggleButton-root': {
-                transition: 'all 0.2s ease',
-              },
-            }}
-          >
-            <ToggleButton value="grid">
-              <GridFour size={18} />
-            </ToggleButton>
-            <ToggleButton value="list">
-              <List size={18} />
-            </ToggleButton>
-          </ToggleButtonGroup>
-          <Tooltip title={isSelectionMode ? 'Exit selection mode' : 'Select multiple'}>
-            <IconButton
-              onClick={handleToggleSelectionMode}
-              color={isSelectionMode ? 'primary' : 'default'}
+      <PageHeader
+        title="Captured Screens"
+        actions={
+          <>
+            <TextField
+              placeholder="Search screens..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              size="small"
               sx={{
-                transition: 'all 0.2s ease',
-                '&:hover': { transform: 'scale(1.1)' },
+                width: 250,
+                '& .MuiOutlinedInput-root': {
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  },
+                  '&.Mui-focused': {
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
+                  },
+                },
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <MagnifyingGlass size={18} color={config.colors.textSecondary} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              onChange={(_, v) => v && setViewMode(v)}
+              size="small"
+              sx={{
+                '& .MuiToggleButton-root': {
+                  transition: 'all 0.2s ease',
+                },
               }}
             >
-              <CheckSquare size={20} />
-            </IconButton>
-          </Tooltip>
-          <Button
-            variant="contained"
-            startIcon={<UploadSimple size={18} />}
-            onClick={() => setIsUploadModalOpen(true)}
-            sx={{
-              transition: 'all 0.2s ease',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              },
-            }}
-          >
-            Import Screen
-          </Button>
-        </Box>
-      </Box>
+              <ToggleButton value="grid">
+                <GridFour size={18} />
+              </ToggleButton>
+              <ToggleButton value="list">
+                <List size={18} />
+              </ToggleButton>
+            </ToggleButtonGroup>
+            <Tooltip title={isSelectionMode ? 'Exit selection mode' : 'Select multiple'}>
+              <IconButton
+                onClick={handleToggleSelectionMode}
+                color={isSelectionMode ? 'primary' : 'default'}
+                sx={{
+                  transition: 'all 0.2s ease',
+                  '&:hover': { transform: 'scale(1.1)' },
+                }}
+              >
+                <CheckSquare size={20} />
+              </IconButton>
+            </Tooltip>
+            <Button
+              variant="contained"
+              startIcon={<UploadSimple size={18} />}
+              onClick={() => setIsUploadModalOpen(true)}
+              sx={{
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                },
+              }}
+            >
+              Import Screen
+            </Button>
+          </>
+        }
+      />
 
       {/* Grid or List View */}
       {filteredScreens.length === 0 ? (
