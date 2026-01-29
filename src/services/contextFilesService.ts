@@ -230,14 +230,14 @@ export async function uploadContextFile(params: UploadContextFileParams): Promis
     throw new Error('You must be logged in to upload files');
   }
 
-  // Generate unique file path
+  // Generate unique file path (within context/ folder for organization)
   const timestamp = Date.now();
   const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-  const filePath = `${user.id}/${category}/${timestamp}_${sanitizedFileName}`;
+  const filePath = `context/${user.id}/${category}/${timestamp}_${sanitizedFileName}`;
 
   // Upload file to storage
   const { error: uploadError } = await supabase.storage
-    .from('context-files')
+    .from('editor-images')
     .upload(filePath, file);
 
   if (uploadError) {
@@ -335,7 +335,7 @@ export async function deleteContextFile(fileId: string): Promise<void> {
 
   // Delete from storage
   const { error: storageError } = await supabase.storage
-    .from('context-files')
+    .from('editor-images')
     .remove([file.file_path]);
 
   if (storageError) {
@@ -375,7 +375,7 @@ export async function getFileDownloadUrl(filePath: string): Promise<string> {
 
   // Use Supabase
   const { data, error } = await supabase.storage
-    .from('context-files')
+    .from('editor-images')
     .createSignedUrl(filePath, 3600); // 1 hour expiry
 
   if (error) {

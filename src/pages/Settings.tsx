@@ -528,7 +528,7 @@ function AccountTab() {
         Account Settings
       </Typography>
 
-      <Card>
+      <Card sx={{ maxWidth: 480 }}>
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Typography variant="h6" fontWeight={600}>Profile Information</Typography>
@@ -554,131 +554,129 @@ function AccountTab() {
             )}
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 3, mb: 3 }}>
-            {/* Avatar */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={handleAvatarChange}
-              />
-              <Box
-                onClick={handleAvatarClick}
-                sx={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: '50%',
-                  backgroundColor: config.colors.primary,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'white',
-                  fontSize: 28,
-                  fontWeight: 600,
-                  cursor: isEditing ? 'pointer' : 'default',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  transition: 'all 0.2s ease',
-                  '&:hover': isEditing ? {
-                    opacity: 0.8,
-                  } : {},
-                }}
-              >
-                {isUploadingAvatar ? (
-                  <CircularProgress size={24} sx={{ color: 'white' }} />
-                ) : avatarUrl ? (
-                  <Avatar
-                    src={avatarUrl}
-                    sx={{ width: 80, height: 80 }}
-                  />
-                ) : (
-                  (formData.name || user?.email || 'U').charAt(0).toUpperCase()
-                )}
-                {isEditing && !isUploadingAvatar && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: 24,
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Camera size={14} color="white" />
-                  </Box>
-                )}
-              </Box>
-              {isEditing && (
-                <Typography variant="caption" color="text.secondary">
-                  Click to change
-                </Typography>
-              )}
-            </Box>
-
-            {/* Form Fields */}
-            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {isEditing ? (
-                <>
-                  <TextField
-                    fullWidth
-                    label="Full Name"
-                    size="small"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  />
-                  <TextField
-                    fullWidth
-                    label="Email"
-                    size="small"
-                    value={formData.email}
-                    disabled
-                    helperText="Email cannot be changed"
-                  />
-                  <TextField
-                    fullWidth
-                    label="Company Name"
-                    size="small"
-                    value={formData.companyName}
-                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                  />
-                  <TextField
-                    fullWidth
-                    label="Job Title"
-                    size="small"
-                    value={formData.jobTitle}
-                    onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
-                  />
-                </>
+          {/* Avatar - Centered at top */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, mb: 4 }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={handleAvatarChange}
+            />
+            <Box
+              onClick={handleAvatarClick}
+              sx={{
+                width: 100,
+                height: 100,
+                borderRadius: '50%',
+                backgroundColor: config.colors.primary,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: 36,
+                fontWeight: 600,
+                cursor: isEditing ? 'pointer' : 'default',
+                position: 'relative',
+                overflow: 'hidden',
+                transition: 'all 0.2s ease',
+                '&:hover': isEditing ? {
+                  opacity: 0.8,
+                } : {},
+              }}
+            >
+              {isUploadingAvatar ? (
+                <CircularProgress size={32} sx={{ color: 'white' }} />
+              ) : avatarUrl ? (
+                <Avatar
+                  src={avatarUrl}
+                  sx={{ width: 100, height: 100 }}
+                />
               ) : (
-                <>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">Full Name</Typography>
-                    <Typography fontWeight={500}>{formData.name || 'Not set'}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">Email</Typography>
-                    <Typography fontWeight={500}>{user?.email}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">Company</Typography>
-                    <Typography fontWeight={500}>{formData.companyName || 'Not set'}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">Job Title</Typography>
-                    <Typography fontWeight={500}>{formData.jobTitle || 'Not set'}</Typography>
-                  </Box>
-                </>
+                (formData.name || user?.email || 'U').charAt(0).toUpperCase()
+              )}
+              {isEditing && !isUploadingAvatar && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 28,
+                    backgroundColor: 'rgba(0,0,0,0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Camera size={16} color="white" />
+                </Box>
               )}
             </Box>
+            {isEditing && (
+              <Typography variant="caption" color="text.secondary">
+                Click to upload photo
+              </Typography>
+            )}
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          {/* Form Fields - Full width below avatar */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
+            {isEditing ? (
+              <>
+                <TextField
+                  fullWidth
+                  label="Full Name"
+                  size="small"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+                <TextField
+                  fullWidth
+                  label="Email"
+                  size="small"
+                  value={formData.email}
+                  disabled
+                  helperText="Email cannot be changed"
+                />
+                <TextField
+                  fullWidth
+                  label="Company Name"
+                  size="small"
+                  value={formData.companyName}
+                  onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
+                />
+                <TextField
+                  fullWidth
+                  label="Job Title"
+                  size="small"
+                  value={formData.jobTitle}
+                  onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
+                />
+              </>
+            ) : (
+              <>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Full Name</Typography>
+                  <Typography fontWeight={500}>{formData.name || 'Not set'}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Email</Typography>
+                  <Typography fontWeight={500}>{user?.email}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Company</Typography>
+                  <Typography fontWeight={500}>{formData.companyName || 'Not set'}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Job Title</Typography>
+                  <Typography fontWeight={500}>{formData.jobTitle || 'Not set'}</Typography>
+                </Box>
+              </>
+            )}
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
             <Box>
               <Typography variant="caption" color="text.secondary">Role</Typography>
               <Box sx={{ mt: 0.5 }}>
