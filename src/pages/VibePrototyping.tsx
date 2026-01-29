@@ -853,268 +853,8 @@ export const VibePrototyping: React.FC = () => {
   }
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Toolbar */}
-      <Box
-        sx={{
-          height: 48,
-          px: 2,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          bgcolor: 'background.paper',
-          flexShrink: 0,
-        }}
-      >
-        {/* Left: Edit mode toggle + Project breadcrumb */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          {/* Edit mode group - moved to left */}
-          <Box
-            sx={{
-              display: 'flex',
-              bgcolor: 'action.hover',
-              borderRadius: 1,
-              p: 0.25,
-            }}
-          >
-            <Tooltip title="Preview Mode (V)">
-              <IconButton
-                size="small"
-                onClick={() => setEditMode('cursor')}
-                sx={{
-                  bgcolor: editMode === 'cursor' ? 'background.paper' : 'transparent',
-                  boxShadow: editMode === 'cursor' ? 1 : 0,
-                }}
-              >
-                <Cursor size={18} weight={editMode === 'cursor' ? 'fill' : 'regular'} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Code Editor">
-              <IconButton
-                size="small"
-                onClick={() => setEditMode('code')}
-                sx={{
-                  bgcolor: editMode === 'code' ? 'background.paper' : 'transparent',
-                  boxShadow: editMode === 'code' ? 1 : 0,
-                }}
-              >
-                <Code size={18} weight={editMode === 'code' ? 'fill' : 'regular'} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="WYSIWYG Editor">
-              <IconButton
-                size="small"
-                onClick={() => setEditMode('wysiwyg')}
-                sx={{
-                  bgcolor: editMode === 'wysiwyg' ? 'background.paper' : 'transparent',
-                  boxShadow: editMode === 'wysiwyg' ? 1 : 0,
-                }}
-              >
-                <PencilSimple size={18} weight={editMode === 'wysiwyg' ? 'fill' : 'regular'} />
-              </IconButton>
-            </Tooltip>
-          </Box>
-
-          <Divider orientation="vertical" flexItem />
-
-          {/* Project breadcrumb */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          {isEditingName ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <TextField
-                size="small"
-                value={editedName}
-                onChange={(e) => setEditedName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveName();
-                  if (e.key === 'Escape') setIsEditingName(false);
-                }}
-                autoFocus
-                sx={{
-                  width: 180,
-                  '& .MuiOutlinedInput-root': {
-                    fontFamily: config.fonts.body,
-                    fontSize: '0.875rem',
-                  },
-                  '& .MuiOutlinedInput-input': {
-                    py: 0.5,
-                    px: 1,
-                  },
-                }}
-              />
-              <Tooltip title="Save">
-                <IconButton size="small" onClick={handleSaveName} color="primary">
-                  <Check size={16} weight="bold" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Cancel">
-                <IconButton size="small" onClick={() => setIsEditingName(false)}>
-                  <X size={16} />
-                </IconButton>
-              </Tooltip>
-            </Box>
-          ) : (
-            <Typography
-              variant="subtitle2"
-              sx={{
-                fontWeight: 500,
-                color: 'text.secondary',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-              }}
-            >
-              {focusedVariantIndex && focusedPlan ? (
-                <>
-                  <span
-                    style={{ cursor: 'pointer', color: config.colors.primary }}
-                    onClick={handleBackToGrid}
-                  >
-                    {projectName}
-                  </span>
-                  <CaretRight size={14} />
-                  {focusedPlan.title}
-                </>
-              ) : (
-                <Tooltip title="Click to rename">
-                  <span
-                    style={{ cursor: 'pointer' }}
-                    onClick={handleStartEditName}
-                  >
-                    {projectName}
-                  </span>
-                </Tooltip>
-              )}
-            </Typography>
-          )}
-          </Box>
-        </Box>
-
-        {/* Center: Variant switcher + Undo/Redo + Pages dropdown */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {/* Variant switcher (only when focused) */}
-          {focusedVariantIndex && (
-            <>
-              <Button
-                size="small"
-                endIcon={<CaretDown size={14} />}
-                onClick={(e) => setVariantSwitcherAnchorEl(e.currentTarget)}
-                sx={{ textTransform: 'none', minWidth: 120 }}
-              >
-                Variant {String.fromCharCode(64 + focusedVariantIndex)}
-              </Button>
-              <Menu
-                anchorEl={variantSwitcherAnchorEl}
-                open={Boolean(variantSwitcherAnchorEl)}
-                onClose={() => setVariantSwitcherAnchorEl(null)}
-                TransitionComponent={Fade}
-              >
-                {[1, 2, 3, 4].map((idx) => (
-                  <MenuItem
-                    key={idx}
-                    selected={focusedVariantIndex === idx}
-                    onClick={() => {
-                      setFocusedVariantIndex(idx);
-                      setVariantSwitcherAnchorEl(null);
-                    }}
-                  >
-                    Variant {String.fromCharCode(64 + idx)}
-                  </MenuItem>
-                ))}
-              </Menu>
-              <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-            </>
-          )}
-
-          {/* Undo/Redo */}
-          <Tooltip title="Undo">
-            <IconButton size="small">
-              <ArrowCounterClockwise size={18} />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Redo">
-            <IconButton size="small">
-              <ArrowClockwise size={18} />
-            </IconButton>
-          </Tooltip>
-
-          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-
-          {/* Pages dropdown - shows current screen name */}
-          <Button
-            size="small"
-            endIcon={<CaretDown size={14} />}
-            onClick={(e) => setPagesAnchorEl(e.currentTarget)}
-            sx={{
-              textTransform: 'none',
-              px: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 1,
-              maxWidth: 200,
-            }}
-          >
-            <Typography noWrap sx={{ fontSize: 'inherit' }}>
-              {projectName}
-            </Typography>
-          </Button>
-          <Menu
-            anchorEl={pagesAnchorEl}
-            open={Boolean(pagesAnchorEl)}
-            onClose={() => setPagesAnchorEl(null)}
-            TransitionComponent={Fade}
-            slotProps={{
-              paper: {
-                sx: { maxHeight: 300, minWidth: 200 },
-              },
-            }}
-          >
-            <MenuItem disabled sx={{ opacity: 0.6 }}>
-              <Typography variant="caption" fontWeight={600}>
-                All Screens
-              </Typography>
-            </MenuItem>
-            <Divider />
-            {screens.map((s) => (
-              <MenuItem
-                key={s.id}
-                selected={s.id === screenId}
-                onClick={() => {
-                  setPagesAnchorEl(null);
-                  if (s.id !== screenId) {
-                    navigate(`/prototypes/${s.id}`);
-                  }
-                }}
-              >
-                <Typography noWrap sx={{ maxWidth: 180 }}>
-                  {s.name}
-                </Typography>
-              </MenuItem>
-            ))}
-          </Menu>
-        </Box>
-
-        {/* Right: Share button */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 100, justifyContent: 'flex-end' }}>
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<ShareNetwork size={16} />}
-            onClick={handleShare}
-            sx={{
-              textTransform: 'none',
-              transition: 'all 0.2s ease',
-              '&:hover': { transform: 'translateY(-1px)' },
-            }}
-          >
-            Share
-          </Button>
-        </Box>
-      </Box>
-
-      {/* Main content area */}
+    <Box sx={{ height: '100%', display: 'flex', overflow: 'hidden' }}>
+      {/* Main content area - Chat and Stage side by side */}
       <Box ref={containerRef} sx={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         {/* Left Panel - Resizable Chat Panel */}
         <Box
@@ -1462,7 +1202,7 @@ export const VibePrototyping: React.FC = () => {
           />
         </Box>
 
-        {/* Right Panel - White Canvas */}
+        {/* Right Panel - Stage with Toolbar */}
         <Box
           sx={{
             flex: 1,
@@ -1474,6 +1214,266 @@ export const VibePrototyping: React.FC = () => {
             minWidth: 0,
           }}
         >
+          {/* Stage Toolbar */}
+          <Box
+            sx={{
+              height: 48,
+              px: 2,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              bgcolor: 'background.paper',
+              flexShrink: 0,
+            }}
+          >
+            {/* Left: Edit mode toggle + Project breadcrumb */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              {/* Edit mode group */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  bgcolor: 'action.hover',
+                  borderRadius: 1,
+                  p: 0.25,
+                }}
+              >
+                <Tooltip title="Preview Mode (V)">
+                  <IconButton
+                    size="small"
+                    onClick={() => setEditMode('cursor')}
+                    sx={{
+                      bgcolor: editMode === 'cursor' ? 'background.paper' : 'transparent',
+                      boxShadow: editMode === 'cursor' ? 1 : 0,
+                    }}
+                  >
+                    <Cursor size={18} weight={editMode === 'cursor' ? 'fill' : 'regular'} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Code Editor">
+                  <IconButton
+                    size="small"
+                    onClick={() => setEditMode('code')}
+                    sx={{
+                      bgcolor: editMode === 'code' ? 'background.paper' : 'transparent',
+                      boxShadow: editMode === 'code' ? 1 : 0,
+                    }}
+                  >
+                    <Code size={18} weight={editMode === 'code' ? 'fill' : 'regular'} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="WYSIWYG Editor">
+                  <IconButton
+                    size="small"
+                    onClick={() => setEditMode('wysiwyg')}
+                    sx={{
+                      bgcolor: editMode === 'wysiwyg' ? 'background.paper' : 'transparent',
+                      boxShadow: editMode === 'wysiwyg' ? 1 : 0,
+                    }}
+                  >
+                    <PencilSimple size={18} weight={editMode === 'wysiwyg' ? 'fill' : 'regular'} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+
+              <Divider orientation="vertical" flexItem />
+
+              {/* Project breadcrumb */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                {isEditingName ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <TextField
+                      size="small"
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveName();
+                        if (e.key === 'Escape') setIsEditingName(false);
+                      }}
+                      autoFocus
+                      sx={{
+                        width: 180,
+                        '& .MuiOutlinedInput-root': {
+                          fontFamily: config.fonts.body,
+                          fontSize: '0.875rem',
+                        },
+                        '& .MuiOutlinedInput-input': {
+                          py: 0.5,
+                          px: 1,
+                        },
+                      }}
+                    />
+                    <Tooltip title="Save">
+                      <IconButton size="small" onClick={handleSaveName} color="primary">
+                        <Check size={16} weight="bold" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Cancel">
+                      <IconButton size="small" onClick={() => setIsEditingName(false)}>
+                        <X size={16} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ) : (
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      fontWeight: 500,
+                      color: 'text.secondary',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                    }}
+                  >
+                    {focusedVariantIndex && focusedPlan ? (
+                      <>
+                        <span
+                          style={{ cursor: 'pointer', color: config.colors.primary }}
+                          onClick={handleBackToGrid}
+                        >
+                          {projectName}
+                        </span>
+                        <CaretRight size={14} />
+                        {focusedPlan.title}
+                      </>
+                    ) : (
+                      <Tooltip title="Click to rename">
+                        <span
+                          style={{ cursor: 'pointer' }}
+                          onClick={handleStartEditName}
+                        >
+                          {projectName}
+                        </span>
+                      </Tooltip>
+                    )}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+
+            {/* Center: Variant switcher + Undo/Redo + Pages dropdown */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {/* Variant switcher (only when focused) */}
+              {focusedVariantIndex && (
+                <>
+                  <Button
+                    size="small"
+                    endIcon={<CaretDown size={14} />}
+                    onClick={(e) => setVariantSwitcherAnchorEl(e.currentTarget)}
+                    sx={{ textTransform: 'none', minWidth: 120 }}
+                  >
+                    Variant {String.fromCharCode(64 + focusedVariantIndex)}
+                  </Button>
+                  <Menu
+                    anchorEl={variantSwitcherAnchorEl}
+                    open={Boolean(variantSwitcherAnchorEl)}
+                    onClose={() => setVariantSwitcherAnchorEl(null)}
+                    TransitionComponent={Fade}
+                  >
+                    {[1, 2, 3, 4].map((idx) => (
+                      <MenuItem
+                        key={idx}
+                        selected={focusedVariantIndex === idx}
+                        onClick={() => {
+                          setFocusedVariantIndex(idx);
+                          setVariantSwitcherAnchorEl(null);
+                        }}
+                      >
+                        Variant {String.fromCharCode(64 + idx)}
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                  <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+                </>
+              )}
+
+              {/* Undo/Redo */}
+              <Tooltip title="Undo">
+                <IconButton size="small">
+                  <ArrowCounterClockwise size={18} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Redo">
+                <IconButton size="small">
+                  <ArrowClockwise size={18} />
+                </IconButton>
+              </Tooltip>
+
+              <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+              {/* Pages dropdown */}
+              <Button
+                size="small"
+                endIcon={<CaretDown size={14} />}
+                onClick={(e) => setPagesAnchorEl(e.currentTarget)}
+                sx={{
+                  textTransform: 'none',
+                  px: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                  maxWidth: 200,
+                }}
+              >
+                <Typography noWrap sx={{ fontSize: 'inherit' }}>
+                  {projectName}
+                </Typography>
+              </Button>
+              <Menu
+                anchorEl={pagesAnchorEl}
+                open={Boolean(pagesAnchorEl)}
+                onClose={() => setPagesAnchorEl(null)}
+                TransitionComponent={Fade}
+                slotProps={{
+                  paper: {
+                    sx: { maxHeight: 300, minWidth: 200 },
+                  },
+                }}
+              >
+                <MenuItem disabled sx={{ opacity: 0.6 }}>
+                  <Typography variant="caption" fontWeight={600}>
+                    All Screens
+                  </Typography>
+                </MenuItem>
+                <Divider />
+                {screens.map((s) => (
+                  <MenuItem
+                    key={s.id}
+                    selected={s.id === screenId}
+                    onClick={() => {
+                      setPagesAnchorEl(null);
+                      if (s.id !== screenId) {
+                        navigate(`/prototypes/${s.id}`);
+                      }
+                    }}
+                  >
+                    <Typography noWrap sx={{ maxWidth: 180 }}>
+                      {s.name}
+                    </Typography>
+                  </MenuItem>
+                ))}
+              </Menu>
+            </Box>
+
+            {/* Right: Share button */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<ShareNetwork size={16} />}
+                onClick={handleShare}
+                sx={{
+                  textTransform: 'none',
+                  transition: 'all 0.2s ease',
+                  '&:hover': { transform: 'translateY(-1px)' },
+                }}
+              >
+                Share
+              </Button>
+            </Box>
+          </Box>
+
           {/* Initial state - show the selected screen with edit mode support */}
           {status === 'idle' && !hasVariants && (
             <Box
