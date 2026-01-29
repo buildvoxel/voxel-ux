@@ -9,9 +9,9 @@ export const TYPOGRAPHY = {
    * Used for: "Prototypes", "Screens", "Insights", etc.
    */
   pageTitle: {
-    fontSize: '1.75rem',  // 28px - slightly smaller than before for cleaner look
-    fontWeight: 600,
-    lineHeight: 1.3,
+    fontSize: '2.25rem',  // 36px - consistent across all pages
+    fontWeight: 700,
+    lineHeight: 1.2,
   },
 
   /**

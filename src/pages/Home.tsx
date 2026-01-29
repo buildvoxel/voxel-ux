@@ -9,7 +9,7 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
 import { Plus, TrendUp, Rocket, Flask, Eye } from '@phosphor-icons/react';
-import { StatCard } from '@/components';
+import { StatCard, PageHeader } from '@/components';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
 
@@ -98,23 +98,11 @@ export function Home() {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h1"
-          sx={{
-            fontFamily: config.fonts.display,
-            fontSize: '2.25rem',
-            fontWeight: mode === 'craftsman' ? 400 : 700,
-            color: config.colors.textPrimary,
-            mb: 1,
-          }}
-        >
-          Welcome back, {user?.name?.split(' ')[0] || 'there'}
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Here's what's happening with your prototypes
-        </Typography>
-      </Box>
+      <PageHeader
+        title={`Welcome back, ${user?.name?.split(' ')[0] || 'there'}`}
+        subtitle="Here's what's happening with your prototypes"
+        mb={4}
+      />
 
       {/* Quick Stats */}
       <Grid container spacing={2} sx={{ mb: 3 }}>

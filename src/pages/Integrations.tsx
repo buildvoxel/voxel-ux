@@ -20,6 +20,7 @@ import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import CodeOutlinedIcon from '@mui/icons-material/CodeOutlined';
 import { useSnackbar } from '@/components/SnackbarProvider';
+import { PageHeader } from '@/components/PageHeader';
 import { useThemeStore } from '@/store/themeStore';
 
 // Import integration logos from assets
@@ -154,23 +155,11 @@ export function Integrations() {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography
-          variant="h1"
-          sx={{
-            fontFamily: config.fonts.display,
-            fontSize: '2.25rem',
-            fontWeight: mode === 'craftsman' ? 400 : 700,
-            color: config.colors.textPrimary,
-            mb: 1,
-          }}
-        >
-          Integrations
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Connect Voxel with your favorite tools · {connectedCount} connected
-        </Typography>
-      </Box>
+      <PageHeader
+        title="Integrations"
+        subtitle={`Connect Voxel with your favorite tools · ${connectedCount} connected`}
+        mb={4}
+      />
 
       {/* Categories */}
       {categories.map((category) => {

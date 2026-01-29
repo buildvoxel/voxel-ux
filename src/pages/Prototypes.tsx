@@ -26,7 +26,7 @@ import {
   Copy,
   Flask,
 } from '@phosphor-icons/react';
-import { EmptyState, ThumbnailCard } from '@/components';
+import { EmptyState, ThumbnailCard, PageHeader } from '@/components';
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { useThemeStore } from '@/store/themeStore';
 import { useScreensStore } from '@/store/screensStore';
@@ -289,33 +289,25 @@ export function Prototypes() {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography
-          variant="h1"
-          sx={{
-            fontFamily: config.fonts.display,
-            fontSize: '2.25rem',
-            fontWeight: mode === 'craftsman' ? 400 : 700,
-            color: config.colors.textPrimary,
-          }}
-        >
-          Prototypes
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Plus size={18} />}
-          onClick={() => setCreateDialogOpen(true)}
-          sx={{
-            transition: 'all 0.2s ease',
-            '&:hover': {
-              transform: 'translateY(-2px)',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            },
-          }}
-        >
-          New Prototype
-        </Button>
-      </Box>
+      <PageHeader
+        title="Prototypes"
+        actions={
+          <Button
+            variant="contained"
+            startIcon={<Plus size={18} />}
+            onClick={() => setCreateDialogOpen(true)}
+            sx={{
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              },
+            }}
+          >
+            New Prototype
+          </Button>
+        }
+      />
 
       {/* Filters */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'center' }}>
