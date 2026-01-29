@@ -88,6 +88,8 @@ import {
   type LLMProvider,
   type ApiKeyConfig,
 } from '@/services/apiKeysService';
+import HTMLTreeEditor from '@/components/HTMLTreeEditor';
+import WYSIWYGEditor from '@/components/WYSIWYGEditor';
 
 // ============== Types ==============
 
@@ -467,6 +469,9 @@ export const VibePrototyping: React.FC = () => {
   // Current prompt for context
   const [currentPrompt, setCurrentPrompt] = useState('');
 
+  // Track completed variants locally to prevent progress reset
+  const [completedVariantIndices, setCompletedVariantIndices] = useState<Set<number>>(new Set());
+
   // Product context files
   const [contextFiles, setContextFiles] = useState<ContextFile[]>([]);
   const [contextPanelOpen, setContextPanelOpen] = useState(false);
@@ -675,6 +680,9 @@ export const VibePrototyping: React.FC = () => {
         percent: 0,
       });
 
+      // Reset completed tracking for new build
+      setCompletedVariantIndices(new Set());
+
       const generatedVariants = await generateAllVariants(
         session.id,
         result.plans,
@@ -690,7 +698,9 @@ export const VibePrototyping: React.FC = () => {
             variantTitle: p.title,
           });
 
-          if (p.stage === 'complete') {
+          // Track completed variants locally to prevent progress reset
+          if (p.stage === 'complete' && p.variantIndex) {
+            setCompletedVariantIndices(prev => new Set([...prev, p.variantIndex!]));
             getVariants(session.id).then(setVariants);
           }
         }
@@ -814,13 +824,19 @@ export const VibePrototyping: React.FC = () => {
   const focusedVariant = focusedVariantIndex ? getVariantByIndex(focusedVariantIndex) : null;
   const focusedPlan = focusedVariantIndex ? getPlanByIndex(focusedVariantIndex) : null;
 
-  // Get progress for each variant
+  // Get progress for each variant - use local tracking for completed variants
   const getVariantProgress = useCallback((index: number) => {
-    if (!progress || progress.stage !== 'generating') return 0;
-    if (progress.variantIndex === index) return progress.percent;
+    // Check local completed set first (prevents race conditions)
+    if (completedVariantIndices.has(index)) return 100;
+    // Check store for completed status
     const variant = getVariantByIndex(index);
-    return variant?.status === 'complete' ? 100 : 0;
-  }, [progress, getVariantByIndex]);
+    if (variant?.status === 'complete') return 100;
+    // If currently building this variant, return the progress
+    if (progress?.stage === 'generating' && progress.variantIndex === index) {
+      return progress.percent;
+    }
+    return 0;
+  }, [progress, getVariantByIndex, completedVariantIndices]);
 
   // Loading state
   if (isLoading) {
@@ -1338,32 +1354,30 @@ export const VibePrototyping: React.FC = () => {
                         },
                       }}
                     >
-                      {availableKeys.map((key) => (
-                        <Box key={key.provider}>
-                          <MenuItem disabled sx={{ opacity: 0.7, py: 0.5 }}>
-                            <Typography variant="caption" fontWeight={600}>
-                              {PROVIDER_INFO[key.provider]?.name}
-                            </Typography>
-                          </MenuItem>
-                          {PROVIDER_INFO[key.provider]?.models.map((model) => (
-                            <MenuItem
-                              key={model}
-                              selected={selectedProvider === key.provider && selectedModel === model}
-                              onClick={() => {
-                                setSelectedProvider(key.provider);
-                                setSelectedModel(model);
-                                setLlmMenuAnchorEl(null);
-                              }}
-                              sx={{ pl: 3 }}
-                            >
-                              <Typography variant="body2" noWrap>
-                                {model}
+                      {availableKeys.map((key) => {
+                        // Only show the configured model for this key, not all models
+                        const configuredModel = key.model || PROVIDER_INFO[key.provider]?.defaultModel;
+                        return (
+                          <MenuItem
+                            key={key.provider}
+                            selected={selectedProvider === key.provider}
+                            onClick={() => {
+                              setSelectedProvider(key.provider);
+                              setSelectedModel(configuredModel);
+                              setLlmMenuAnchorEl(null);
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                              <Typography variant="body2" fontWeight={500}>
+                                {PROVIDER_INFO[key.provider]?.name}
                               </Typography>
-                            </MenuItem>
-                          ))}
-                          <Divider sx={{ my: 0.5 }} />
-                        </Box>
-                      ))}
+                              <Typography variant="caption" color="text.secondary">
+                                {configuredModel}
+                              </Typography>
+                            </Box>
+                          </MenuItem>
+                        );
+                      })}
                     </Menu>
                   </>
                 ) : (
@@ -1502,108 +1516,24 @@ export const VibePrototyping: React.FC = () => {
                       />
                     )}
 
-                    {/* Code Editor Mode */}
+                    {/* Code Editor Mode - HTML Tree View */}
                     {editMode === 'code' && (
-                      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <Box
-                          sx={{
-                            px: 2,
-                            py: 1,
-                            borderBottom: '1px solid',
-                            borderColor: 'rgba(255,255,255,0.1)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            flexShrink: 0,
-                          }}
-                        >
-                          <Typography variant="caption" sx={{ color: '#9cdcfe', fontFamily: 'monospace' }}>
-                            {screen.name?.toLowerCase().replace(/\s+/g, '-') || 'screen'}.html
-                          </Typography>
-                          <Box sx={{ display: 'flex', gap: 1 }}>
-                            <Tooltip title="Copy code">
-                              <IconButton size="small" sx={{ color: 'grey.400' }}>
-                                <Copy size={16} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Download">
-                              <IconButton size="small" sx={{ color: 'grey.400' }}>
-                                <Download size={16} />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </Box>
-                        <Box
-                          sx={{
-                            flex: 1,
-                            overflow: 'auto',
-                            p: 2,
-                            fontFamily: 'Monaco, Consolas, "Courier New", monospace',
-                            fontSize: '13px',
-                            lineHeight: 1.6,
-                            color: '#d4d4d4',
-                            whiteSpace: 'pre-wrap',
-                            wordBreak: 'break-word',
-                          }}
-                        >
-                          <code>{screen.editedHtml}</code>
-                        </Box>
-                      </Box>
+                      <HTMLTreeEditor
+                        html={screen.editedHtml}
+                        onHtmlChange={(newHtml) => {
+                          updateScreen(screenId!, { editedHtml: newHtml });
+                        }}
+                      />
                     )}
 
                     {/* WYSIWYG Editor Mode */}
                     {editMode === 'wysiwyg' && (
-                      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <Box
-                          sx={{
-                            px: 2,
-                            py: 1,
-                            borderBottom: '1px solid',
-                            borderColor: 'divider',
-                            bgcolor: 'grey.50',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1,
-                            flexShrink: 0,
-                          }}
-                        >
-                          <Chip
-                            label="WYSIWYG Mode"
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                            icon={<PencilSimple size={14} />}
-                          />
-                          <Typography variant="caption" color="text.secondary">
-                            Click on elements to edit them directly
-                          </Typography>
-                        </Box>
-                        <Box sx={{ flex: 1, position: 'relative', minHeight: 0 }}>
-                          <iframe
-                            srcDoc={screen.editedHtml}
-                            title={screen.name || 'Screen Preview'}
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              border: 'none',
-                            }}
-                          />
-                          {/* WYSIWYG overlay indicator */}
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              pointerEvents: 'none',
-                              border: '2px dashed',
-                              borderColor: 'primary.main',
-                              opacity: 0.3,
-                            }}
-                          />
-                        </Box>
-                      </Box>
+                      <WYSIWYGEditor
+                        html={screen.editedHtml}
+                        onHtmlChange={(newHtml) => {
+                          updateScreen(screenId!, { editedHtml: newHtml });
+                        }}
+                      />
                     )}
                   </Box>
                 </Card>
@@ -1710,15 +1640,14 @@ export const VibePrototyping: React.FC = () => {
                     )
                   )}
 
-                  {/* Code Editor Mode */}
+                  {/* Code Editor Mode - Tree View for variants */}
                   {editMode === 'code' && (
-                    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                    <Box sx={{ height: '100%', bgcolor: '#1e1e1e', display: 'flex', flexDirection: 'column' }}>
                       <Box
                         sx={{
                           px: 2,
                           py: 1,
-                          borderBottom: '1px solid',
-                          borderColor: 'rgba(255,255,255,0.1)',
+                          borderBottom: '1px solid rgba(255,255,255,0.1)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
@@ -1728,23 +1657,40 @@ export const VibePrototyping: React.FC = () => {
                           variant-{String.fromCharCode(96 + focusedVariantIndex)}.html
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 1 }}>
-                          <Tooltip title="Copy code">
-                            <IconButton size="small" sx={{ color: 'grey.400' }}>
-                              <Copy size={16} />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Download">
-                            <IconButton size="small" sx={{ color: 'grey.400' }}>
-                              <Download size={16} />
-                            </IconButton>
-                          </Tooltip>
+                          {focusedVariant.html_url && (
+                            <>
+                              <Tooltip title="Open in new tab">
+                                <IconButton
+                                  size="small"
+                                  sx={{ color: 'grey.400' }}
+                                  onClick={() => window.open(focusedVariant.html_url!, '_blank')}
+                                >
+                                  <LinkSimple size={16} />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Download HTML">
+                                <IconButton
+                                  size="small"
+                                  sx={{ color: 'grey.400' }}
+                                  onClick={() => {
+                                    const link = document.createElement('a');
+                                    link.href = focusedVariant.html_url!;
+                                    link.download = `variant-${String.fromCharCode(96 + focusedVariantIndex)}.html`;
+                                    link.click();
+                                  }}
+                                >
+                                  <Download size={16} />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          )}
                         </Box>
                       </Box>
                       <Box
                         sx={{
                           flex: 1,
                           overflow: 'auto',
-                          p: 2,
+                          p: 3,
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
@@ -1753,17 +1699,15 @@ export const VibePrototyping: React.FC = () => {
                         }}
                       >
                         {focusedVariant.html_url ? (
-                          <>
-                            <Box sx={{ textAlign: 'center' }}>
-                              <Code size={48} color="#9cdcfe" weight="light" />
-                              <Typography color="grey.400" sx={{ mt: 2, mb: 1 }}>
-                                Variant {String.fromCharCode(64 + focusedVariantIndex)} HTML Code
-                              </Typography>
-                              <Typography variant="caption" color="grey.500">
-                                View the generated HTML code or download it to edit locally
-                              </Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                          <Box sx={{ textAlign: 'center' }}>
+                            <Code size={48} color="#9cdcfe" weight="light" />
+                            <Typography color="grey.400" sx={{ mt: 2, mb: 1 }}>
+                              Variant {String.fromCharCode(64 + focusedVariantIndex)} Generated
+                            </Typography>
+                            <Typography variant="body2" color="grey.500" sx={{ maxWidth: 400 }}>
+                              This variant was generated from the AI. Open in a new tab or download to view the full HTML code.
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 2, mt: 3, justifyContent: 'center' }}>
                               <Button
                                 variant="outlined"
                                 size="small"
@@ -1775,7 +1719,7 @@ export const VibePrototyping: React.FC = () => {
                                   '&:hover': { borderColor: 'grey.400', bgcolor: 'rgba(255,255,255,0.05)' },
                                 }}
                               >
-                                Open in New Tab
+                                View Source
                               </Button>
                               <Button
                                 variant="contained"
@@ -1792,20 +1736,20 @@ export const VibePrototyping: React.FC = () => {
                                   '&:hover': { bgcolor: '#29b6f6' },
                                 }}
                               >
-                                Download HTML
+                                Download
                               </Button>
                             </Box>
-                          </>
+                          </Box>
                         ) : (
                           <Typography color="grey.500" fontStyle="italic">
-                            Code not available. Generate a variant to see the code here.
+                            Code not available. Generate a variant first.
                           </Typography>
                         )}
                       </Box>
                     </Box>
                   )}
 
-                  {/* WYSIWYG Editor Mode */}
+                  {/* WYSIWYG Editor Mode - Interactive editing */}
                   {editMode === 'wysiwyg' && (
                     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                       <Box
@@ -1821,21 +1765,21 @@ export const VibePrototyping: React.FC = () => {
                         }}
                       >
                         <Chip
-                          label="WYSIWYG Mode"
+                          label="Preview Mode"
                           size="small"
                           color="primary"
                           variant="outlined"
                           icon={<PencilSimple size={14} />}
                         />
                         <Typography variant="caption" color="text.secondary">
-                          Click on elements to edit them directly
+                          Variant {String.fromCharCode(64 + focusedVariantIndex)} - Interactive preview
                         </Typography>
                       </Box>
                       <Box sx={{ flex: 1, position: 'relative' }}>
                         {focusedVariant.html_url ? (
                           <iframe
                             src={focusedVariant.html_url}
-                            title={`Edit Variant ${focusedVariantIndex}`}
+                            title={`Preview Variant ${focusedVariantIndex}`}
                             style={{
                               width: '100%',
                               height: '100%',
@@ -1852,24 +1796,10 @@ export const VibePrototyping: React.FC = () => {
                             }}
                           >
                             <Typography color="text.secondary">
-                              No content to edit
+                              No content to preview
                             </Typography>
                           </Box>
                         )}
-                        {/* WYSIWYG overlay indicator */}
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            pointerEvents: 'none',
-                            border: '2px dashed',
-                            borderColor: 'primary.main',
-                            opacity: 0.3,
-                          }}
-                        />
                       </Box>
                     </Box>
                   )}

@@ -1,9 +1,11 @@
 /**
  * Vibe Prototyping Store
  * State management for the vibe prototyping workflow
+ * With persistence to survive page refreshes
  */
 
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { UIMetadata } from '../services/screenAnalyzerService';
 import type { VibeSession, VariantPlan } from '../services/variantPlanService';
 import type { VibeVariant } from '../services/variantCodeService';
@@ -105,7 +107,9 @@ interface VibeState {
   getCompletedVariantsCount: () => number;
 }
 
-export const useVibeStore = create<VibeState>((set, get) => ({
+export const useVibeStore = create<VibeState>()(
+  persist(
+    (set, get) => ({
   // Initial state
   currentSession: null,
   sourceHtml: null,
@@ -353,7 +357,26 @@ export const useVibeStore = create<VibeState>((set, get) => ({
   getCompletedVariantsCount: () => {
     return get().variants.filter((v) => v.status === 'complete').length;
   },
-}));
+}),
+    {
+      name: 'voxel-vibe-store',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        // Only persist essential data, not transient UI state
+        currentSession: state.currentSession,
+        sourceHtml: state.sourceHtml,
+        sourceMetadata: state.sourceMetadata,
+        plan: state.plan,
+        variants: state.variants,
+        messages: state.messages,
+        status: state.status,
+        selectedVariantIndex: state.selectedVariantIndex,
+        comparisonMode: state.comparisonMode,
+        // Don't persist progress or error - these are transient
+      }),
+    }
+  )
+);
 
 // Variant label colors
 export const VIBE_VARIANT_COLORS: Record<number, string> = {
