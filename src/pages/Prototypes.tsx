@@ -8,7 +8,7 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import Fade from '@mui/material/Fade';
-import CircularProgress from '@mui/material/CircularProgress';
+import Skeleton from '@mui/material/Skeleton';
 import {
   Plus,
   MagnifyingGlass,
@@ -346,11 +346,23 @@ export function Prototypes() {
         </Tabs>
       </Box>
 
-      {/* Loading State */}
+      {/* Loading State - Skeleton Cards */}
       {isLoading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress />
-        </Box>
+        <Grid container spacing={2}>
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <Grid item xs={12} sm={6} md={4} lg={3} key={i}>
+              <Box>
+                <Skeleton variant="rectangular" height={140} sx={{ borderRadius: 1, mb: 1 }} />
+                <Skeleton variant="text" width="70%" height={24} />
+                <Skeleton variant="text" width="50%" height={20} />
+                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                  <Skeleton variant="rounded" width={60} height={20} />
+                  <Skeleton variant="rounded" width={80} height={20} />
+                </Box>
+              </Box>
+            </Grid>
+          ))}
+        </Grid>
       )}
 
       {/* Grid */}
