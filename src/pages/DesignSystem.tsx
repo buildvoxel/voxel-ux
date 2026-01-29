@@ -4,7 +4,7 @@
  * Extracts colors, typography, spacing patterns from captured HTML
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
@@ -15,39 +15,57 @@ import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
-import CircularProgress from '@mui/material/CircularProgress';
 import Divider from '@mui/material/Divider';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import TextField from '@mui/material/TextField';
+import LinearProgress from '@mui/material/LinearProgress';
+import Tooltip from '@mui/material/Tooltip';
 import {
   Palette,
   TextT,
-  SquaresFour,
   ArrowsOutCardinal,
   Copy,
   ArrowClockwise,
   Check,
+  Trash,
+  PencilSimple,
+  CheckCircle,
+  Sparkle,
+  MagnifyingGlass,
 } from '@phosphor-icons/react';
 import { useThemeStore } from '@/store/themeStore';
 import { useScreensStore } from '@/store/screensStore';
 import { useSnackbar } from '@/components/SnackbarProvider';
 
 interface ExtractedColor {
+  id: string;
   hex: string;
   rgb: string;
   count: number;
   usage: 'background' | 'text' | 'border' | 'accent';
+  label?: string;
+  approved?: boolean;
 }
 
 interface ExtractedFont {
+  id: string;
   family: string;
   weights: string[];
   sizes: string[];
   count: number;
+  label?: string;
+  approved?: boolean;
 }
 
 interface ExtractedSpacing {
+  id: string;
   value: string;
   count: number;
   context: string;
+  approved?: boolean;
 }
 
 interface DesignSystemData {
@@ -57,6 +75,22 @@ interface DesignSystemData {
   borderRadius: string[];
   shadows: string[];
   lastUpdated: string;
+}
+
+// Loading messages for fun extraction state
+const LOADING_MESSAGES = [
+  { message: 'Scanning screens for design patterns...', icon: '🔍' },
+  { message: 'Extracting color palettes...', icon: '🎨' },
+  { message: 'Analyzing typography styles...', icon: '📝' },
+  { message: 'Measuring spacing patterns...', icon: '📐' },
+  { message: 'Detecting border radii...', icon: '⭕' },
+  { message: 'Cataloging shadows...', icon: '🌑' },
+  { message: 'Building your design system...', icon: '✨' },
+];
+
+// Generate unique ID
+function generateId(): string {
+  return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
 // Parse CSS color to hex
@@ -80,16 +114,84 @@ function normalizeColor(color: string): string | null {
   return null;
 }
 
-// Extract design tokens from HTML string
-function extractDesignTokens(htmlStrings: string[]): DesignSystemData {
+// Generate semantic label for color based on usage and hex
+function generateColorLabel(hex: string, usage: string): string {
+  // Common color names
+  const colorNames: Record<string, string> = {
+    '#000000': 'Black',
+    '#ffffff': 'White',
+    '#f44336': 'Red',
+    '#e91e63': 'Pink',
+    '#9c27b0': 'Purple',
+    '#673ab7': 'Deep Purple',
+    '#3f51b5': 'Indigo',
+    '#2196f3': 'Blue',
+    '#03a9f4': 'Light Blue',
+    '#00bcd4': 'Cyan',
+    '#009688': 'Teal',
+    '#4caf50': 'Green',
+    '#8bc34a': 'Light Green',
+    '#cddc39': 'Lime',
+    '#ffeb3b': 'Yellow',
+    '#ffc107': 'Amber',
+    '#ff9800': 'Orange',
+    '#ff5722': 'Deep Orange',
+  };
+
+  const baseName = colorNames[hex.toLowerCase()];
+  if (baseName) {
+    return `${baseName} ${usage.charAt(0).toUpperCase() + usage.slice(1)}`;
+  }
+
+  // Generate name based on usage
+  const usageNames: Record<string, string> = {
+    background: 'Background',
+    text: 'Text',
+    border: 'Border',
+    accent: 'Accent',
+  };
+
+  return `${usageNames[usage] || 'Color'} ${hex.slice(1, 4).toUpperCase()}`;
+}
+
+// Generate semantic label for font
+function generateFontLabel(family: string): string {
+  const lowerFamily = family.toLowerCase();
+
+  if (lowerFamily.includes('mono') || lowerFamily.includes('code') || lowerFamily.includes('consolas')) {
+    return 'Monospace / Code';
+  }
+  if (lowerFamily.includes('serif') && !lowerFamily.includes('sans')) {
+    return 'Serif / Body';
+  }
+  if (lowerFamily.includes('display') || lowerFamily.includes('heading')) {
+    return 'Display / Headings';
+  }
+  if (lowerFamily.includes('system') || lowerFamily.includes('apple') || lowerFamily.includes('segoe')) {
+    return 'System UI';
+  }
+
+  return 'Sans-serif / UI';
+}
+
+// Extract design tokens from HTML strings
+function extractDesignTokens(htmlStrings: string[], onProgress?: (progress: number, message: string) => void): DesignSystemData {
   const colorMap = new Map<string, { count: number; usage: ExtractedColor['usage'] }>();
   const fontMap = new Map<string, { weights: Set<string>; sizes: Set<string>; count: number }>();
   const spacingMap = new Map<string, { count: number; context: string }>();
   const borderRadiusSet = new Set<string>();
   const shadowSet = new Set<string>();
 
-  htmlStrings.forEach((html) => {
+  const totalScreens = htmlStrings.length;
+
+  htmlStrings.forEach((html, index) => {
     if (!html) return;
+
+    // Report progress
+    if (onProgress) {
+      const progress = ((index + 1) / totalScreens) * 100;
+      onProgress(progress, `Processing screen ${index + 1} of ${totalScreens}`);
+    }
 
     // Parse HTML
     const parser = new DOMParser();
@@ -101,8 +203,9 @@ function extractDesignTokens(htmlStrings: string[]): DesignSystemData {
     allElements.forEach((el) => {
       const style = (el as HTMLElement).style;
       const computedStyle = el.getAttribute('style') || '';
+      const className = el.getAttribute('class') || '';
 
-      // Extract colors
+      // Extract colors from style attribute
       const colorProps = ['color', 'backgroundColor', 'borderColor', 'background'];
       colorProps.forEach((prop) => {
         const value = style.getPropertyValue(prop.replace(/([A-Z])/g, '-$1').toLowerCase());
@@ -118,7 +221,7 @@ function extractDesignTokens(htmlStrings: string[]): DesignSystemData {
         }
       });
 
-      // Extract from style attribute
+      // Extract from style attribute with regex
       const bgMatch = computedStyle.match(/background(?:-color)?:\s*([^;]+)/i);
       if (bgMatch) {
         const normalized = normalizeColor(bgMatch[1].trim());
@@ -139,38 +242,59 @@ function extractDesignTokens(htmlStrings: string[]): DesignSystemData {
         }
       }
 
-      // Extract fonts
+      // Extract fonts from style attribute
       const fontMatch = computedStyle.match(/font-family:\s*([^;]+)/i);
       if (fontMatch) {
         const family = fontMatch[1].split(',')[0].trim().replace(/['"]/g, '');
-        const existing = fontMap.get(family) || { weights: new Set(), sizes: new Set(), count: 0 };
-        existing.count++;
+        if (family && family.length > 1) {
+          const existing = fontMap.get(family) || { weights: new Set(), sizes: new Set(), count: 0 };
+          existing.count++;
 
-        const weightMatch = computedStyle.match(/font-weight:\s*(\d+|bold|normal)/i);
-        if (weightMatch) existing.weights.add(weightMatch[1]);
+          const weightMatch = computedStyle.match(/font-weight:\s*(\d+|bold|normal)/i);
+          if (weightMatch) existing.weights.add(weightMatch[1]);
 
-        const sizeMatch = computedStyle.match(/font-size:\s*([^;]+)/i);
-        if (sizeMatch) existing.sizes.add(sizeMatch[1].trim());
+          const sizeMatch = computedStyle.match(/font-size:\s*([^;]+)/i);
+          if (sizeMatch) existing.sizes.add(sizeMatch[1].trim());
 
-        fontMap.set(family, existing);
+          fontMap.set(family, existing);
+        }
+      }
+
+      // Extract fonts from class-based hints
+      if (className) {
+        // Look for common font class patterns
+        const fontClasses = className.match(/font-\w+/g);
+        if (fontClasses) {
+          fontClasses.forEach(fc => {
+            const family = fc.replace('font-', '');
+            if (family.length > 2) {
+              const existing = fontMap.get(family) || { weights: new Set(), sizes: new Set(), count: 0 };
+              existing.count++;
+              fontMap.set(family, existing);
+            }
+          });
+        }
       }
 
       // Extract spacing (padding, margin)
-      const spacingMatch = computedStyle.match(/(padding|margin):\s*([^;]+)/gi);
-      if (spacingMatch) {
-        spacingMatch.forEach((match) => {
-          const [prop, value] = match.split(':').map((s) => s.trim());
-          if (value && !value.includes('auto')) {
-            const existing = spacingMap.get(value) || { count: 0, context: prop };
-            existing.count++;
-            spacingMap.set(value, existing);
+      const spacingMatches = computedStyle.match(/(padding|margin)(?:-(?:top|right|bottom|left))?:\s*([^;]+)/gi);
+      if (spacingMatches) {
+        spacingMatches.forEach((match) => {
+          const parts = match.split(':').map((s) => s.trim());
+          if (parts.length === 2) {
+            const [prop, value] = parts;
+            if (value && !value.includes('auto') && value !== '0') {
+              const existing = spacingMap.get(value) || { count: 0, context: prop };
+              existing.count++;
+              spacingMap.set(value, existing);
+            }
           }
         });
       }
 
       // Extract border radius
       const radiusMatch = computedStyle.match(/border-radius:\s*([^;]+)/i);
-      if (radiusMatch) {
+      if (radiusMatch && radiusMatch[1] !== '0' && radiusMatch[1] !== '0px') {
         borderRadiusSet.add(radiusMatch[1].trim());
       }
 
@@ -182,32 +306,40 @@ function extractDesignTokens(htmlStrings: string[]): DesignSystemData {
     });
   });
 
-  // Convert maps to arrays
+  // Convert maps to arrays with IDs and labels
   const colors: ExtractedColor[] = Array.from(colorMap.entries())
     .map(([hex, data]) => ({
+      id: generateId(),
       hex,
       rgb: `rgb(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)})`,
       count: data.count,
       usage: data.usage,
+      label: generateColorLabel(hex, data.usage),
+      approved: false,
     }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, 20);
+    .slice(0, 24);
 
   const fonts: ExtractedFont[] = Array.from(fontMap.entries())
     .map(([family, data]) => ({
+      id: generateId(),
       family,
       weights: Array.from(data.weights),
-      sizes: Array.from(data.sizes),
+      sizes: Array.from(data.sizes).sort(),
       count: data.count,
+      label: generateFontLabel(family),
+      approved: false,
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
   const spacing: ExtractedSpacing[] = Array.from(spacingMap.entries())
     .map(([value, data]) => ({
+      id: generateId(),
       value,
       count: data.count,
       context: data.context,
+      approved: false,
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 15);
@@ -222,9 +354,23 @@ function extractDesignTokens(htmlStrings: string[]): DesignSystemData {
   };
 }
 
-// Color swatch component
-function ColorSwatch({ color, onCopy }: { color: ExtractedColor; onCopy: (value: string) => void }) {
+// Color swatch component with actions
+function ColorSwatch({
+  color,
+  onCopy,
+  onApprove,
+  onEdit,
+  onDelete,
+}: {
+  color: ExtractedColor;
+  onCopy: (value: string) => void;
+  onApprove: (id: string) => void;
+  onEdit: (id: string, label: string) => void;
+  onDelete: (id: string) => void;
+}) {
   const [copied, setCopied] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editLabel, setEditLabel] = useState(color.label || '');
 
   const handleCopy = () => {
     navigator.clipboard.writeText(color.hex);
@@ -233,61 +379,332 @@ function ColorSwatch({ color, onCopy }: { color: ExtractedColor; onCopy: (value:
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const handleSaveEdit = () => {
+    onEdit(color.id, editLabel);
+    setIsEditing(false);
+  };
+
   return (
-    <Card variant="outlined" sx={{ overflow: 'hidden' }}>
+    <Card
+      variant="outlined"
+      sx={{
+        overflow: 'hidden',
+        border: color.approved ? '2px solid' : '1px solid',
+        borderColor: color.approved ? 'success.main' : 'divider',
+        transition: 'all 0.2s ease',
+      }}
+    >
       <Box
         sx={{
           height: 60,
           bgcolor: color.hex,
           position: 'relative',
           cursor: 'pointer',
-          '&:hover .copy-btn': { opacity: 1 },
+          '&:hover .swatch-actions': { opacity: 1 },
         }}
         onClick={handleCopy}
       >
-        <IconButton
-          className="copy-btn"
-          size="small"
+        <Box
+          className="swatch-actions"
           sx={{
             position: 'absolute',
             top: 4,
             right: 4,
+            display: 'flex',
+            gap: 0.5,
             opacity: 0,
             transition: 'opacity 0.2s',
-            bgcolor: 'rgba(255,255,255,0.9)',
-            '&:hover': { bgcolor: 'white' },
           }}
         >
-          {copied ? <Check size={14} color="green" /> : <Copy size={14} />}
-        </IconButton>
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCopy();
+            }}
+            sx={{
+              bgcolor: 'rgba(255,255,255,0.9)',
+              '&:hover': { bgcolor: 'white' },
+              width: 24,
+              height: 24,
+            }}
+          >
+            {copied ? <Check size={12} color="green" /> : <Copy size={12} />}
+          </IconButton>
+        </Box>
+        {color.approved && (
+          <CheckCircle
+            size={20}
+            weight="fill"
+            style={{
+              position: 'absolute',
+              bottom: 4,
+              left: 4,
+              color: '#4caf50',
+              background: 'white',
+              borderRadius: '50%',
+            }}
+          />
+        )}
       </Box>
       <CardContent sx={{ py: 1, px: 1.5, '&:last-child': { pb: 1 } }}>
-        <Typography variant="caption" fontWeight={600} sx={{ fontFamily: 'monospace' }}>
-          {color.hex}
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+        {isEditing ? (
+          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+            <TextField
+              size="small"
+              value={editLabel}
+              onChange={(e) => setEditLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveEdit();
+                if (e.key === 'Escape') setIsEditing(false);
+              }}
+              autoFocus
+              sx={{ flex: 1, '& input': { py: 0.5, fontSize: '0.75rem' } }}
+            />
+            <IconButton size="small" onClick={handleSaveEdit}>
+              <Check size={14} />
+            </IconButton>
+          </Box>
+        ) : (
+          <>
+            <Typography variant="caption" fontWeight={600} sx={{ display: 'block', mb: 0.25 }}>
+              {color.label || 'Unnamed'}
+            </Typography>
+            <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+              {color.hex}
+            </Typography>
+          </>
+        )}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
           <Chip
             label={color.usage}
             size="small"
-            sx={{ height: 18, fontSize: '0.65rem' }}
+            sx={{ height: 18, fontSize: '0.6rem' }}
           />
           <Typography variant="caption" color="text.secondary">
-            {color.count}x
+            {color.count}×
           </Typography>
+          <Box sx={{ flex: 1 }} />
+          <Tooltip title="Edit label">
+            <IconButton size="small" onClick={() => setIsEditing(true)} sx={{ p: 0.25 }}>
+              <PencilSimple size={12} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={color.approved ? 'Unapprove' : 'Approve'}>
+            <IconButton
+              size="small"
+              onClick={() => onApprove(color.id)}
+              sx={{ p: 0.25 }}
+              color={color.approved ? 'success' : 'default'}
+            >
+              <CheckCircle size={12} weight={color.approved ? 'fill' : 'regular'} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton size="small" onClick={() => onDelete(color.id)} sx={{ p: 0.25 }} color="error">
+              <Trash size={12} />
+            </IconButton>
+          </Tooltip>
         </Box>
       </CardContent>
     </Card>
   );
 }
 
+// Font card component with actions
+function FontCard({
+  font,
+  onApprove,
+  onEdit,
+  onDelete,
+}: {
+  font: ExtractedFont;
+  onApprove: (id: string) => void;
+  onEdit: (id: string, label: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editLabel, setEditLabel] = useState(font.label || '');
+
+  const handleSaveEdit = () => {
+    onEdit(font.id, editLabel);
+    setIsEditing(false);
+  };
+
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        border: font.approved ? '2px solid' : '1px solid',
+        borderColor: font.approved ? 'success.main' : 'divider',
+        transition: 'all 0.2s ease',
+      }}
+    >
+      <CardContent>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+          <Box>
+            <Typography
+              variant="h6"
+              sx={{ fontFamily: font.family, mb: 0.5 }}
+            >
+              {font.family}
+            </Typography>
+            {isEditing ? (
+              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                <TextField
+                  size="small"
+                  value={editLabel}
+                  onChange={(e) => setEditLabel(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveEdit();
+                    if (e.key === 'Escape') setIsEditing(false);
+                  }}
+                  autoFocus
+                  sx={{ width: 150, '& input': { py: 0.5, fontSize: '0.75rem' } }}
+                />
+                <IconButton size="small" onClick={handleSaveEdit}>
+                  <Check size={14} />
+                </IconButton>
+              </Box>
+            ) : (
+              <Typography variant="caption" color="text.secondary">
+                {font.label || 'Uncategorized'}
+              </Typography>
+            )}
+          </Box>
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
+            <Tooltip title="Edit label">
+              <IconButton size="small" onClick={() => setIsEditing(true)}>
+                <PencilSimple size={14} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={font.approved ? 'Unapprove' : 'Approve'}>
+              <IconButton
+                size="small"
+                onClick={() => onApprove(font.id)}
+                color={font.approved ? 'success' : 'default'}
+              >
+                <CheckCircle size={14} weight={font.approved ? 'fill' : 'regular'} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete">
+              <IconButton size="small" onClick={() => onDelete(font.id)} color="error">
+                <Trash size={14} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+          {font.weights.map((w) => (
+            <Chip key={w} label={`${w}`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+          ))}
+        </Box>
+        {font.sizes.length > 0 && (
+          <Typography variant="caption" color="text.secondary">
+            Sizes: {font.sizes.join(', ')}
+          </Typography>
+        )}
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          Used {font.count}× across screens
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Fun loading component
+function ExtractionLoader({ progress, message }: { progress: number; message: string }) {
+  const [messageIndex, setMessageIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMessageIndex((prev) => (prev + 1) % LOADING_MESSAGES.length);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentMessage = LOADING_MESSAGES[messageIndex];
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        py: 8,
+        gap: 3,
+      }}
+    >
+      <Box
+        sx={{
+          position: 'relative',
+          width: 80,
+          height: 80,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Sparkle
+          size={48}
+          weight="duotone"
+          style={{
+            animation: 'pulse 1.5s ease-in-out infinite',
+          }}
+        />
+        <style>
+          {`
+            @keyframes pulse {
+              0%, 100% { transform: scale(1); opacity: 1; }
+              50% { transform: scale(1.1); opacity: 0.7; }
+            }
+          `}
+        </style>
+      </Box>
+      <Box sx={{ textAlign: 'center' }}>
+        <Typography variant="h6" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}>
+          <span>{currentMessage.icon}</span>
+          {currentMessage.message}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {message}
+        </Typography>
+      </Box>
+      <Box sx={{ width: 300 }}>
+        <LinearProgress
+          variant="determinate"
+          value={progress}
+          sx={{
+            height: 8,
+            borderRadius: 4,
+            bgcolor: 'grey.200',
+            '& .MuiLinearProgress-bar': {
+              borderRadius: 4,
+              background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+            },
+          }}
+        />
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', textAlign: 'center' }}>
+          {Math.round(progress)}% complete
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
 export const DesignSystem: React.FC = () => {
   const { config } = useThemeStore();
   const { screens, initializeScreens } = useScreensStore();
-  const { showSuccess } = useSnackbar();
+  const { showSuccess, showError } = useSnackbar();
 
   const [activeTab, setActiveTab] = useState(0);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionProgress, setExtractionProgress] = useState(0);
+  const [extractionMessage, setExtractionMessage] = useState('');
   const [designSystem, setDesignSystem] = useState<DesignSystemData | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'color' | 'font' | 'spacing'; id: string } | null>(null);
 
   // Initialize screens on mount
   useEffect(() => {
@@ -297,40 +714,139 @@ export const DesignSystem: React.FC = () => {
   }, []);
 
   // Extract design system from screens
-  const extractDesignSystem = async () => {
+  const extractDesignSystem = useCallback(async () => {
     setIsExtracting(true);
+    setExtractionProgress(0);
+    setExtractionMessage('Starting extraction...');
+
     try {
-      // Simulate async processing
+      // Collect ALL screens with HTML content
+      const screensWithHtml = screens.filter((s) => s.editedHtml);
+
+      if (screensWithHtml.length === 0) {
+        showError('No screens with HTML content found');
+        setIsExtracting(false);
+        return;
+      }
+
+      const htmlStrings = screensWithHtml.map((s) => s.editedHtml!);
+
+      // Simulate async processing with progress
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      const htmlStrings = screens
-        .filter((s) => s.editedHtml)
-        .map((s) => s.editedHtml!);
+      const data = extractDesignTokens(htmlStrings, (progress, message) => {
+        setExtractionProgress(progress);
+        setExtractionMessage(message);
+      });
 
-      const data = extractDesignTokens(htmlStrings);
       setDesignSystem(data);
-      showSuccess('Design system extracted successfully');
+      showSuccess(`Design system extracted from ${screensWithHtml.length} screens`);
+    } catch (error) {
+      console.error('Extraction error:', error);
+      showError('Failed to extract design system');
     } finally {
       setIsExtracting(false);
     }
-  };
+  }, [screens, showSuccess, showError]);
 
   // Auto-extract on mount if screens exist
   useEffect(() => {
-    if (screens.length > 0 && !designSystem) {
+    if (screens.length > 0 && !designSystem && !isExtracting) {
       extractDesignSystem();
     }
-  }, [screens.length]);
+  }, [screens.length, designSystem, isExtracting, extractDesignSystem]);
 
+  // Handle actions
   const handleCopyToken = (value: string) => {
     showSuccess(`Copied: ${value}`);
   };
 
+  const handleApproveColor = (id: string) => {
+    if (!designSystem) return;
+    setDesignSystem({
+      ...designSystem,
+      colors: designSystem.colors.map((c) =>
+        c.id === id ? { ...c, approved: !c.approved } : c
+      ),
+    });
+  };
+
+  const handleEditColor = (id: string, label: string) => {
+    if (!designSystem) return;
+    setDesignSystem({
+      ...designSystem,
+      colors: designSystem.colors.map((c) =>
+        c.id === id ? { ...c, label } : c
+      ),
+    });
+    showSuccess('Color label updated');
+  };
+
+  const handleDeleteColor = (id: string) => {
+    if (!designSystem) return;
+    setDesignSystem({
+      ...designSystem,
+      colors: designSystem.colors.filter((c) => c.id !== id),
+    });
+    showSuccess('Color removed');
+    setDeleteDialogOpen(false);
+    setDeleteTarget(null);
+  };
+
+  const handleApproveFont = (id: string) => {
+    if (!designSystem) return;
+    setDesignSystem({
+      ...designSystem,
+      fonts: designSystem.fonts.map((f) =>
+        f.id === id ? { ...f, approved: !f.approved } : f
+      ),
+    });
+  };
+
+  const handleEditFont = (id: string, label: string) => {
+    if (!designSystem) return;
+    setDesignSystem({
+      ...designSystem,
+      fonts: designSystem.fonts.map((f) =>
+        f.id === id ? { ...f, label } : f
+      ),
+    });
+    showSuccess('Font label updated');
+  };
+
+  const handleDeleteFont = (id: string) => {
+    if (!designSystem) return;
+    setDesignSystem({
+      ...designSystem,
+      fonts: designSystem.fonts.filter((f) => f.id !== id),
+    });
+    showSuccess('Font removed');
+    setDeleteDialogOpen(false);
+    setDeleteTarget(null);
+  };
+
+  const openDeleteDialog = (type: 'color' | 'font' | 'spacing', id: string) => {
+    setDeleteTarget({ type, id });
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return;
+    if (deleteTarget.type === 'color') {
+      handleDeleteColor(deleteTarget.id);
+    } else if (deleteTarget.type === 'font') {
+      handleDeleteFont(deleteTarget.id);
+    }
+  };
+
+  const approvedColorsCount = designSystem?.colors.filter((c) => c.approved).length || 0;
+  const approvedFontsCount = designSystem?.fonts.filter((f) => f.approved).length || 0;
+
+  // Only Colors and Typography tabs (removed Components)
   const tabs = [
-    { label: 'Colors', icon: <Palette size={18} /> },
-    { label: 'Typography', icon: <TextT size={18} /> },
+    { label: 'Colors', icon: <Palette size={18} />, badge: approvedColorsCount > 0 ? approvedColorsCount : undefined },
+    { label: 'Typography', icon: <TextT size={18} />, badge: approvedFontsCount > 0 ? approvedFontsCount : undefined },
     { label: 'Spacing', icon: <ArrowsOutCardinal size={18} /> },
-    { label: 'Components', icon: <SquaresFour size={18} /> },
   ];
 
   return (
@@ -342,16 +858,19 @@ export const DesignSystem: React.FC = () => {
             Design System
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Auto-generated from {screens.length} captured screens
+            Auto-generated from {screens.filter(s => s.editedHtml).length} captured screens
+            {designSystem?.lastUpdated && (
+              <> · Last updated: {new Date(designSystem.lastUpdated).toLocaleString()}</>
+            )}
           </Typography>
         </Box>
         <Button
           variant="outlined"
-          startIcon={isExtracting ? <CircularProgress size={16} /> : <ArrowClockwise size={18} />}
+          startIcon={<ArrowClockwise size={18} />}
           onClick={extractDesignSystem}
           disabled={isExtracting || screens.length === 0}
         >
-          {isExtracting ? 'Extracting...' : 'Refresh'}
+          Re-extract
         </Button>
       </Box>
 
@@ -364,7 +883,19 @@ export const DesignSystem: React.FC = () => {
         {tabs.map((tab) => (
           <Tab
             key={tab.label}
-            label={tab.label}
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {tab.label}
+                {tab.badge && (
+                  <Chip
+                    label={tab.badge}
+                    size="small"
+                    color="success"
+                    sx={{ height: 18, fontSize: '0.65rem', minWidth: 20 }}
+                  />
+                )}
+              </Box>
+            }
             icon={tab.icon}
             iconPosition="start"
             sx={{ textTransform: 'none', minHeight: 48 }}
@@ -375,6 +906,7 @@ export const DesignSystem: React.FC = () => {
       {/* Content */}
       {!designSystem && !isExtracting && screens.length === 0 && (
         <Box sx={{ textAlign: 'center', py: 8 }}>
+          <MagnifyingGlass size={48} weight="light" style={{ color: config.colors.textSecondary, marginBottom: 16 }} />
           <Typography color="text.secondary">
             No screens captured yet. Import screens to generate a design system.
           </Typography>
@@ -382,9 +914,7 @@ export const DesignSystem: React.FC = () => {
       )}
 
       {isExtracting && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress />
-        </Box>
+        <ExtractionLoader progress={extractionProgress} message={extractionMessage} />
       )}
 
       {designSystem && !isExtracting && (
@@ -392,13 +922,30 @@ export const DesignSystem: React.FC = () => {
           {/* Colors Tab */}
           {activeTab === 0 && (
             <Box>
-              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2 }}>
-                Extracted Colors ({designSystem.colors.length})
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="subtitle2" fontWeight={600}>
+                  Extracted Colors ({designSystem.colors.length})
+                </Typography>
+                {approvedColorsCount > 0 && (
+                  <Chip
+                    icon={<CheckCircle size={14} />}
+                    label={`${approvedColorsCount} approved`}
+                    size="small"
+                    color="success"
+                    variant="outlined"
+                  />
+                )}
+              </Box>
               <Grid container spacing={2}>
-                {designSystem.colors.map((color, i) => (
-                  <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
-                    <ColorSwatch color={color} onCopy={handleCopyToken} />
+                {designSystem.colors.map((color) => (
+                  <Grid item xs={6} sm={4} md={3} lg={2} key={color.id}>
+                    <ColorSwatch
+                      color={color}
+                      onCopy={handleCopyToken}
+                      onApprove={handleApproveColor}
+                      onEdit={handleEditColor}
+                      onDelete={(id) => openDeleteDialog('color', id)}
+                    />
                   </Grid>
                 ))}
               </Grid>
@@ -413,38 +960,35 @@ export const DesignSystem: React.FC = () => {
           {/* Typography Tab */}
           {activeTab === 1 && (
             <Box>
-              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2 }}>
-                Font Families ({designSystem.fonts.length})
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="subtitle2" fontWeight={600}>
+                  Font Families ({designSystem.fonts.length})
+                </Typography>
+                {approvedFontsCount > 0 && (
+                  <Chip
+                    icon={<CheckCircle size={14} />}
+                    label={`${approvedFontsCount} approved`}
+                    size="small"
+                    color="success"
+                    variant="outlined"
+                  />
+                )}
+              </Box>
               <Grid container spacing={2}>
-                {designSystem.fonts.map((font, i) => (
-                  <Grid item xs={12} sm={6} md={4} key={i}>
-                    <Card variant="outlined">
-                      <CardContent>
-                        <Typography
-                          variant="h6"
-                          sx={{ fontFamily: font.family, mb: 1 }}
-                        >
-                          {font.family}
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
-                          {font.weights.map((w) => (
-                            <Chip key={w} label={`Weight: ${w}`} size="small" variant="outlined" />
-                          ))}
-                        </Box>
-                        {font.sizes.length > 0 && (
-                          <Typography variant="caption" color="text.secondary">
-                            Sizes: {font.sizes.join(', ')}
-                          </Typography>
-                        )}
-                      </CardContent>
-                    </Card>
+                {designSystem.fonts.map((font) => (
+                  <Grid item xs={12} sm={6} md={4} key={font.id}>
+                    <FontCard
+                      font={font}
+                      onApprove={handleApproveFont}
+                      onEdit={handleEditFont}
+                      onDelete={(id) => openDeleteDialog('font', id)}
+                    />
                   </Grid>
                 ))}
               </Grid>
               {designSystem.fonts.length === 0 && (
                 <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-                  No fonts extracted from screens.
+                  No fonts extracted. Typography is detected from font-family styles.
                 </Typography>
               )}
             </Box>
@@ -457,72 +1001,77 @@ export const DesignSystem: React.FC = () => {
                 Spacing Values ({designSystem.spacing.length})
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                {designSystem.spacing.map((sp, i) => (
-                  <Card key={i} variant="outlined" sx={{ minWidth: 120 }}>
+                {designSystem.spacing.map((sp) => (
+                  <Card key={sp.id} variant="outlined" sx={{ minWidth: 120 }}>
                     <CardContent sx={{ textAlign: 'center' }}>
                       <Typography variant="h6" sx={{ fontFamily: 'monospace' }}>
                         {sp.value}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {sp.context} ({sp.count}x)
+                        {sp.context} ({sp.count}×)
                       </Typography>
                     </CardContent>
                   </Card>
                 ))}
               </Box>
 
-              <Divider sx={{ my: 3 }} />
-
-              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2 }}>
-                Border Radius ({designSystem.borderRadius.length})
-              </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                {designSystem.borderRadius.map((radius, i) => (
-                  <Card key={i} variant="outlined" sx={{ width: 80, height: 80 }}>
-                    <Box
-                      sx={{
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexDirection: 'column',
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          width: 40,
-                          height: 40,
-                          bgcolor: config.colors.primary,
-                          borderRadius: radius,
-                          mb: 0.5,
-                        }}
-                      />
-                      <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
-                        {radius}
-                      </Typography>
-                    </Box>
-                  </Card>
-                ))}
-              </Box>
-            </Box>
-          )}
-
-          {/* Components Tab */}
-          {activeTab === 3 && (
-            <Box sx={{ textAlign: 'center', py: 8 }}>
-              <SquaresFour size={48} weight="light" color={config.colors.textSecondary} />
-              <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
-                Component Extraction Coming Soon
-              </Typography>
-              <Typography color="text.secondary" sx={{ maxWidth: 400, mx: 'auto' }}>
-                Automatic component detection and extraction from captured screens
-                will be available in a future update.
-              </Typography>
+              {designSystem.borderRadius.length > 0 && (
+                <>
+                  <Divider sx={{ my: 3 }} />
+                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 2 }}>
+                    Border Radius ({designSystem.borderRadius.length})
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                    {designSystem.borderRadius.map((radius, i) => (
+                      <Card key={i} variant="outlined" sx={{ width: 80, height: 80 }}>
+                        <Box
+                          sx={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexDirection: 'column',
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: 40,
+                              height: 40,
+                              bgcolor: config.colors.primary,
+                              borderRadius: radius,
+                              mb: 0.5,
+                            }}
+                          />
+                          <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                            {radius}
+                          </Typography>
+                        </Box>
+                      </Card>
+                    ))}
+                  </Box>
+                </>
+              )}
             </Box>
           )}
         </>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to remove this {deleteTarget?.type} from the design system?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
