@@ -230,10 +230,10 @@ export async function uploadContextFile(params: UploadContextFileParams): Promis
     throw new Error('You must be logged in to upload files');
   }
 
-  // Generate unique file path (within context/ folder for organization)
+  // Generate unique file path (userId first to match RLS policies)
   const timestamp = Date.now();
   const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-  const filePath = `context/${user.id}/${category}/${timestamp}_${sanitizedFileName}`;
+  const filePath = `${user.id}/context/${category}/${timestamp}_${sanitizedFileName}`;
 
   // Upload file to storage
   const { error: uploadError } = await supabase.storage

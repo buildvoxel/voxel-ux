@@ -119,11 +119,11 @@ export async function uploadAvatar(file: File, userId: string): Promise<{ succes
   }
 
   try {
-    // Generate unique filename
+    // Generate unique filename (userId first to match RLS policies)
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 9);
     const extension = file.name.split('.').pop() || 'png';
-    const fileName = `avatars/${userId}/${timestamp}-${randomId}.${extension}`;
+    const fileName = `${userId}/avatars/${timestamp}-${randomId}.${extension}`;
 
     // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
