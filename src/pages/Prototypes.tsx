@@ -35,7 +35,7 @@ import { supabase, isSupabaseConfigured } from '@/services/supabase';
 interface Prototype {
   id: string;
   name: string;
-  status: 'draft' | 'shared' | 'deployed' | 'pending' | 'analyzing' | 'planning' | 'plan_ready' | 'generating' | 'complete' | 'failed';
+  status: 'draft' | 'shared' | 'deployed' | 'pending' | 'analyzing' | 'planning' | 'plan_ready' | 'wireframing' | 'wireframe_ready' | 'generating' | 'complete' | 'failed';
   variants: number;
   views: number;
   createdAt: string;
@@ -48,6 +48,7 @@ const getStatusColor = (status: string) => {
   switch (status) {
     case 'shared':
     case 'plan_ready':
+    case 'wireframe_ready':
       return 'primary';
     case 'deployed':
     case 'complete':
@@ -57,6 +58,7 @@ const getStatusColor = (status: string) => {
     case 'generating':
     case 'analyzing':
     case 'planning':
+    case 'wireframing':
       return 'warning';
     default:
       return 'default';
@@ -66,7 +68,11 @@ const getStatusColor = (status: string) => {
 const getDisplayStatus = (status: string) => {
   switch (status) {
     case 'plan_ready':
-      return 'Ready';
+      return 'Paradigms Ready';
+    case 'wireframing':
+      return 'Wireframing';
+    case 'wireframe_ready':
+      return 'Wireframes Ready';
     case 'generating':
       return 'Generating';
     case 'analyzing':
@@ -86,7 +92,7 @@ export function Prototypes() {
   const navigate = useNavigate();
   const { showSuccess, showError } = useSnackbar();
   const { config, mode } = useThemeStore();
-  const { initializeScreens } = useScreensStore();
+  const { screens, initializeScreens } = useScreensStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [tabValue, setTabValue] = useState(0);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -265,6 +271,21 @@ export function Prototypes() {
     });
   };
 
+  // Get preview data for a prototype from its associated screen
+  const getPrototypePreview = (prototype: Prototype) => {
+    if (!prototype.screenId) return undefined;
+    const screen = screens.find((s) => s.id === prototype.screenId);
+    if (!screen) return undefined;
+
+    if (screen.editedHtml) {
+      return { type: 'html' as const, content: screen.editedHtml };
+    }
+    if (screen.filePath) {
+      return { type: 'url' as const, content: screen.filePath };
+    }
+    return undefined;
+  };
+
   return (
     <Box>
       {/* Header */}
@@ -391,6 +412,7 @@ export function Prototypes() {
                     label: getDisplayStatus(prototype.status),
                     color: getStatusColor(prototype.status),
                   }}
+                  preview={getPrototypePreview(prototype)}
                   onClick={() => navigate(`/prototypes/${prototype.screenId || prototype.id}`)}
                   onMenuClick={(e) => handleMenuOpen(e, prototype)}
                   primaryAction={{

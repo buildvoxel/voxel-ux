@@ -39,7 +39,7 @@ import GroupIcon from '@mui/icons-material/Group';
 
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { EmptyState } from '@/components';
+import { EmptyState, PageHeader } from '@/components';
 import {
   useMultiplayerStore,
   formatRelativeTime,
@@ -530,31 +530,19 @@ export function Collaborate() {
   return (
     <Box>
       {/* Header */}
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 3,
-        }}
-      >
-        <Box>
-          <Typography variant="h4" fontWeight={600}>
-            Collaborate
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {publishedPrototypes.length} published prototype
-            {publishedPrototypes.length !== 1 ? 's' : ''}
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<ShareOutlinedIcon />}
-          onClick={handlePublishClick}
-        >
-          Publish Prototype
-        </Button>
-      </Box>
+      <PageHeader
+        title="Collaborate"
+        subtitle={`${publishedPrototypes.length} published prototype${publishedPrototypes.length !== 1 ? 's' : ''}`}
+        actions={
+          <Button
+            variant="contained"
+            startIcon={<ShareOutlinedIcon />}
+            onClick={handlePublishClick}
+          >
+            Publish Prototype
+          </Button>
+        }
+      />
 
       {/* Info Card */}
       <Card

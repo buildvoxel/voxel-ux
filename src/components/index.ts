@@ -8,3 +8,4 @@ export * from './BreadcrumbNav';
 export * from './SnackbarProvider';
 export * from './PageSkeleton';
 export * from './CommandPalette';
+export * from './PageHeader';

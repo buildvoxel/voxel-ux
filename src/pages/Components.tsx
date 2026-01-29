@@ -32,7 +32,7 @@ import ClearIcon from '@mui/icons-material/Clear';
 import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
 import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { EmptyState } from '@/components';
+import { EmptyState, PageHeader } from '@/components';
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { useComponentsStore, getCategories, getAllTags, type ExtractedComponent } from '@/store/componentsStore';
 import { useScreensStore } from '@/store/screensStore';
@@ -336,43 +336,36 @@ export function Components() {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Box>
-          <Typography variant="h4" fontWeight={600}>
-            Component Library
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {filteredComponents.length} of {components.length} components
-            {lastExtractionTime && (
-              <> &middot; Last extracted: {new Date(lastExtractionTime).toLocaleString()}</>
-            )}
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={isExtracting ? <CircularProgress size={16} /> : <RefreshIcon />}
-            onClick={handleRefresh}
-            disabled={isExtracting || screens.length === 0}
-          >
-            {isExtracting ? 'Extracting...' : 'Extract Components'}
-          </Button>
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(_, v) => v && setViewMode(v)}
-            size="small"
-          >
-            <ToggleButton value="grid">
-              <GridViewOutlinedIcon fontSize="small" />
-            </ToggleButton>
-            <ToggleButton value="list">
-              <ViewListOutlinedIcon fontSize="small" />
-            </ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-      </Box>
+      <PageHeader
+        title="Component Library"
+        subtitle={`${filteredComponents.length} of ${components.length} components${lastExtractionTime ? ` · Last extracted: ${new Date(lastExtractionTime).toLocaleString()}` : ''}`}
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={isExtracting ? <CircularProgress size={16} /> : <RefreshIcon />}
+              onClick={handleRefresh}
+              disabled={isExtracting || screens.length === 0}
+            >
+              {isExtracting ? 'Extracting...' : 'Extract Components'}
+            </Button>
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              onChange={(_, v) => v && setViewMode(v)}
+              size="small"
+            >
+              <ToggleButton value="grid">
+                <GridViewOutlinedIcon fontSize="small" />
+              </ToggleButton>
+              <ToggleButton value="list">
+                <ViewListOutlinedIcon fontSize="small" />
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </>
+        }
+      />
 
       {/* Filters */}
       <Card sx={{ mb: 3, p: 2 }}>

@@ -16,6 +16,7 @@ import {
   Trophy,
 } from '@phosphor-icons/react';
 import { useThemeStore } from '@/store/themeStore';
+import { PageHeader } from '@/components';
 
 // Mock data - Updated to match wireframe columns
 const projectsData = [
@@ -126,11 +127,7 @@ function AllProjectsView() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" fontWeight={600}>
-          Insights
-        </Typography>
-      </Box>
+      <PageHeader title="Insights" />
 
       {/* Stats Row - Per wireframe */}
       <Grid container spacing={3} sx={{ mb: 4 }}>

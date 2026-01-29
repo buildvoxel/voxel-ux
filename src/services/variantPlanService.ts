@@ -25,7 +25,7 @@ export interface VibeSession {
   screen_id: string;
   name: string;
   prompt: string;
-  status: 'pending' | 'analyzing' | 'planning' | 'plan_ready' | 'generating' | 'complete' | 'failed';
+  status: 'pending' | 'analyzing' | 'planning' | 'plan_ready' | 'wireframing' | 'wireframe_ready' | 'generating' | 'complete' | 'failed';
   plan_approved: boolean;
   selected_variant_index: number | null;
   error_message: string | null;

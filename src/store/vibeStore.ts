@@ -25,7 +25,7 @@ export interface ChatMessage {
 
 // Progress state
 export interface VibeProgress {
-  stage: 'analyzing' | 'planning' | 'generating' | 'complete';
+  stage: 'analyzing' | 'planning' | 'wireframing' | 'generating' | 'complete';
   message: string;
   percent: number;
   variantIndex?: number;
@@ -39,8 +39,20 @@ export interface GeneratedPlan {
   provider: string;
 }
 
-// Status types
-export type VibeStatus = 'idle' | 'analyzing' | 'planning' | 'plan_ready' | 'generating' | 'complete' | 'failed';
+// Status types - Multi-phase workflow
+// 1. idle -> analyzing -> planning -> plan_ready (paradigm approval)
+// 2. plan_ready -> wireframing -> wireframe_ready (sketch iteration)
+// 3. wireframe_ready -> generating -> complete (high-fidelity)
+export type VibeStatus =
+  | 'idle'
+  | 'analyzing'
+  | 'planning'
+  | 'plan_ready'      // Paradigms ready for approval
+  | 'wireframing'     // Creating wireframe sketches
+  | 'wireframe_ready' // Wireframes ready for iteration
+  | 'generating'      // High-fidelity generation
+  | 'complete'
+  | 'failed';
 export type ComparisonMode = 'grid' | 'split' | 'overlay';
 
 interface VibeState {
@@ -74,10 +86,14 @@ interface VibeState {
   setSourceMetadata: (metadata: UIMetadata) => void;
   setAnalyzing: (analyzing: boolean, message?: string) => void;
 
-  // Actions - Plan management
+  // Actions - Plan management (paradigms)
   setPlan: (plan: GeneratedPlan) => void;
   updatePlanItem: (variantIndex: number, updates: Partial<VariantPlan>) => void;
-  approvePlan: () => void;
+  approvePlan: () => void;  // Approves paradigms -> starts wireframing
+
+  // Actions - Wireframe management
+  startWireframing: () => void;
+  approveWireframes: () => void;  // Approves wireframes -> starts generation
 
   // Actions - Variant management
   setVariants: (variants: VibeVariant[]) => void;
@@ -222,9 +238,44 @@ export const useVibeStore = create<VibeState>()(
         currentSession: {
           ...currentSession,
           plan_approved: true,
+          status: 'wireframing',  // Changed: Go to wireframing instead of generating
+        },
+        status: 'wireframing',
+        progress: {
+          stage: 'wireframing',
+          message: 'Creating wireframe sketches...',
+          percent: 50,
+        },
+      });
+    }
+  },
+
+  // Wireframe management
+  startWireframing: () => {
+    set({
+      status: 'wireframing',
+      progress: {
+        stage: 'wireframing',
+        message: 'Creating wireframe sketches...',
+        percent: 50,
+      },
+    });
+  },
+
+  approveWireframes: () => {
+    const { currentSession } = get();
+    if (currentSession) {
+      set({
+        currentSession: {
+          ...currentSession,
           status: 'generating',
         },
         status: 'generating',
+        progress: {
+          stage: 'generating',
+          message: 'Generating high-fidelity prototypes...',
+          percent: 70,
+        },
       });
     }
   },
