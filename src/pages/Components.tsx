@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
@@ -22,6 +22,7 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import CircularProgress from '@mui/material/CircularProgress';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import CodeOutlinedIcon from '@mui/icons-material/CodeOutlined';
@@ -30,9 +31,11 @@ import FilterListIcon from '@mui/icons-material/FilterList';
 import ClearIcon from '@mui/icons-material/Clear';
 import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
 import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { EmptyState } from '@/components';
 import { useSnackbar } from '@/components/SnackbarProvider';
-import { useComponentsStore, type ExtractedComponent } from '@/store/componentsStore';
+import { useComponentsStore, getCategories, getAllTags, type ExtractedComponent } from '@/store/componentsStore';
+import { useScreensStore } from '@/store/screensStore';
 
 // Component preview renderer
 function ComponentPreview({ component }: { component: ExtractedComponent }) {
@@ -266,19 +269,38 @@ export function Components() {
     clearFilters,
     selectedComponent,
     selectComponent,
+    extractFromScreens,
+    isExtracting,
+    lastExtractionTime,
   } = useComponentsStore();
+
+  const { screens, initializeScreens } = useScreensStore();
+  const { showSuccess } = useSnackbar();
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  const categories = useMemo(
-    () => [...new Set(components.map((c) => c.category))].sort(),
-    [components]
-  );
+  // Initialize screens if not loaded
+  useEffect(() => {
+    if (screens.length === 0) {
+      initializeScreens();
+    }
+  }, []);
 
-  const allTags = useMemo(
-    () => [...new Set(components.flatMap((c) => c.tags))].sort(),
-    [components]
-  );
+  // Auto-extract components when screens are available and no components exist
+  useEffect(() => {
+    if (screens.length > 0 && components.length === 0 && !isExtracting) {
+      extractFromScreens(screens);
+    }
+  }, [screens.length]);
+
+  // Manual refresh
+  const handleRefresh = async () => {
+    await extractFromScreens(screens);
+    showSuccess(`Extracted components from ${screens.filter(s => s.editedHtml).length} screens`);
+  };
+
+  const categories = useMemo(() => getCategories(components), [components]);
+  const allTags = useMemo(() => getAllTags(components), [components]);
 
   const filteredComponents = useMemo(() => {
     return components.filter((comp) => {
@@ -321,21 +343,35 @@ export function Components() {
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {filteredComponents.length} of {components.length} components
+            {lastExtractionTime && (
+              <> &middot; Last extracted: {new Date(lastExtractionTime).toLocaleString()}</>
+            )}
           </Typography>
         </Box>
-        <ToggleButtonGroup
-          value={viewMode}
-          exclusive
-          onChange={(_, v) => v && setViewMode(v)}
-          size="small"
-        >
-          <ToggleButton value="grid">
-            <GridViewOutlinedIcon fontSize="small" />
-          </ToggleButton>
-          <ToggleButton value="list">
-            <ViewListOutlinedIcon fontSize="small" />
-          </ToggleButton>
-        </ToggleButtonGroup>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={isExtracting ? <CircularProgress size={16} /> : <RefreshIcon />}
+            onClick={handleRefresh}
+            disabled={isExtracting || screens.length === 0}
+          >
+            {isExtracting ? 'Extracting...' : 'Extract Components'}
+          </Button>
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(_, v) => v && setViewMode(v)}
+            size="small"
+          >
+            <ToggleButton value="grid">
+              <GridViewOutlinedIcon fontSize="small" />
+            </ToggleButton>
+            <ToggleButton value="list">
+              <ViewListOutlinedIcon fontSize="small" />
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
       </Box>
 
       {/* Filters */}
