@@ -853,7 +853,7 @@ export const VibePrototyping: React.FC = () => {
   }
 
   return (
-    <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Toolbar */}
       <Box
         sx={{
@@ -868,8 +868,59 @@ export const VibePrototyping: React.FC = () => {
           flexShrink: 0,
         }}
       >
-        {/* Left: Project breadcrumb with editable name */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 200 }}>
+        {/* Left: Edit mode toggle + Project breadcrumb */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {/* Edit mode group - moved to left */}
+          <Box
+            sx={{
+              display: 'flex',
+              bgcolor: 'action.hover',
+              borderRadius: 1,
+              p: 0.25,
+            }}
+          >
+            <Tooltip title="Preview Mode (V)">
+              <IconButton
+                size="small"
+                onClick={() => setEditMode('cursor')}
+                sx={{
+                  bgcolor: editMode === 'cursor' ? 'background.paper' : 'transparent',
+                  boxShadow: editMode === 'cursor' ? 1 : 0,
+                }}
+              >
+                <Cursor size={18} weight={editMode === 'cursor' ? 'fill' : 'regular'} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Code Editor">
+              <IconButton
+                size="small"
+                onClick={() => setEditMode('code')}
+                sx={{
+                  bgcolor: editMode === 'code' ? 'background.paper' : 'transparent',
+                  boxShadow: editMode === 'code' ? 1 : 0,
+                }}
+              >
+                <Code size={18} weight={editMode === 'code' ? 'fill' : 'regular'} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="WYSIWYG Editor">
+              <IconButton
+                size="small"
+                onClick={() => setEditMode('wysiwyg')}
+                sx={{
+                  bgcolor: editMode === 'wysiwyg' ? 'background.paper' : 'transparent',
+                  boxShadow: editMode === 'wysiwyg' ? 1 : 0,
+                }}
+              >
+                <PencilSimple size={18} weight={editMode === 'wysiwyg' ? 'fill' : 'regular'} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+
+          <Divider orientation="vertical" flexItem />
+
+          {/* Project breadcrumb */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           {isEditingName ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <TextField
@@ -938,59 +989,11 @@ export const VibePrototyping: React.FC = () => {
               )}
             </Typography>
           )}
+          </Box>
         </Box>
 
-        {/* Center: Edit mode tools + Undo/Redo + Pages dropdown */}
+        {/* Center: Variant switcher + Undo/Redo + Pages dropdown */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {/* Edit mode group */}
-          <Box
-            sx={{
-              display: 'flex',
-              bgcolor: 'action.hover',
-              borderRadius: 1,
-              p: 0.25,
-            }}
-          >
-            <Tooltip title="Preview Mode (V)">
-              <IconButton
-                size="small"
-                onClick={() => setEditMode('cursor')}
-                sx={{
-                  bgcolor: editMode === 'cursor' ? 'background.paper' : 'transparent',
-                  boxShadow: editMode === 'cursor' ? 1 : 0,
-                }}
-              >
-                <Cursor size={18} weight={editMode === 'cursor' ? 'fill' : 'regular'} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Code Editor">
-              <IconButton
-                size="small"
-                onClick={() => setEditMode('code')}
-                sx={{
-                  bgcolor: editMode === 'code' ? 'background.paper' : 'transparent',
-                  boxShadow: editMode === 'code' ? 1 : 0,
-                }}
-              >
-                <Code size={18} weight={editMode === 'code' ? 'fill' : 'regular'} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="WYSIWYG Editor">
-              <IconButton
-                size="small"
-                onClick={() => setEditMode('wysiwyg')}
-                sx={{
-                  bgcolor: editMode === 'wysiwyg' ? 'background.paper' : 'transparent',
-                  boxShadow: editMode === 'wysiwyg' ? 1 : 0,
-                }}
-              >
-                <PencilSimple size={18} weight={editMode === 'wysiwyg' ? 'fill' : 'regular'} />
-              </IconButton>
-            </Tooltip>
-          </Box>
-
-          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-
           {/* Variant switcher (only when focused) */}
           {focusedVariantIndex && (
             <>

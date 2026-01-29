@@ -13,6 +13,7 @@ import {
   Settings,
   Screens,
   Components,
+  DesignSystem,
   VibePrototyping,
   Context,
   Insights,
@@ -138,6 +139,7 @@ function App() {
                 {/* Repository */}
                 <Route path="/repository/screens" element={<Screens />} />
                 <Route path="/repository/components" element={<Components />} />
+                <Route path="/repository/design-system" element={<DesignSystem />} />
 
                 {/* Product Context */}
                 <Route path="/context" element={<Context />} />

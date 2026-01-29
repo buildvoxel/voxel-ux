@@ -5,6 +5,7 @@ export { Settings } from './Settings';
 // Voxel Pages
 export { Screens } from './Screens';
 export { Components } from './Components';
+export { DesignSystem } from './DesignSystem';
 export { VibePrototyping } from './VibePrototyping';
 export { Context } from './Context';
 export { Collaborate } from './Collaborate';

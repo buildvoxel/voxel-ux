@@ -409,8 +409,45 @@ export function Screens() {
           ))}
         </Grid>
       ) : (
-        /* List View */
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        /* List View - Table-like layout with columns */
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {/* Header row */}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              px: 1.5,
+              py: 1,
+              borderBottom: `1px solid ${config.colors.border}`,
+              bgcolor: config.colors.bgSecondary,
+              borderRadius: '8px 8px 0 0',
+            }}
+          >
+            {isSelectionMode && <Box sx={{ width: 42 }} />}
+            <Box sx={{ width: 80, flexShrink: 0 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                Preview
+              </Typography>
+            </Box>
+            <Box sx={{ flex: 2, minWidth: 0 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                Name
+              </Typography>
+            </Box>
+            <Box sx={{ width: 120, flexShrink: 0 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                Last Modified
+              </Typography>
+            </Box>
+            <Box sx={{ width: 100, flexShrink: 0, display: { xs: 'none', md: 'block' } }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                Tags
+              </Typography>
+            </Box>
+            <Box sx={{ width: 40, flexShrink: 0 }} />
+          </Box>
+          {/* Data rows */}
           {filteredScreens.map((screen, index) => (
             <Box
               key={screen.id}
@@ -419,23 +456,27 @@ export function Screens() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 2,
-                p: 1.5,
-                borderRadius: 2,
-                border: `1px solid ${config.colors.border}`,
+                px: 1.5,
+                py: 1,
+                borderBottom: `1px solid ${config.colors.border}`,
                 backgroundColor: config.colors.surface,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
-                animation: 'fadeInUp 0.4s ease forwards',
-                animationDelay: `${index * 0.03}s`,
+                animation: 'fadeInUp 0.3s ease forwards',
+                animationDelay: `${index * 0.02}s`,
                 opacity: 0,
                 '@keyframes fadeInUp': {
-                  from: { opacity: 0, transform: 'translateY(10px)' },
+                  from: { opacity: 0, transform: 'translateY(5px)' },
                   to: { opacity: 1, transform: 'translateY(0)' },
                 },
                 '&:hover': {
-                  borderColor: config.colors.primary,
-                  transform: 'translateX(4px)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  backgroundColor: 'rgba(118, 75, 162, 0.04)',
+                  '& .action-button': {
+                    opacity: 1,
+                  },
+                },
+                '&:last-child': {
+                  borderRadius: '0 0 8px 8px',
                 },
               }}
             >
@@ -446,13 +487,14 @@ export function Screens() {
                     e.stopPropagation();
                     toggleSelectScreen(screen.id);
                   }}
+                  sx={{ p: 0.5 }}
                 />
               )}
               {/* Thumbnail */}
               <Box
                 sx={{
                   width: 80,
-                  height: 60,
+                  height: 50,
                   borderRadius: 1,
                   backgroundColor: config.colors.bgSecondary,
                   flexShrink: 0,
@@ -477,13 +519,13 @@ export function Screens() {
                     title={screen.name}
                   />
                 ) : (
-                  <Sparkle size={24} color={config.colors.textSecondary} />
+                  <Sparkle size={20} color={config.colors.textSecondary} />
                 )}
               </Box>
-              {/* Info */}
-              <Box sx={{ flex: 1, minWidth: 0 }}>
+              {/* Name & Captured date */}
+              <Box sx={{ flex: 2, minWidth: 0 }}>
                 <Typography
-                  variant="body1"
+                  variant="body2"
                   fontWeight={500}
                   sx={{
                     overflow: 'hidden',
@@ -497,23 +539,34 @@ export function Screens() {
                   Captured {formatDate(screen.capturedAt)}
                 </Typography>
               </Box>
+              {/* Last Modified */}
+              <Box sx={{ width: 120, flexShrink: 0 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {screen.updatedAt ? formatDate(screen.updatedAt) : formatDate(screen.capturedAt)}
+                </Typography>
+              </Box>
               {/* Tags */}
-              <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
-                {screen.tags?.slice(0, 2).map((tag) => (
-                  <Chip key={tag} label={tag} size="small" variant="outlined" />
+              <Box sx={{ width: 100, flexShrink: 0, display: { xs: 'none', md: 'flex' }, gap: 0.5 }}>
+                {screen.tags?.slice(0, 1).map((tag) => (
+                  <Chip key={tag} label={tag} size="small" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
                 ))}
-                {(screen.tags?.length || 0) > 2 && (
-                  <Chip label={`+${screen.tags!.length - 2}`} size="small" variant="outlined" />
+                {(screen.tags?.length || 0) > 1 && (
+                  <Chip label={`+${screen.tags!.length - 1}`} size="small" variant="outlined" sx={{ height: 22, fontSize: '0.7rem' }} />
                 )}
               </Box>
-              {/* Actions */}
+              {/* Actions - visible on hover */}
               <IconButton
+                className="action-button"
                 size="small"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleMenuOpen(e, screen);
                 }}
-                sx={{ flexShrink: 0 }}
+                sx={{
+                  flexShrink: 0,
+                  opacity: 0,
+                  transition: 'opacity 0.2s ease',
+                }}
               >
                 <DotsThreeVertical size={18} />
               </IconButton>

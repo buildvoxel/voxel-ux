@@ -23,6 +23,7 @@ import {
   Folder,
   Browser,
   SquaresFour,
+  Palette,
   Brain,
   ChartLine,
   Plug,
@@ -57,6 +58,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'Screens', path: '/repository/screens', icon: <Browser size={18} /> },
       { label: 'Components', path: '/repository/components', icon: <SquaresFour size={18} /> },
+      { label: 'Design System', path: '/repository/design-system', icon: <Palette size={18} /> },
     ],
   },
   { label: 'Product Context', path: '/context', icon: <Brain size={20} /> },
