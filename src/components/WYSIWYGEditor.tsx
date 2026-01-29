@@ -10,11 +10,9 @@ import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Button from '@mui/material/Button';
 import Popover from '@mui/material/Popover';
-import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
 import {
-  PencilSimple,
   Image as ImageIcon,
   Palette,
   Check,
@@ -232,32 +230,6 @@ export const WYSIWYGEditor: React.FC<WYSIWYGEditorProps> = ({
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Toolbar */}
-      <Box
-        sx={{
-          px: 2,
-          py: 1,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          bgcolor: 'grey.50',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          flexShrink: 0,
-        }}
-      >
-        <Chip
-          label="WYSIWYG Editor"
-          size="small"
-          color="primary"
-          variant="outlined"
-          icon={<PencilSimple size={14} />}
-        />
-        <Typography variant="caption" color="text.secondary">
-          Click on any element to edit text, change colors, or replace images
-        </Typography>
-      </Box>
-
       {/* Preview iframe */}
       <Box sx={{ flex: 1, position: 'relative', minHeight: 0 }}>
         <iframe

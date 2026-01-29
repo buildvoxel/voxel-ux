@@ -57,6 +57,10 @@ import {
   Info,
   X,
   Robot,
+  DeviceMobile,
+  DeviceTablet,
+  Desktop,
+  DotsSixVertical,
 } from '@phosphor-icons/react';
 
 import { useSnackbar } from '@/components/SnackbarProvider';
@@ -103,6 +107,13 @@ interface AttachedFile {
 }
 
 type EditMode = 'cursor' | 'code' | 'wysiwyg';
+type PreviewSize = 'desktop' | 'tablet' | 'mobile';
+
+const PREVIEW_SIZES: Record<PreviewSize, { width: number; label: string; icon: React.ReactNode }> = {
+  desktop: { width: 1280, label: 'Desktop', icon: <Desktop size={16} /> },
+  tablet: { width: 768, label: 'Tablet', icon: <DeviceTablet size={16} /> },
+  mobile: { width: 375, label: 'Mobile', icon: <DeviceMobile size={16} /> },
+};
 
 // ============== Helper Components ==============
 
@@ -447,6 +458,7 @@ export const VibePrototyping: React.FC = () => {
   const [shareLink, setShareLink] = useState('');
   const [pagesAnchorEl, setPagesAnchorEl] = useState<null | HTMLElement>(null);
   const [variantSwitcherAnchorEl, setVariantSwitcherAnchorEl] = useState<null | HTMLElement>(null);
+  const [previewSize, setPreviewSize] = useState<PreviewSize>('desktop');
 
   // Screen name editing
   const [isEditingName, setIsEditingName] = useState(false);
@@ -618,7 +630,8 @@ export const VibePrototyping: React.FC = () => {
       }
 
       initSession(session, screen.editedHtml);
-      navigate(`/prototypes/${screenId}/${session.id}`, { replace: true });
+      // Update URL without causing a re-render/reload
+      window.history.replaceState(null, '', `/prototypes/${screenId}/${session.id}`);
 
       // Understanding phase
       setAnalyzing(true, 'Analyzing screen design...');
@@ -1185,21 +1198,50 @@ export const VibePrototyping: React.FC = () => {
           {/* Resize handle */}
           <Box
             ref={resizeRef}
-            onMouseDown={() => setIsResizing(true)}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setIsResizing(true);
+            }}
             sx={{
               position: 'absolute',
-              right: 0,
+              right: -6,
               top: 0,
               bottom: 0,
-              width: 4,
+              width: 12,
               cursor: 'col-resize',
-              bgcolor: isResizing ? 'primary.main' : 'transparent',
-              transition: 'background-color 0.15s ease',
-              '&:hover': {
-                bgcolor: 'primary.light',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10,
+              '&:hover .resize-indicator, &:active .resize-indicator': {
+                opacity: 1,
+                bgcolor: 'primary.main',
               },
             }}
-          />
+          >
+            <Box
+              className="resize-indicator"
+              sx={{
+                width: 4,
+                height: 48,
+                bgcolor: isResizing ? 'primary.main' : 'grey.300',
+                borderRadius: 2,
+                opacity: isResizing ? 1 : 0.5,
+                transition: 'all 0.15s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <DotsSixVertical
+                size={12}
+                weight="bold"
+                style={{
+                  color: isResizing ? 'white' : '#666',
+                }}
+              />
+            </Box>
+          </Box>
         </Box>
 
         {/* Right Panel - Stage with Toolbar */}
@@ -1456,8 +1498,35 @@ export const VibePrototyping: React.FC = () => {
               </Menu>
             </Box>
 
-            {/* Right: Share button */}
+            {/* Right: Preview size + Share button */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {/* Preview Size Selector */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  bgcolor: 'action.hover',
+                  borderRadius: 1,
+                  p: 0.25,
+                }}
+              >
+                {(Object.keys(PREVIEW_SIZES) as PreviewSize[]).map((size) => (
+                  <Tooltip key={size} title={PREVIEW_SIZES[size].label}>
+                    <IconButton
+                      size="small"
+                      onClick={() => setPreviewSize(size)}
+                      sx={{
+                        bgcolor: previewSize === size ? 'background.paper' : 'transparent',
+                        boxShadow: previewSize === size ? 1 : 0,
+                      }}
+                    >
+                      {PREVIEW_SIZES[size].icon}
+                    </IconButton>
+                  </Tooltip>
+                ))}
+              </Box>
+
+              <Divider orientation="vertical" flexItem />
+
               <Button
                 variant="contained"
                 size="small"
@@ -1504,19 +1573,37 @@ export const VibePrototyping: React.FC = () => {
                       backgroundColor: editMode === 'code' ? '#1e1e1e' : '#fafafa',
                       minHeight: 0,
                       overflow: 'hidden',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: previewSize !== 'desktop' ? 'flex-start' : 'stretch',
+                      pt: previewSize !== 'desktop' ? 2 : 0,
                     }}
                   >
                     {/* Preview Mode (cursor) */}
                     {editMode === 'cursor' && (
-                      <iframe
-                        srcDoc={screen.editedHtml}
-                        title={screen.name || 'Screen Preview'}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          border: 'none',
+                      <Box
+                        sx={{
+                          width: previewSize === 'desktop' ? '100%' : PREVIEW_SIZES[previewSize].width,
+                          maxWidth: '100%',
+                          height: previewSize === 'desktop' ? '100%' : 'calc(100% - 16px)',
+                          border: previewSize !== 'desktop' ? '1px solid' : 'none',
+                          borderColor: 'divider',
+                          borderRadius: previewSize !== 'desktop' ? 2 : 0,
+                          overflow: 'hidden',
+                          boxShadow: previewSize !== 'desktop' ? 3 : 0,
+                          transition: 'all 0.3s ease',
                         }}
-                      />
+                      >
+                        <iframe
+                          srcDoc={screen.editedHtml}
+                          title={screen.name || 'Screen Preview'}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            border: 'none',
+                          }}
+                        />
+                      </Box>
                     )}
 
                     {/* Code Editor Mode - HTML Tree View */}
