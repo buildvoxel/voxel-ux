@@ -25,6 +25,12 @@ const themeOptions: { mode: ThemeMode; name: string; description: string; previe
     description: 'Dynamic precision',
     preview: ['#0D9488', '#7C3AED', '#0EA5E9'],
   },
+  {
+    mode: 'indigo',
+    name: 'Indigo Mint',
+    description: 'Technical but approachable',
+    preview: ['#4F46E5', '#34D399', '#1E1B4B'],
+  },
 ];
 
 export function ThemeToggle() {
