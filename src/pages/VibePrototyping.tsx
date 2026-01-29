@@ -853,7 +853,7 @@ export const VibePrototyping: React.FC = () => {
   }
 
   return (
-    <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Toolbar */}
       <Box
         sx={{
