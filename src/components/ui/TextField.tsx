@@ -16,6 +16,7 @@ export interface TextFieldProps {
   onChange?: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onFocus?: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onKeyDown?: React.KeyboardEventHandler<HTMLDivElement>;
   type?: string;
   size?: 'small' | 'medium';
   fullWidth?: boolean;
@@ -45,6 +46,7 @@ export function TextField({
   onChange,
   onBlur,
   onFocus,
+  onKeyDown,
   type = 'text',
   size = 'medium',
   fullWidth,
@@ -81,6 +83,7 @@ export function TextField({
               onChange={onChange}
               onBlur={onBlur}
               onFocus={onFocus}
+              onKeyDown={onKeyDown}
               type={type}
               size={size}
               fullWidth={fullWidth}
@@ -117,6 +120,7 @@ export function TextField({
               onChange={onChange as React.ChangeEventHandler<HTMLTextAreaElement>}
               onBlur={onBlur as React.FocusEventHandler<HTMLTextAreaElement>}
               onFocus={onFocus as React.FocusEventHandler<HTMLTextAreaElement>}
+              onKeyDown={onKeyDown as unknown as React.KeyboardEventHandler<HTMLTextAreaElement>}
               disabled={disabled}
               required={required}
               autoFocus={autoFocus}
@@ -151,6 +155,7 @@ export function TextField({
             onChange={onChange}
             onBlur={onBlur}
             onFocus={onFocus}
+            onKeyDown={onKeyDown}
             type={type}
             size={size}
             fullWidth={fullWidth}
@@ -189,6 +194,7 @@ export function TextField({
               onChange={onChange as React.ChangeEventHandler<HTMLInputElement>}
               onBlur={onBlur as React.FocusEventHandler<HTMLInputElement>}
               onFocus={onFocus as React.FocusEventHandler<HTMLInputElement>}
+              onKeyDown={onKeyDown as unknown as React.KeyboardEventHandler<HTMLInputElement>}
               type={type}
               disabled={disabled}
               error={error}
@@ -218,6 +224,7 @@ export function TextField({
       onChange={onChange}
       onBlur={onBlur}
       onFocus={onFocus}
+      onKeyDown={onKeyDown}
       type={type}
       size={size}
       fullWidth={fullWidth}

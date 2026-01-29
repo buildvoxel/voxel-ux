@@ -1,17 +1,7 @@
 import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
-import Switch from '@mui/material/Switch';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import TextField from '@mui/material/TextField';
 import Fade from '@mui/material/Fade';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import DesignServicesOutlinedIcon from '@mui/icons-material/DesignServicesOutlined';
@@ -19,6 +9,18 @@ import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import CodeOutlinedIcon from '@mui/icons-material/CodeOutlined';
+import {
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Switch,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+} from '@/components/ui';
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { PageHeader } from '@/components/PageHeader';
 import { useThemeStore } from '@/store/themeStore';

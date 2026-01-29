@@ -3,18 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
 import Fade from '@mui/material/Fade';
 import CircularProgress from '@mui/material/CircularProgress';
 import {
@@ -26,6 +18,16 @@ import {
   Copy,
   Flask,
 } from '@phosphor-icons/react';
+import {
+  Button,
+  TextField,
+  Tabs,
+  Tab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from '@/components/ui';
 import { EmptyState, ThumbnailCard, PageHeader } from '@/components';
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { useThemeStore } from '@/store/themeStore';

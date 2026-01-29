@@ -1,8 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -15,6 +13,7 @@ import {
   Eye,
   Trophy,
 } from '@phosphor-icons/react';
+import { Card, CardContent } from '@/components/ui';
 import { useThemeStore } from '@/store/themeStore';
 import { PageHeader } from '@/components';
 

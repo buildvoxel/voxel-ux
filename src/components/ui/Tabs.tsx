@@ -18,7 +18,7 @@ const ShadcnTabsTrigger = lazy(() =>
 
 export interface TabsProps {
   value: number | string;
-  onChange?: (event: React.SyntheticEvent, newValue: number | string) => void;
+  onChange?: (event: React.SyntheticEvent, newValue: number) => void;
   children: React.ReactNode;
   className?: string;
   sx?: MuiTabsProps['sx'];
@@ -81,7 +81,7 @@ export function Tabs({
           onValueChange={(newValue) => {
             onChange?.(
               { type: 'change' } as React.SyntheticEvent,
-              isNaN(Number(newValue)) ? newValue : Number(newValue)
+              Number(newValue)
             );
           }}
           className={className}

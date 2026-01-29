@@ -26,18 +26,27 @@ export interface CardProps {
   sx?: MuiCardProps['sx'];
   onClick?: () => void;
   elevation?: number;
+  variant?: 'elevation' | 'outlined';
+  onDragEnter?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragLeave?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
 }
 
-export function Card({ children, className, sx, onClick, elevation }: CardProps) {
+export function Card({ children, className, sx, onClick, elevation, variant, onDragEnter, onDragOver, onDragLeave, onDrop }: CardProps) {
   const { config } = useThemeStore();
 
   if (config.componentSystem === 'shadcn') {
     return (
-      <Suspense fallback={<MuiCard sx={sx} onClick={onClick} elevation={elevation}>{children}</MuiCard>}>
+      <Suspense fallback={<MuiCard sx={sx} onClick={onClick} elevation={elevation} variant={variant} onDragEnter={onDragEnter} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>{children}</MuiCard>}>
         <ShadcnCard
           className={className}
           onClick={onClick}
           style={sx as React.CSSProperties}
+          onDragEnter={onDragEnter}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
         >
           {children}
         </ShadcnCard>
@@ -46,7 +55,7 @@ export function Card({ children, className, sx, onClick, elevation }: CardProps)
   }
 
   return (
-    <MuiCard sx={sx} onClick={onClick} className={className} elevation={elevation}>
+    <MuiCard sx={sx} onClick={onClick} className={className} elevation={elevation} variant={variant} onDragEnter={onDragEnter} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
       {children}
     </MuiCard>
   );

@@ -1,25 +1,13 @@
 import { useState, useMemo, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardActions from '@mui/material/CardActions';
 import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
-import Chip from '@mui/material/Chip';
-import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -32,6 +20,20 @@ import ClearIcon from '@mui/icons-material/Clear';
 import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
 import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardActions,
+  TextField,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Tabs,
+  Tab,
+} from '@/components/ui';
 import { EmptyState, PageHeader } from '@/components';
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { useComponentsStore, getCategories, getAllTags, type ExtractedComponent } from '@/store/componentsStore';
