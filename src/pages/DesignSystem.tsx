@@ -35,10 +35,16 @@ import {
   CheckCircle,
   Sparkle,
   MagnifyingGlass,
+  Robot,
 } from '@phosphor-icons/react';
 import { useThemeStore } from '@/store/themeStore';
 import { useScreensStore } from '@/store/screensStore';
 import { useSnackbar } from '@/components/SnackbarProvider';
+import {
+  labelColorsWithLLM,
+  labelFontsWithLLM,
+  isLLMLabelingAvailable,
+} from '@/services/designSystemLabelingService';
 
 interface ExtractedColor {
   id: string;
@@ -705,6 +711,13 @@ export const DesignSystem: React.FC = () => {
   const [designSystem, setDesignSystem] = useState<DesignSystemData | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'color' | 'font' | 'spacing'; id: string } | null>(null);
+  const [isLabeling, setIsLabeling] = useState(false);
+  const [llmAvailable, setLlmAvailable] = useState(false);
+
+  // Check LLM availability on mount
+  useEffect(() => {
+    isLLMLabelingAvailable().then(setLlmAvailable);
+  }, []);
 
   // Initialize screens on mount
   useEffect(() => {
@@ -755,6 +768,48 @@ export const DesignSystem: React.FC = () => {
       extractDesignSystem();
     }
   }, [screens.length, designSystem, isExtracting, extractDesignSystem]);
+
+  // Generate AI labels for colors and fonts
+  const handleGenerateAILabels = async () => {
+    if (!designSystem) return;
+
+    setIsLabeling(true);
+    try {
+      // Label colors
+      const colorInputs = designSystem.colors.map((c) => ({
+        hex: c.hex,
+        usage: c.usage,
+      }));
+      const labeledColors = await labelColorsWithLLM(colorInputs);
+
+      // Label fonts
+      const fontInputs = designSystem.fonts.map((f) => ({
+        family: f.family,
+        weights: f.weights,
+      }));
+      const labeledFonts = await labelFontsWithLLM(fontInputs);
+
+      // Update design system with new labels
+      setDesignSystem({
+        ...designSystem,
+        colors: designSystem.colors.map((c) => {
+          const labeled = labeledColors.find((lc) => lc.hex.toLowerCase() === c.hex.toLowerCase());
+          return labeled ? { ...c, label: labeled.label } : c;
+        }),
+        fonts: designSystem.fonts.map((f) => {
+          const labeled = labeledFonts.find((lf) => lf.family.toLowerCase() === f.family.toLowerCase());
+          return labeled ? { ...f, label: labeled.label } : f;
+        }),
+      });
+
+      showSuccess('AI labels generated successfully');
+    } catch (error) {
+      console.error('AI labeling error:', error);
+      showError('Failed to generate AI labels');
+    } finally {
+      setIsLabeling(false);
+    }
+  };
 
   // Handle actions
   const handleCopyToken = (value: string) => {
@@ -864,14 +919,28 @@ export const DesignSystem: React.FC = () => {
             )}
           </Typography>
         </Box>
-        <Button
-          variant="outlined"
-          startIcon={<ArrowClockwise size={18} />}
-          onClick={extractDesignSystem}
-          disabled={isExtracting || screens.length === 0}
-        >
-          Re-extract
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {llmAvailable && designSystem && (
+            <Tooltip title="Use AI to generate semantic labels for colors and fonts">
+              <Button
+                variant="outlined"
+                startIcon={<Robot size={18} />}
+                onClick={handleGenerateAILabels}
+                disabled={isLabeling || isExtracting}
+              >
+                {isLabeling ? 'Labeling...' : 'AI Labels'}
+              </Button>
+            </Tooltip>
+          )}
+          <Button
+            variant="outlined"
+            startIcon={<ArrowClockwise size={18} />}
+            onClick={extractDesignSystem}
+            disabled={isExtracting || screens.length === 0}
+          >
+            Re-extract
+          </Button>
+        </Box>
       </Box>
 
       {/* Tabs */}

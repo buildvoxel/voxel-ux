@@ -464,9 +464,20 @@ export const VibePrototyping: React.FC = () => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
 
-  // Resizable panel state
-  const [panelWidth, setPanelWidth] = useState(25); // percentage
+  // Resizable panel state - persist to localStorage
+  const [panelWidth, setPanelWidth] = useState(() => {
+    const saved = localStorage.getItem('voxel-chat-panel-width');
+    return saved ? parseFloat(saved) : 25;
+  });
   const [isResizing, setIsResizing] = useState(false);
+
+  // Persist panel width to localStorage when it changes (debounced)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      localStorage.setItem('voxel-chat-panel-width', String(panelWidth));
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [panelWidth]);
   const resizeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
