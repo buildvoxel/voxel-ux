@@ -42,6 +42,7 @@ interface ThemeConfig {
   fonts: ThemeFonts;
   muiTheme: Theme;
   backgroundStyle: 'grid' | 'mesh';
+  componentSystem: 'mui' | 'shadcn';
   gradients?: {
     primary: string;
     secondary: string;
@@ -81,6 +82,7 @@ const craftsmanConfig: ThemeConfig = {
   },
   muiTheme,
   backgroundStyle: 'grid',
+  componentSystem: 'mui',
 };
 
 // Modern Gradient theme config
@@ -115,6 +117,7 @@ const modernConfig: ThemeConfig = {
   },
   muiTheme: modernGradientTheme,
   backgroundStyle: 'mesh',
+  componentSystem: 'mui',
   gradients: {
     primary: modernGradients.primary,
     secondary: modernGradients.violet,
@@ -154,6 +157,7 @@ const indigoConfig: ThemeConfig = {
   },
   muiTheme: indigoMintTheme,
   backgroundStyle: 'mesh',
+  componentSystem: 'shadcn',
   gradients: {
     primary: indigoMintGradients.primary,
     secondary: indigoMintGradients.mint,
