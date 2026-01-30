@@ -132,6 +132,17 @@ import WYSIWYGEditor from '@/components/WYSIWYGEditor';
 
 // ============== Types ==============
 
+// Pipeline steps for visual stepper
+type PipelineStep = 'understanding' | 'planning' | 'wireframing' | 'prototyping' | 'sharing';
+
+const PIPELINE_STEPS: { key: PipelineStep; label: string; description: string }[] = [
+  { key: 'understanding', label: 'Understanding', description: 'Analyzing your request' },
+  { key: 'planning', label: 'Planning', description: 'Designing 4 approaches' },
+  { key: 'wireframing', label: 'Wireframing', description: 'Creating visual sketches' },
+  { key: 'prototyping', label: 'Prototyping', description: 'Building HTML variants' },
+  { key: 'sharing', label: 'Sharing', description: 'Ready to collect feedback' },
+];
+
 interface AttachedFile {
   id: string;
   type: 'image' | 'video' | 'audio' | 'pdf' | 'url' | 'figma' | 'file';
@@ -241,6 +252,292 @@ function AIPhase({
         {displayedContent}
         {isStreaming && <span style={{ opacity: 0.5 }}>|</span>}
       </Typography>
+    </Box>
+  );
+}
+
+// Debug Panel Component
+function DebugPanel({
+  isOpen,
+  onClose,
+  status,
+  progress,
+  error,
+  currentSession,
+  understanding,
+  plan,
+  variants,
+  sourceMetadata,
+  currentPrompt,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  status: string;
+  progress: { stage: string; message: string; percent: number } | null;
+  error: string | null;
+  currentSession: { id: string; prompt: string; screen_id: string } | null;
+  understanding: { text: string; model: string; provider: string; approved: boolean } | null;
+  plan: { plans: { title: string; description: string }[]; model: string; provider: string } | null;
+  variants: { variant_index: number; status: string; html_url?: string }[];
+  sourceMetadata: UIMetadata | null;
+  currentPrompt: string;
+}) {
+  const { config } = useThemeStore();
+
+  if (!isOpen) return null;
+
+  const getStatusColor = (s: string) => {
+    if (s.includes('ready') || s === 'complete') return config.colors.success;
+    if (s.includes('error') || s === 'failed') return config.colors.error;
+    if (s === 'idle') return config.colors.textSecondary;
+    return config.colors.primary;
+  };
+
+  return (
+    <Box
+      sx={{
+        position: 'fixed',
+        bottom: 16,
+        right: 16,
+        width: 400,
+        maxHeight: '60vh',
+        bgcolor: 'background.paper',
+        borderRadius: 2,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+        border: `1px solid ${config.colors.border}`,
+        zIndex: 9999,
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {/* Header */}
+      <Box
+        sx={{
+          p: 1.5,
+          bgcolor: config.colors.bgDark,
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Code size={16} /> Debug Panel
+        </Typography>
+        <IconButton size="small" onClick={onClose} sx={{ color: 'white' }}>
+          <X size={16} />
+        </IconButton>
+      </Box>
+
+      {/* Content */}
+      <Box sx={{ p: 2, overflow: 'auto', flex: 1, fontSize: '0.75rem', fontFamily: 'monospace' }}>
+        {/* Status */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>STATUS</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: getStatusColor(status) }} />
+            <Typography sx={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 600 }}>{status}</Typography>
+          </Box>
+          {progress && (
+            <Box sx={{ mt: 1 }}>
+              <LinearProgress variant="determinate" value={progress.percent} sx={{ height: 4, borderRadius: 2 }} />
+              <Typography variant="caption" color="text.secondary">{progress.message} ({progress.percent}%)</Typography>
+            </Box>
+          )}
+          {error && (
+            <Typography sx={{ color: config.colors.error, mt: 1, fontSize: '0.75rem' }}>Error: {error}</Typography>
+          )}
+        </Box>
+
+        {/* Session */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>SESSION</Typography>
+          <Box sx={{ mt: 0.5, p: 1, bgcolor: 'grey.100', borderRadius: 1, fontSize: '0.7rem' }}>
+            <div>ID: {currentSession?.id || 'None'}</div>
+            <div>Screen: {currentSession?.screen_id || 'None'}</div>
+          </Box>
+        </Box>
+
+        {/* Prompt */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>PROMPT</Typography>
+          <Box sx={{ mt: 0.5, p: 1, bgcolor: 'grey.100', borderRadius: 1, fontSize: '0.7rem', maxHeight: 80, overflow: 'auto' }}>
+            {currentPrompt || currentSession?.prompt || 'No prompt yet'}
+          </Box>
+        </Box>
+
+        {/* Understanding */}
+        {understanding && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+              UNDERSTANDING ({understanding.provider}/{understanding.model})
+            </Typography>
+            <Box sx={{ mt: 0.5, p: 1, bgcolor: understanding.approved ? 'success.50' : 'grey.100', borderRadius: 1, fontSize: '0.7rem', maxHeight: 80, overflow: 'auto' }}>
+              {understanding.text?.slice(0, 200)}...
+            </Box>
+          </Box>
+        )}
+
+        {/* Plan */}
+        {plan && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+              PLAN ({plan.plans.length} variants - {plan.provider}/{plan.model})
+            </Typography>
+            <Box sx={{ mt: 0.5 }}>
+              {plan.plans.map((p, i) => (
+                <Box key={i} sx={{ p: 0.5, bgcolor: 'grey.100', borderRadius: 1, mb: 0.5, fontSize: '0.65rem' }}>
+                  {i + 1}. {p.title}
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        )}
+
+        {/* Variants */}
+        {variants.length > 0 && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+              VARIANTS ({variants.length})
+            </Typography>
+            <Box sx={{ mt: 0.5 }}>
+              {variants.map((v, i) => (
+                <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: '0.7rem' }}>
+                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: v.status === 'complete' ? config.colors.success : 'grey.400' }} />
+                  Variant {v.variant_index}: {v.status} {v.html_url ? '✓' : ''}
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        )}
+
+        {/* Metadata */}
+        {sourceMetadata && (
+          <Box>
+            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>METADATA</Typography>
+            <Box sx={{ mt: 0.5, p: 1, bgcolor: 'grey.100', borderRadius: 1, fontSize: '0.65rem' }}>
+              {JSON.stringify(sourceMetadata, null, 2).slice(0, 300)}...
+            </Box>
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+// Visual Stepper Component
+function PipelineStepper({
+  status,
+}: {
+  status: string;
+}) {
+  const { config } = useThemeStore();
+
+  // Map status to step
+  const getStepState = (step: PipelineStep): 'completed' | 'active' | 'pending' => {
+    const statusMap: Record<string, PipelineStep[]> = {
+      idle: [],
+      analyzing: ['understanding'],
+      understanding: ['understanding'],
+      understanding_ready: ['understanding'],
+      planning: ['understanding', 'planning'],
+      plan_ready: ['understanding', 'planning'],
+      wireframing: ['understanding', 'planning', 'wireframing'],
+      wireframe_ready: ['understanding', 'planning', 'wireframing'],
+      generating: ['understanding', 'planning', 'wireframing', 'prototyping'],
+      complete: ['understanding', 'planning', 'wireframing', 'prototyping', 'sharing'],
+    };
+
+    const activeSteps = statusMap[status] || [];
+    const lastActiveIndex = activeSteps.length - 1;
+    const stepIndex = PIPELINE_STEPS.findIndex(s => s.key === step);
+    const lastStepIndex = PIPELINE_STEPS.findIndex(s => s.key === activeSteps[lastActiveIndex]);
+
+    if (stepIndex < lastStepIndex) return 'completed';
+    if (stepIndex === lastStepIndex) return 'active';
+    return 'pending';
+  };
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0.5,
+        py: 1,
+        px: 2,
+        bgcolor: 'rgba(0,0,0,0.02)',
+        borderBottom: `1px solid ${config.colors.border}`,
+      }}
+    >
+      {PIPELINE_STEPS.map((step, index) => {
+        const state = getStepState(step.key);
+        const isLast = index === PIPELINE_STEPS.length - 1;
+
+        return (
+          <React.Fragment key={step.key}>
+            <Tooltip title={`${step.label}: ${step.description}`} placement="top">
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: 1,
+                  bgcolor: state === 'active' ? `${config.colors.primary}15` : 'transparent',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    bgcolor: state === 'completed'
+                      ? config.colors.success
+                      : state === 'active'
+                        ? config.colors.primary
+                        : 'grey.300',
+                    color: state === 'pending' ? 'grey.500' : 'white',
+                    fontSize: '0.65rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  {state === 'completed' ? <Check size={10} weight="bold" /> : index + 1}
+                </Box>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: state === 'active' ? 600 : 400,
+                    color: state === 'pending' ? 'text.disabled' : state === 'active' ? config.colors.primary : 'text.secondary',
+                    fontSize: '0.7rem',
+                  }}
+                >
+                  {step.label}
+                </Typography>
+                {state === 'active' && (
+                  <CircularProgress size={10} thickness={6} sx={{ color: config.colors.primary, ml: 0.5 }} />
+                )}
+              </Box>
+            </Tooltip>
+            {!isLast && (
+              <Box
+                sx={{
+                  width: 20,
+                  height: 2,
+                  bgcolor: state === 'completed' ? config.colors.success : 'grey.300',
+                  borderRadius: 1,
+                }}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
     </Box>
   );
 }
@@ -928,6 +1225,7 @@ export const VibePrototyping: React.FC = () => {
     setVariants,
     setStatus,
     setProgress,
+    error,
     setError,
     addMessage,
     getPlanByIndex,
@@ -997,6 +1295,21 @@ export const VibePrototyping: React.FC = () => {
   // Fetched HTML content for code view (variants store only URLs)
   const [fetchedVariantHtml, setFetchedVariantHtml] = useState<string | null>(null);
   const [isFetchingHtml, setIsFetchingHtml] = useState(false);
+
+  // Debug mode - toggle with keyboard shortcut (Ctrl+Shift+D)
+  const [debugMode, setDebugMode] = useState(false);
+
+  // Debug mode keyboard shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        setDebugMode(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Streaming HTML for live preview during generation
   const [streamingHtml, setStreamingHtml] = useState<Record<number, string>>({});
@@ -1818,7 +2131,12 @@ export const VibePrototyping: React.FC = () => {
   }
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', overflow: 'hidden' }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Pipeline Stepper - shows current phase */}
+      {(status !== 'idle' || isProcessingPrompt) && (
+        <PipelineStepper status={status} />
+      )}
+
       {/* Main content area - Chat and Stage side by side */}
       <Box ref={containerRef} sx={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         {/* Left Panel - Resizable Chat Panel */}
@@ -2784,8 +3102,8 @@ export const VibePrototyping: React.FC = () => {
             </Box>
           </Box>
 
-          {/* Initial state - show the selected screen with edit mode support */}
-          {status === 'idle' && !hasVariants && (
+          {/* Initial/Understanding state - show the selected screen with edit mode support */}
+          {(status === 'idle' || isAnalyzing || isUnderstanding || isUnderstandingReady) && !hasVariants && (
             <Box
               sx={{
                 flex: 1,
@@ -2894,7 +3212,7 @@ export const VibePrototyping: React.FC = () => {
           )}
 
           {/* Loading/Planning/Wireframing state - 2x2 grid with loading indicators or wireframes */}
-          {(isAnalyzing || isPlanning || isWireframing || isWireframeReady || isGenerating) && !focusedVariantIndex && (
+          {(isPlanning || isPlanReady || isWireframing || isWireframeReady || isGenerating) && !focusedVariantIndex && (
             <Box sx={{ flex: 1, p: 2, overflow: 'auto', minHeight: 0 }}>
               <Grid container spacing={2} sx={{ height: '100%', minHeight: 0 }}>
                 {['Variant A', 'Variant B', 'Variant C', 'Variant D'].map((label, idx) => {
@@ -3519,6 +3837,42 @@ export const VibePrototyping: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Debug Panel - Toggle with Ctrl+Shift+D */}
+      <DebugPanel
+        isOpen={debugMode}
+        onClose={() => setDebugMode(false)}
+        status={status}
+        progress={progress}
+        error={error}
+        currentSession={currentSession}
+        understanding={understanding}
+        plan={plan}
+        variants={variants}
+        sourceMetadata={sourceMetadata}
+        currentPrompt={currentPrompt}
+      />
+
+      {/* Debug toggle hint */}
+      {!debugMode && (
+        <Tooltip title="Debug Mode (Ctrl+Shift+D)" placement="left">
+          <IconButton
+            onClick={() => setDebugMode(true)}
+            sx={{
+              position: 'fixed',
+              bottom: 16,
+              right: 16,
+              bgcolor: 'background.paper',
+              boxShadow: 1,
+              opacity: 0.6,
+              transition: 'opacity 0.2s',
+              '&:hover': { bgcolor: 'grey.100', opacity: 1 },
+            }}
+          >
+            <Code size={20} />
+          </IconButton>
+        </Tooltip>
+      )}
     </Box>
   );
 };
