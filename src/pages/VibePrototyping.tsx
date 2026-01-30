@@ -98,7 +98,7 @@ import {
   type LLMProvider,
   type ApiKeyConfig,
 } from '@/services/apiKeysService';
-import HTMLTreeEditor from '@/components/HTMLTreeEditor';
+import DualModeEditor from '@/components/DualModeEditor';
 import WYSIWYGEditor from '@/components/WYSIWYGEditor';
 
 // ============== Types ==============
@@ -1942,13 +1942,14 @@ export const VibePrototyping: React.FC = () => {
                       </Box>
                     )}
 
-                    {/* Code Editor Mode - HTML Tree View */}
+                    {/* Code Editor Mode - Dual Mode (Tree + Monaco) */}
                     {editMode === 'code' && (
-                      <HTMLTreeEditor
+                      <DualModeEditor
                         html={screen.editedHtml}
                         onHtmlChange={(newHtml) => {
                           updateScreen(screenId!, { editedHtml: newHtml });
                         }}
+                        height="100%"
                       />
                     )}
 
@@ -2153,15 +2154,16 @@ export const VibePrototyping: React.FC = () => {
                             </Tooltip>
                           </Box>
                         </Box>
-                        {/* HTML Tree Editor */}
-                        <Box sx={{ flex: 1, overflow: 'auto' }}>
-                          <HTMLTreeEditor
+                        {/* Dual Mode Editor (Tree + Monaco) */}
+                        <Box sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+                          <DualModeEditor
                             html={fetchedVariantHtml}
                             onHtmlChange={(newHtml) => {
                               setFetchedVariantHtml(newHtml);
                               // Note: Changes to generated variants are not persisted
                               // This is read-only viewing with local editing capability
                             }}
+                            height="100%"
                           />
                         </Box>
                       </Box>
