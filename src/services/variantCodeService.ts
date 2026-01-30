@@ -312,6 +312,228 @@ export async function deleteVariant(variantId: string): Promise<boolean> {
   return true;
 }
 
+// Streaming types
+export interface StreamingProgress {
+  type: 'chunk' | 'complete' | 'error';
+  content?: string;       // HTML chunk for 'chunk' type
+  htmlUrl?: string;       // Final URL for 'complete' type
+  htmlPath?: string;
+  htmlLength?: number;
+  durationMs?: number;
+  model?: string;
+  provider?: string;
+  error?: string;         // Error message for 'error' type
+}
+
+type StreamingCallback = (progress: StreamingProgress) => void;
+
+/**
+ * Generate code for a single variant with streaming
+ * Streams HTML chunks as the LLM generates them
+ */
+export async function generateVariantCodeStreaming(
+  sessionId: string,
+  plan: VariantPlan,
+  sourceHtml: string,
+  uiMetadata?: UIMetadata,
+  productContext?: string,
+  onChunk?: StreamingCallback
+): Promise<VibeVariant | null> {
+  if (!isSupabaseConfigured()) {
+    throw new Error('Supabase not configured');
+  }
+
+  // Get session for auth token
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    throw new Error('Not authenticated');
+  }
+
+  // Get the Supabase URL for the edge function
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  if (!supabaseUrl) {
+    throw new Error('Supabase URL not configured');
+  }
+
+  console.log('[VariantCodeService] Starting streaming generation:', {
+    sessionId,
+    planId: plan.id,
+    variantIndex: plan.variant_index,
+    planTitle: plan.title,
+    sourceHtmlLength: sourceHtml.length,
+  });
+
+  // Build the streaming endpoint URL
+  const streamUrl = `${supabaseUrl}/functions/v1/generate-variant-code-streaming`;
+
+  // Make the streaming request
+  const response = await fetch(streamUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({
+      sessionId,
+      planId: plan.id,
+      variantIndex: plan.variant_index,
+      plan: {
+        title: plan.title,
+        description: plan.description,
+        keyChanges: plan.key_changes,
+        styleNotes: plan.style_notes,
+      },
+      sourceHtml,
+      uiMetadata,
+      productContext,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(error.error || `HTTP ${response.status}`);
+  }
+
+  // Check if we got an SSE stream
+  const contentType = response.headers.get('Content-Type') || '';
+  if (!contentType.includes('text/event-stream')) {
+    // Non-streaming response (error)
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Streaming failed');
+    }
+    return data.variant;
+  }
+
+  // Process SSE stream
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('No response body');
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let fullHtml = '';
+  let result: VibeVariant | null = null;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          try {
+            const event = JSON.parse(data) as StreamingProgress;
+
+            if (event.type === 'chunk' && event.content) {
+              fullHtml += event.content;
+              onChunk?.(event);
+            } else if (event.type === 'complete') {
+              onChunk?.(event);
+              // Get the updated variant from DB
+              const { data: variants } = await supabase
+                .from('vibe_variants')
+                .select('*')
+                .eq('session_id', sessionId)
+                .eq('variant_index', plan.variant_index)
+                .single();
+              result = variants as VibeVariant;
+            } else if (event.type === 'error') {
+              onChunk?.(event);
+              throw new Error(event.error || 'Streaming error');
+            }
+          } catch (parseError) {
+            // Skip non-JSON lines
+            if (parseError instanceof SyntaxError) continue;
+            throw parseError;
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return result;
+}
+
+/**
+ * Generate code for all variants with streaming
+ * Each variant streams its HTML as it generates
+ */
+export async function generateAllVariantsStreaming(
+  sessionId: string,
+  plans: VariantPlan[],
+  sourceHtml: string,
+  uiMetadata?: UIMetadata,
+  productContext?: string,
+  onProgress?: ProgressCallback,
+  onChunk?: (variantIndex: number, chunk: string, fullHtml: string) => void
+): Promise<VibeVariant[]> {
+  const variants: VibeVariant[] = [];
+  const totalPlans = plans.length;
+  const htmlAccumulators: Record<number, string> = {};
+
+  for (let i = 0; i < totalPlans; i++) {
+    const plan = plans[i];
+    htmlAccumulators[plan.variant_index] = '';
+
+    // Progress: Starting this variant
+    onProgress?.({
+      stage: 'generating',
+      message: `Generating "${plan.title}" (${i + 1}/${totalPlans})...`,
+      percent: Math.round((i / totalPlans) * 100),
+      variantIndex: plan.variant_index,
+      title: plan.title,
+    });
+
+    try {
+      const variant = await generateVariantCodeStreaming(
+        sessionId,
+        plan,
+        sourceHtml,
+        uiMetadata,
+        productContext,
+        (progress) => {
+          if (progress.type === 'chunk' && progress.content) {
+            htmlAccumulators[plan.variant_index] += progress.content;
+            onChunk?.(plan.variant_index, progress.content, htmlAccumulators[plan.variant_index]);
+          } else if (progress.type === 'complete') {
+            onProgress?.({
+              stage: 'complete',
+              message: `Variant ${plan.variant_index} complete!`,
+              percent: Math.round(((i + 1) / totalPlans) * 100),
+              variantIndex: plan.variant_index,
+              title: plan.title,
+            });
+          }
+        }
+      );
+
+      if (variant) {
+        variants.push(variant);
+      }
+    } catch (error) {
+      console.error(`Failed to generate variant ${plan.variant_index}:`, error);
+      onProgress?.({
+        stage: 'failed',
+        message: `Variant ${plan.variant_index} failed, continuing...`,
+        percent: Math.round(((i + 1) / totalPlans) * 100),
+        variantIndex: plan.variant_index,
+        title: plan.title,
+      });
+    }
+  }
+
+  return variants;
+}
+
 /**
  * Get full session data with plans and variants
  */

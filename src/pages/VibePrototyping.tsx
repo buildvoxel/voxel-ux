@@ -86,6 +86,7 @@ import {
 } from '@/services/variantPlanService';
 import {
   generateAllVariants,
+  generateAllVariantsStreaming,
   getVariants,
 } from '@/services/variantCodeService';
 import {
@@ -327,15 +328,20 @@ function CanvasVariantCard({
   label,
   isLoading = false,
   htmlUrl,
+  streamingHtml,
   progress = 0,
   onClick,
 }: {
   label: string;
   isLoading?: boolean;
   htmlUrl?: string | null;
+  streamingHtml?: string | null;
   progress?: number;
   onClick?: () => void;
 }) {
+  // Show streaming preview if available during loading
+  const showStreamingPreview = isLoading && streamingHtml && streamingHtml.length > 100;
+
   return (
     <Card
       variant="outlined"
@@ -370,7 +376,7 @@ function CanvasVariantCard({
             minHeight: 200,
           }}
         >
-          {isLoading ? (
+          {isLoading && !showStreamingPreview ? (
             <Box sx={{ textAlign: 'center', p: 2 }}>
               <CircularProgress size={32} sx={{ mb: 1.5 }} />
               <Typography variant="body2" color="text.secondary" fontWeight={500}>
@@ -384,6 +390,66 @@ function CanvasVariantCard({
                 value={progress}
                 sx={{ mt: 1.5, width: 120, height: 4, borderRadius: 2 }}
               />
+            </Box>
+          ) : showStreamingPreview ? (
+            // Streaming preview with progress overlay
+            <Box
+              sx={{
+                width: '100%',
+                height: '100%',
+                overflow: 'hidden',
+                position: 'relative',
+              }}
+            >
+              <iframe
+                srcDoc={streamingHtml!}
+                title={`${label} (streaming)`}
+                style={{
+                  width: '200%',
+                  height: '200%',
+                  border: 'none',
+                  transform: 'scale(0.5)',
+                  transformOrigin: 'top left',
+                  pointerEvents: 'none',
+                  opacity: 0.7,
+                }}
+              />
+              {/* Streaming progress overlay */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.3))',
+                }}
+              >
+                <Box sx={{ textAlign: 'center', p: 1, bgcolor: 'rgba(0,0,0,0.6)', borderRadius: 2 }}>
+                  <CircularProgress size={20} sx={{ color: '#4fc3f7', mb: 0.5 }} />
+                  <Typography variant="caption" sx={{ color: 'white', display: 'block' }}>
+                    {Math.round(progress)}% - Live Preview
+                  </Typography>
+                </Box>
+              </Box>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 8,
+                  left: 8,
+                  px: 1.5,
+                  py: 0.5,
+                  bgcolor: 'rgba(79, 195, 247, 0.9)',
+                  borderRadius: 1,
+                }}
+              >
+                <Typography variant="caption" sx={{ color: 'white', fontWeight: 500 }}>
+                  {label} (streaming)
+                </Typography>
+              </Box>
             </Box>
           ) : htmlUrl ? (
             <Box
@@ -558,6 +624,11 @@ export const VibePrototyping: React.FC = () => {
   // Fetched HTML content for code view (variants store only URLs)
   const [fetchedVariantHtml, setFetchedVariantHtml] = useState<string | null>(null);
   const [isFetchingHtml, setIsFetchingHtml] = useState(false);
+
+  // Streaming HTML for live preview during generation
+  const [streamingHtml, setStreamingHtml] = useState<Record<number, string>>({});
+  // Enable streaming by default - could add UI toggle later
+  const useStreaming = true;
 
   // Product context files
   const [contextFiles, setContextFiles] = useState<ContextFile[]>([]);
@@ -850,43 +921,84 @@ export const VibePrototyping: React.FC = () => {
     console.log('[VibePrototyping] Plans count:', plan.plans?.length);
     console.log('[VibePrototyping] Source HTML length:', screen.editedHtml?.length || 0);
     console.log('[VibePrototyping] Has metadata:', !!sourceMetadata);
+    console.log('[VibePrototyping] Streaming enabled:', useStreaming);
 
     try {
-      addChatMessage('assistant', 'Starting high-fidelity prototype generation...');
+      addChatMessage('assistant', useStreaming
+        ? 'Starting high-fidelity prototype generation with live streaming...'
+        : 'Starting high-fidelity prototype generation...');
 
       // Use the store's approveWireframes to transition to generating
       const { approveWireframes } = useVibeStore.getState();
       approveWireframes();
 
-      // Reset completed tracking for new build
+      // Reset completed tracking and streaming state for new build
       setCompletedVariantIndices(new Set());
+      setStreamingHtml({});
 
-      const generatedVariants = await generateAllVariants(
-        currentSession.id,
-        plan.plans,
-        screen.editedHtml,
-        sourceMetadata || undefined,
-        undefined,
-        (p) => {
-          setProgress({
-            stage: 'generating',
-            message: p.message,
-            percent: p.percent,
-            variantIndex: p.variantIndex,
-            variantTitle: p.title,
-          });
+      let generatedVariants;
 
-          // Track completed variants locally to prevent progress reset
-          if (p.stage === 'complete' && p.variantIndex) {
-            setCompletedVariantIndices((prev) => new Set([...prev, p.variantIndex!]));
-            getVariants(currentSession.id).then(setVariants);
+      if (useStreaming) {
+        // Use streaming generation with live preview
+        generatedVariants = await generateAllVariantsStreaming(
+          currentSession.id,
+          plan.plans,
+          screen.editedHtml,
+          sourceMetadata || undefined,
+          undefined,
+          (p) => {
+            setProgress({
+              stage: 'generating',
+              message: p.message,
+              percent: p.percent,
+              variantIndex: p.variantIndex,
+              variantTitle: p.title,
+            });
+
+            // Track completed variants locally to prevent progress reset
+            if (p.stage === 'complete' && p.variantIndex) {
+              setCompletedVariantIndices((prev) => new Set([...prev, p.variantIndex!]));
+              getVariants(currentSession.id).then(setVariants);
+            }
+          },
+          (variantIndex, _chunk, fullHtml) => {
+            // Update streaming HTML for live preview
+            setStreamingHtml((prev) => ({
+              ...prev,
+              [variantIndex]: fullHtml,
+            }));
           }
-        }
-      );
+        );
+      } else {
+        // Use non-streaming generation
+        generatedVariants = await generateAllVariants(
+          currentSession.id,
+          plan.plans,
+          screen.editedHtml,
+          sourceMetadata || undefined,
+          undefined,
+          (p) => {
+            setProgress({
+              stage: 'generating',
+              message: p.message,
+              percent: p.percent,
+              variantIndex: p.variantIndex,
+              variantTitle: p.title,
+            });
+
+            // Track completed variants locally to prevent progress reset
+            if (p.stage === 'complete' && p.variantIndex) {
+              setCompletedVariantIndices((prev) => new Set([...prev, p.variantIndex!]));
+              getVariants(currentSession.id).then(setVariants);
+            }
+          }
+        );
+      }
 
       setVariants(generatedVariants);
       setStatus('complete');
       setProgress(null);
+      setStreamingHtml({}); // Clear streaming state
 
       showSuccess('All variants generated successfully!');
     } catch (err) {
@@ -1995,6 +2107,7 @@ export const VibePrototyping: React.FC = () => {
                 {['Variant A', 'Variant B', 'Variant C', 'Variant D'].map((label, idx) => {
                   const variant = variants.find((v) => v.variant_index === idx + 1);
                   const variantProgress = getVariantProgress(idx + 1);
+                  const variantStreamingHtml = streamingHtml[idx + 1];
 
                   return (
                     <Grid item xs={6} key={label} sx={{ height: '50%' }}>
@@ -2002,6 +2115,7 @@ export const VibePrototyping: React.FC = () => {
                         label={label}
                         isLoading={!variant || variant.status !== 'complete'}
                         htmlUrl={variant?.html_url}
+                        streamingHtml={variantStreamingHtml}
                         progress={variantProgress}
                         onClick={variant?.status === 'complete' ? () => handleVariantClick(idx + 1) : undefined}
                       />
