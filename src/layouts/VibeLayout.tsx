@@ -68,8 +68,8 @@ export function VibeLayout() {
           alt="Voxel"
           onClick={() => navigate('/')}
           sx={{
-            width: 32,
-            height: 32,
+            width: 27,
+            height: 27,
             mb: 1,
             cursor: 'pointer',
             transition: 'opacity 0.2s',
