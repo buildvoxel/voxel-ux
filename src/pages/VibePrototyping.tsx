@@ -41,6 +41,8 @@ import {
   PencilSimple,
   ArrowCounterClockwise,
   ArrowClockwise,
+  ArrowsClockwise,
+  Lightning,
   Paperclip,
   ShareNetwork,
   Microphone,
@@ -63,6 +65,7 @@ import {
   DeviceTablet,
   Desktop,
   DotsSixVertical,
+  ClockCounterClockwise,
 } from '@phosphor-icons/react';
 
 import { useSnackbar } from '@/components/SnackbarProvider';
@@ -99,6 +102,12 @@ import {
   type LLMProvider,
   type ApiKeyConfig,
 } from '@/services/apiKeysService';
+import {
+  iterateOnVariant,
+  getIterationHistory,
+  revertToIteration,
+  type VibeIteration,
+} from '@/services/iterationService';
 import DualModeEditor from '@/components/DualModeEditor';
 import WYSIWYGEditor from '@/components/WYSIWYGEditor';
 
@@ -630,6 +639,13 @@ export const VibePrototyping: React.FC = () => {
   // Enable streaming by default - could add UI toggle later
   const useStreaming = true;
 
+  // Iteration state
+  const [iterationDialogOpen, setIterationDialogOpen] = useState(false);
+  const [iterationPrompt, setIterationPrompt] = useState('');
+  const [isIterating, setIsIterating] = useState(false);
+  const [iterationHistory, setIterationHistory] = useState<VibeIteration[]>([]);
+  const [showIterationHistory, setShowIterationHistory] = useState(false);
+
   // Product context files
   const [contextFiles, setContextFiles] = useState<ContextFile[]>([]);
   const [contextPanelOpen, setContextPanelOpen] = useState(false);
@@ -1006,6 +1022,110 @@ export const VibePrototyping: React.FC = () => {
       showError('Failed to generate prototypes');
     }
   }, [currentSession, plan, screen, sourceMetadata, addChatMessage, setVariants, setStatus, setProgress]);
+
+  // Handle iteration on a variant
+  const handleIterate = useCallback(async () => {
+    if (!currentSession || !focusedVariantIndex || !fetchedVariantHtml || !iterationPrompt.trim()) {
+      return;
+    }
+
+    const focusedVariant = getVariantByIndex(focusedVariantIndex);
+    if (!focusedVariant) {
+      showError('Variant not found');
+      return;
+    }
+
+    setIsIterating(true);
+    setIterationDialogOpen(false);
+
+    try {
+      addChatMessage('user', `Iterate on Variant ${String.fromCharCode(64 + focusedVariantIndex)}: ${iterationPrompt}`);
+      addChatMessage('assistant', 'Applying your changes to the variant...');
+
+      const result = await iterateOnVariant(
+        currentSession.id,
+        focusedVariant.id,
+        focusedVariantIndex,
+        fetchedVariantHtml,
+        iterationPrompt,
+        (progress) => {
+          if (progress.stage === 'generating') {
+            // Could show progress in chat
+          }
+        }
+      );
+
+      if (result.success && result.htmlUrl) {
+        // Refresh variants to get updated URL
+        const updatedVariants = await getVariants(currentSession.id);
+        setVariants(updatedVariants);
+
+        // Fetch the new HTML for the code view
+        const response = await fetch(result.htmlUrl);
+        const newHtml = await response.text();
+        setFetchedVariantHtml(newHtml);
+
+        // Refresh iteration history
+        const history = await getIterationHistory(focusedVariant.id);
+        setIterationHistory(history);
+
+        addChatMessage('assistant', `Iteration ${result.iterationNumber} complete! The variant has been updated.`);
+        showSuccess('Variant updated successfully!');
+      } else {
+        addChatMessage('assistant', `Iteration failed: ${result.error}`);
+        showError(result.error || 'Failed to iterate');
+      }
+    } catch (err) {
+      console.error('Error iterating variant:', err);
+      showError('Failed to iterate on variant');
+    } finally {
+      setIsIterating(false);
+      setIterationPrompt('');
+    }
+  }, [currentSession, focusedVariantIndex, fetchedVariantHtml, iterationPrompt, getVariantByIndex, addChatMessage, setVariants]);
+
+  // Handle revert to previous iteration
+  const handleRevertIteration = useCallback(async (iterationId: string) => {
+    if (!focusedVariantIndex) return;
+
+    const focusedVariant = getVariantByIndex(focusedVariantIndex);
+    if (!focusedVariant) return;
+
+    try {
+      const result = await revertToIteration(focusedVariant.id, iterationId);
+      if (result.success && result.htmlUrl) {
+        // Refresh variants
+        if (currentSession) {
+          const updatedVariants = await getVariants(currentSession.id);
+          setVariants(updatedVariants);
+        }
+
+        // Fetch reverted HTML
+        const response = await fetch(result.htmlUrl);
+        const revertedHtml = await response.text();
+        setFetchedVariantHtml(revertedHtml);
+
+        showSuccess('Reverted to previous version');
+      } else {
+        showError(result.error || 'Failed to revert');
+      }
+    } catch (err) {
+      console.error('Error reverting iteration:', err);
+      showError('Failed to revert');
+    }
+  }, [focusedVariantIndex, getVariantByIndex, currentSession, setVariants]);
+
+  // Load iteration history when focusing on a variant
+  useEffect(() => {
+    if (focusedVariantIndex) {
+      const focusedVariant = getVariantByIndex(focusedVariantIndex);
+      if (focusedVariant?.id) {
+        getIterationHistory(focusedVariant.id).then(setIterationHistory);
+      }
+    } else {
+      setIterationHistory([]);
+    }
+  }, [focusedVariantIndex, getVariantByIndex]);
 
   // Handle file attachment
   const handleFileAttach = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2149,6 +2269,60 @@ export const VibePrototyping: React.FC = () => {
           {/* Focused variant - single full preview with edit mode support */}
           {focusedVariantIndex && focusedVariant && (
             <Box sx={{ flex: 1, p: 2, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              {/* Variant action bar */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  mb: 1,
+                  px: 1,
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    Variant {String.fromCharCode(64 + focusedVariantIndex)}
+                  </Typography>
+                  {focusedVariant.iteration_count > 0 && (
+                    <Chip
+                      size="small"
+                      label={`${focusedVariant.iteration_count} iteration${focusedVariant.iteration_count > 1 ? 's' : ''}`}
+                      sx={{ fontSize: 11 }}
+                    />
+                  )}
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {iterationHistory.length > 0 && (
+                    <Tooltip title="View iteration history">
+                      <IconButton
+                        size="small"
+                        onClick={() => setShowIterationHistory(true)}
+                        sx={{ color: 'text.secondary' }}
+                      >
+                        <ClockCounterClockwise size={18} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={isIterating ? <CircularProgress size={14} /> : <ArrowsClockwise size={16} />}
+                    onClick={() => setIterationDialogOpen(true)}
+                    disabled={isIterating || !fetchedVariantHtml}
+                    sx={{
+                      borderColor: '#764ba2',
+                      color: '#764ba2',
+                      '&:hover': {
+                        borderColor: '#667eea',
+                        bgcolor: 'rgba(118, 75, 162, 0.04)',
+                      },
+                    }}
+                  >
+                    {isIterating ? 'Iterating...' : 'Iterate'}
+                  </Button>
+                </Box>
+              </Box>
+
               <Card
                 variant="outlined"
                 sx={{
@@ -2377,6 +2551,131 @@ export const VibePrototyping: React.FC = () => {
             }}
           >
             Download HTML
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Iteration Dialog */}
+      <Dialog
+        open={iterationDialogOpen}
+        onClose={() => setIterationDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        TransitionComponent={Fade}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, fontFamily: config.fonts.display }}>
+          <ArrowsClockwise size={24} />
+          Iterate on Variant {focusedVariantIndex ? String.fromCharCode(64 + focusedVariantIndex) : ''}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Describe what changes you want to make to this variant. The AI will modify the current design based on your request.
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            placeholder="e.g., Make the header larger and change the primary color to blue"
+            value={iterationPrompt}
+            onChange={(e) => setIterationPrompt(e.target.value)}
+            autoFocus
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                fontFamily: config.fonts.body,
+              },
+            }}
+          />
+          {iterationHistory.length > 0 && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              This variant has {iterationHistory.length} previous iteration{iterationHistory.length > 1 ? 's' : ''}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIterationDialogOpen(false)} variant="outlined">
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<Lightning size={18} />}
+            onClick={handleIterate}
+            disabled={!iterationPrompt.trim() || isIterating}
+            sx={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%)',
+              },
+            }}
+          >
+            {isIterating ? 'Iterating...' : 'Apply Changes'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Iteration History Dialog */}
+      <Dialog
+        open={showIterationHistory}
+        onClose={() => setShowIterationHistory(false)}
+        maxWidth="md"
+        fullWidth
+        TransitionComponent={Fade}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, fontFamily: config.fonts.display }}>
+          <ClockCounterClockwise size={24} />
+          Iteration History - Variant {focusedVariantIndex ? String.fromCharCode(64 + focusedVariantIndex) : ''}
+        </DialogTitle>
+        <DialogContent>
+          {iterationHistory.length === 0 ? (
+            <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+              No iterations yet. Click "Iterate" to make changes to this variant.
+            </Typography>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {iterationHistory.map((iteration, index) => (
+                <Card key={iteration.id} variant="outlined" sx={{ p: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                    <Box>
+                      <Typography variant="subtitle2" fontWeight={600}>
+                        Iteration {iteration.iteration_number}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {new Date(iteration.created_at).toLocaleString()}
+                        {iteration.generation_model && ` • ${iteration.generation_model}`}
+                        {iteration.generation_duration_ms && ` • ${(iteration.generation_duration_ms / 1000).toFixed(1)}s`}
+                      </Typography>
+                    </Box>
+                    {index < iterationHistory.length - 1 && (
+                      <Tooltip title="Revert to this version">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleRevertIteration(iteration.id)}
+                          sx={{ color: 'text.secondary' }}
+                        >
+                          <ArrowCounterClockwise size={18} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      bgcolor: 'action.hover',
+                      p: 1.5,
+                      borderRadius: 1,
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                    }}
+                  >
+                    "{iteration.prompt}"
+                  </Typography>
+                </Card>
+              ))}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowIterationHistory(false)} variant="outlined">
+            Close
           </Button>
         </DialogActions>
       </Dialog>

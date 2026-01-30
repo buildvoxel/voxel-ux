@@ -24,6 +24,7 @@ export interface VibeVariant {
   token_count: number | null;
   status: 'pending' | 'generating' | 'capturing' | 'complete' | 'failed';
   error_message: string | null;
+  iteration_count: number;
   created_at: string;
   updated_at: string;
 }
