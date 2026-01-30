@@ -93,8 +93,8 @@ import {
   getVariants,
 } from '@/services/variantCodeService';
 import {
-  generateWireframes,
-  type WireframeResult,
+  generateVisualWireframes,
+  type VisualWireframeResult,
 } from '@/services/wireframeService';
 import {
   getApiKeys,
@@ -235,7 +235,7 @@ function AIPhase({
 function VariantCard({
   title,
   description,
-  wireframeText,
+  wireframeUrl,
   variantIndex: _variantIndex,
   isSelected = false,
   isChecked = true,
@@ -248,7 +248,7 @@ function VariantCard({
 }: {
   title: string;
   description: string;
-  wireframeText?: string;
+  wireframeUrl?: string;
   variantIndex?: number;
   isSelected?: boolean;
   isChecked?: boolean;
@@ -314,7 +314,7 @@ function VariantCard({
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            {wireframeText && (
+            {wireframeUrl && (
               <IconButton
                 size="small"
                 onClick={(e) => {
@@ -334,31 +334,27 @@ function VariantCard({
           {description}
         </Typography>
 
-        {/* Wireframe preview */}
-        {wireframeText && showWireframe && (
+        {/* Visual wireframe preview in iframe */}
+        {wireframeUrl && showWireframe && (
           <Box
             sx={{
               mt: 1.5,
-              p: 1,
-              bgcolor: '#1e1e1e',
               borderRadius: 1,
-              overflow: 'auto',
-              maxHeight: 200,
+              overflow: 'hidden',
+              border: '1px solid #e0e0e0',
+              bgcolor: '#fafafa',
             }}
           >
-            <Typography
-              component="pre"
-              sx={{
-                fontFamily: 'Monaco, Consolas, monospace',
-                fontSize: 9,
-                color: '#d4d4d4',
-                margin: 0,
-                whiteSpace: 'pre',
-                lineHeight: 1.3,
+            <iframe
+              src={wireframeUrl}
+              title="Wireframe Preview"
+              style={{
+                width: '100%',
+                height: 200,
+                border: 'none',
+                display: 'block',
               }}
-            >
-              {wireframeText}
-            </Typography>
+            />
           </Box>
         )}
 
@@ -379,6 +375,7 @@ function CanvasVariantCard({
   label,
   isLoading = false,
   htmlUrl,
+  wireframeUrl,
   streamingHtml,
   progress = 0,
   onClick,
@@ -386,12 +383,15 @@ function CanvasVariantCard({
   label: string;
   isLoading?: boolean;
   htmlUrl?: string | null;
+  wireframeUrl?: string | null;
   streamingHtml?: string | null;
   progress?: number;
   onClick?: () => void;
 }) {
   // Show streaming preview if available during loading
   const showStreamingPreview = isLoading && streamingHtml && streamingHtml.length > 100;
+  // Show wireframe if no high-fidelity yet but wireframe exists
+  const showWireframePreview = !htmlUrl && !isLoading && wireframeUrl;
 
   return (
     <Card
@@ -539,6 +539,44 @@ function CanvasVariantCard({
                 </Typography>
               </Box>
             </Box>
+          ) : showWireframePreview ? (
+            // Wireframe preview (sketch style)
+            <Box
+              sx={{
+                width: '100%',
+                height: '100%',
+                overflow: 'hidden',
+                position: 'relative',
+              }}
+            >
+              <iframe
+                src={wireframeUrl!}
+                title={`${label} (wireframe)`}
+                style={{
+                  width: '200%',
+                  height: '200%',
+                  border: 'none',
+                  transform: 'scale(0.5)',
+                  transformOrigin: 'top left',
+                  pointerEvents: 'none',
+                }}
+              />
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 8,
+                  left: 8,
+                  px: 1.5,
+                  py: 0.5,
+                  bgcolor: 'rgba(255, 193, 7, 0.9)',
+                  borderRadius: 1,
+                }}
+              >
+                <Typography variant="caption" sx={{ color: '#333', fontWeight: 500 }}>
+                  {label} (wireframe)
+                </Typography>
+              </Box>
+            </Box>
           ) : (
             <Typography color="text.secondary">{label}</Typography>
           )}
@@ -670,8 +708,8 @@ export const VibePrototyping: React.FC = () => {
   // Track completed variants locally to prevent progress reset
   const [completedVariantIndices, setCompletedVariantIndices] = useState<Set<number>>(new Set());
 
-  // Store generated wireframes
-  const [wireframes, setWireframes] = useState<WireframeResult[]>([]);
+  // Store generated visual wireframes
+  const [wireframes, setWireframes] = useState<VisualWireframeResult[]>([]);
 
   // Processing state for immediate visual feedback
   const [isProcessingPrompt, setIsProcessingPrompt] = useState(false);
@@ -1046,12 +1084,13 @@ export const VibePrototyping: React.FC = () => {
   const handleCreateWireframes = useCallback(async () => {
     if (!currentSession || !plan || !screen?.editedHtml) return;
 
-    console.log('[VibePrototyping] Starting wireframe generation...');
+    console.log('[VibePrototyping] Starting visual wireframe generation...');
     console.log('[VibePrototyping] Session ID:', currentSession.id);
     console.log('[VibePrototyping] Plans count:', plan.plans?.length);
+    console.log('[VibePrototyping] Selected variants:', selectedVariants);
 
     try {
-      addChatMessage('assistant', 'Creating wireframe layouts for each paradigm using AI...');
+      addChatMessage('assistant', 'Creating visual wireframe sketches for each paradigm using AI...');
 
       // Approve the plan and start wireframing
       const approvedSession = await approvePlan(currentSession.id);
@@ -1059,14 +1098,15 @@ export const VibePrototyping: React.FC = () => {
         storeApprovePlan();
       }
 
-      // Generate real wireframes using LLM
+      // Generate visual wireframes using LLM
       setStatus('wireframing');
 
-      const wireframeResult = await generateWireframes(
+      const wireframeResult = await generateVisualWireframes(
         currentSession.id,
         plan.plans,
         screen.editedHtml,
         sourceMetadata || undefined,
+        selectedVariants, // Pass selected variants to only generate those
         (p) => {
           setProgress({
             stage: 'wireframing',
@@ -1076,7 +1116,7 @@ export const VibePrototyping: React.FC = () => {
         }
       );
 
-      console.log('[VibePrototyping] Wireframes generated:', wireframeResult.wireframes?.length);
+      console.log('[VibePrototyping] Visual wireframes generated:', wireframeResult.wireframes?.length);
 
       // Store wireframes in local state for display
       setWireframes(wireframeResult.wireframes || []);
@@ -1085,14 +1125,14 @@ export const VibePrototyping: React.FC = () => {
       setStatus('wireframe_ready');
       setProgress(null);
 
-      addChatMessage('assistant', `Wireframe layouts are ready! I've created text-based wireframes showing the structure for each variant. Review the concepts below - when you're happy with the direction, click "Build High-Fidelity" to generate polished prototypes.`);
+      addChatMessage('assistant', `Visual wireframe sketches are ready! I've created hand-drawn style wireframes showing the layout for each variant. Click the expand button on each card to preview the wireframe. When you're happy with the direction, click "Build High-Fidelity" to generate polished prototypes.`);
     } catch (err) {
-      console.error('Error creating wireframes:', err);
+      console.error('Error creating visual wireframes:', err);
       const errorMsg = err instanceof Error ? err.message : 'Failed to create wireframes';
       showError(errorMsg);
       setError(errorMsg);
     }
-  }, [currentSession, plan, screen, sourceMetadata, addChatMessage, storeApprovePlan]);
+  }, [currentSession, plan, screen, sourceMetadata, selectedVariants, addChatMessage, storeApprovePlan]);
 
   // Handle Build High-Fidelity button - transitions from wireframe_ready to generating
   const handleBuildHighFidelity = useCallback(async () => {
@@ -1763,7 +1803,7 @@ export const VibePrototyping: React.FC = () => {
                       key={p.id || idx}
                       title={p.title || `Variant ${String.fromCharCode(65 + idx)}`}
                       description={p.description || 'Generating design approach...'}
-                      wireframeText={wireframe?.wireframeText}
+                      wireframeUrl={wireframe?.wireframeUrl}
                       variantIndex={idx + 1}
                       isSelected={focusedVariantIndex === idx + 1}
                       isChecked={selectedVariants.includes(idx + 1)}
@@ -2546,21 +2586,23 @@ export const VibePrototyping: React.FC = () => {
             </Box>
           )}
 
-          {/* Loading/Planning state - 2x2 grid with loading indicators */}
-          {(isAnalyzing || isPlanning || isGenerating) && !focusedVariantIndex && (
+          {/* Loading/Planning/Wireframing state - 2x2 grid with loading indicators or wireframes */}
+          {(isAnalyzing || isPlanning || isWireframing || isWireframeReady || isGenerating) && !focusedVariantIndex && (
             <Box sx={{ flex: 1, p: 2, overflow: 'auto', minHeight: 0 }}>
               <Grid container spacing={2} sx={{ height: '100%', minHeight: 0 }}>
                 {['Variant A', 'Variant B', 'Variant C', 'Variant D'].map((label, idx) => {
                   const variant = variants.find((v) => v.variant_index === idx + 1);
                   const variantProgress = getVariantProgress(idx + 1);
                   const variantStreamingHtml = streamingHtml[idx + 1];
+                  const wireframe = wireframes.find(w => w.variantIndex === idx + 1);
 
                   return (
                     <Grid item xs={6} key={label} sx={{ height: '50%' }}>
                       <CanvasVariantCard
                         label={label}
-                        isLoading={!variant || variant.status !== 'complete'}
+                        isLoading={isGenerating && (!variant || variant.status !== 'complete')}
                         htmlUrl={variant?.html_url}
+                        wireframeUrl={wireframe?.wireframeUrl}
                         streamingHtml={variantStreamingHtml}
                         progress={variantProgress}
                         onClick={variant?.status === 'complete' ? () => handleVariantClick(idx + 1) : undefined}
@@ -2578,11 +2620,13 @@ export const VibePrototyping: React.FC = () => {
               <Grid container spacing={2} sx={{ height: '100%', minHeight: 0 }}>
                 {['Variant A', 'Variant B', 'Variant C', 'Variant D'].map((label, idx) => {
                   const variant = getVariantByIndex(idx + 1);
+                  const wireframe = wireframes.find(w => w.variantIndex === idx + 1);
                   return (
                     <Grid item xs={6} key={label} sx={{ height: '50%' }}>
                       <CanvasVariantCard
                         label={label}
                         htmlUrl={variant?.html_url}
+                        wireframeUrl={wireframe?.wireframeUrl}
                         onClick={() => handleVariantClick(idx + 1)}
                       />
                     </Grid>
