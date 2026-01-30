@@ -70,6 +70,8 @@ export function VibeLayout() {
           sx={{
             width: 32,
             height: 32,
+            minWidth: 32,
+            minHeight: 32,
             objectFit: 'contain',
             mb: 1,
             cursor: 'pointer',

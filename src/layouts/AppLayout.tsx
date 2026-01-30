@@ -148,6 +148,8 @@ export function AppLayout() {
             sx={{
               width: 32,
               height: 32,
+              minWidth: 32,
+              minHeight: 32,
               objectFit: 'contain',
               flexShrink: 0,
             }}
