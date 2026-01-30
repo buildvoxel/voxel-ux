@@ -268,7 +268,6 @@ export function Components() {
     selectComponent,
     extractFromScreens,
     isExtracting,
-    lastExtractionTime,
   } = useComponentsStore();
 
   const { screens, initializeScreens } = useScreensStore();
@@ -336,7 +335,6 @@ export function Components() {
       {/* Header */}
       <PageHeader
         title="Component Library"
-        subtitle={`${filteredComponents.length} of ${components.length} components${lastExtractionTime ? ` · Last extracted: ${new Date(lastExtractionTime).toLocaleString()}` : ''}`}
         actions={
           <>
             <TextField
@@ -417,32 +415,38 @@ export function Components() {
         }
       />
 
-      {/* Tag filters */}
-      {allTags.length > 0 && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-          {allTags.slice(0, 10).map((tag) => (
-            <Chip
-              key={tag}
-              label={tag}
-              size="small"
-              color={selectedTags.includes(tag) ? 'primary' : 'default'}
-              variant={selectedTags.includes(tag) ? 'filled' : 'outlined'}
-              onClick={() => toggleTag(tag)}
-              sx={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
-            />
-          ))}
-          {hasFilters && (
-            <Button
-              size="small"
-              startIcon={<X size={14} />}
-              onClick={clearFilters}
-              sx={{ ml: 1 }}
-            >
-              Clear filters
-            </Button>
-          )}
-        </Box>
-      )}
+      {/* Tag filters - inline below header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+          {filteredComponents.length} of {components.length} components
+        </Typography>
+        {allTags.length > 0 && (
+          <>
+            <Box sx={{ width: 1, height: 16, bgcolor: 'divider', mx: 1 }} />
+            {allTags.slice(0, 8).map((tag) => (
+              <Chip
+                key={tag}
+                label={tag}
+                size="small"
+                color={selectedTags.includes(tag) ? 'primary' : 'default'}
+                variant={selectedTags.includes(tag) ? 'filled' : 'outlined'}
+                onClick={() => toggleTag(tag)}
+                sx={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+              />
+            ))}
+          </>
+        )}
+        {hasFilters && (
+          <Button
+            size="small"
+            startIcon={<X size={14} />}
+            onClick={clearFilters}
+            sx={{ ml: 1 }}
+          >
+            Clear
+          </Button>
+        )}
+      </Box>
 
       {/* Components Grid */}
       {filteredComponents.length === 0 ? (
