@@ -6,20 +6,14 @@ import InputAdornment from '@mui/material/InputAdornment';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
 import Tooltip from '@mui/material/Tooltip';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import CircularProgress from '@mui/material/CircularProgress';
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import { MagnifyingGlass, GridFour, List, ArrowsClockwise, X } from '@phosphor-icons/react';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import CodeOutlinedIcon from '@mui/icons-material/CodeOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import FilterListIcon from '@mui/icons-material/FilterList';
-import ClearIcon from '@mui/icons-material/Clear';
-import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
-import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import {
   Button,
   Card,
@@ -38,6 +32,7 @@ import { EmptyState, PageHeader } from '@/components';
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { useComponentsStore, getCategories, getAllTags, type ExtractedComponent } from '@/store/componentsStore';
 import { useScreensStore } from '@/store/screensStore';
+import { useThemeStore } from '@/store/themeStore';
 
 // Component preview renderer
 function ComponentPreview({ component }: { component: ExtractedComponent }) {
@@ -334,6 +329,7 @@ export function Components() {
   }, [components, searchQuery, selectedCategory, selectedTags]);
 
   const hasFilters = searchQuery || selectedCategory || selectedTags.length > 0;
+  const { config } = useThemeStore();
 
   return (
     <Box>
@@ -343,87 +339,110 @@ export function Components() {
         subtitle={`${filteredComponents.length} of ${components.length} components${lastExtractionTime ? ` · Last extracted: ${new Date(lastExtractionTime).toLocaleString()}` : ''}`}
         actions={
           <>
-            <Button
-              variant="outlined"
+            <TextField
+              placeholder="Search components..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               size="small"
-              startIcon={isExtracting ? <CircularProgress size={16} /> : <RefreshIcon />}
-              onClick={handleRefresh}
-              disabled={isExtracting || screens.length === 0}
-            >
-              {isExtracting ? 'Extracting...' : 'Extract Components'}
-            </Button>
+              sx={{
+                width: 220,
+                '& .MuiOutlinedInput-root': {
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  },
+                  '&.Mui-focused': {
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
+                  },
+                },
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <MagnifyingGlass size={18} color={config.colors.textSecondary} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <FormControl size="small" sx={{ minWidth: 130 }}>
+              <Select
+                value={selectedCategory || ''}
+                displayEmpty
+                onChange={(e) => setSelectedCategory(e.target.value || null)}
+                sx={{ fontSize: '0.875rem' }}
+              >
+                <MenuItem value="">All Categories</MenuItem>
+                {categories.map((cat) => (
+                  <MenuItem key={cat} value={cat} sx={{ textTransform: 'capitalize' }}>
+                    {cat}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <ToggleButtonGroup
               value={viewMode}
               exclusive
               onChange={(_, v) => v && setViewMode(v)}
               size="small"
+              sx={{
+                '& .MuiToggleButton-root': {
+                  transition: 'all 0.2s ease',
+                },
+              }}
             >
               <ToggleButton value="grid">
-                <GridViewOutlinedIcon fontSize="small" />
+                <GridFour size={18} />
               </ToggleButton>
               <ToggleButton value="list">
-                <ViewListOutlinedIcon fontSize="small" />
+                <List size={18} />
               </ToggleButton>
             </ToggleButtonGroup>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={isExtracting ? <CircularProgress size={16} color="inherit" /> : <ArrowsClockwise size={18} />}
+              onClick={handleRefresh}
+              disabled={isExtracting || screens.length === 0}
+              sx={{
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                },
+              }}
+            >
+              {isExtracting ? 'Extracting...' : 'Extract Components'}
+            </Button>
           </>
         }
       />
 
-      {/* Filters */}
-      <Card sx={{ mb: 3, p: 2 }}>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-          <TextField
-            placeholder="Search components..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            size="small"
-            sx={{ width: 250 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchOutlinedIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
-          />
-
-          <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel>Category</InputLabel>
-            <Select
-              value={selectedCategory || ''}
-              label="Category"
-              onChange={(e) => setSelectedCategory(e.target.value || null)}
-            >
-              <MenuItem value="">All Categories</MenuItem>
-              {categories.map((cat) => (
-                <MenuItem key={cat} value={cat} sx={{ textTransform: 'capitalize' }}>
-                  {cat}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            <FilterListIcon color="disabled" />
-            {allTags.slice(0, 8).map((tag) => (
-              <Chip
-                key={tag}
-                label={tag}
-                size="small"
-                color={selectedTags.includes(tag) ? 'primary' : 'default'}
-                onClick={() => toggleTag(tag)}
-                sx={{ cursor: 'pointer' }}
-              />
-            ))}
-          </Box>
-
+      {/* Tag filters */}
+      {allTags.length > 0 && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+          {allTags.slice(0, 10).map((tag) => (
+            <Chip
+              key={tag}
+              label={tag}
+              size="small"
+              color={selectedTags.includes(tag) ? 'primary' : 'default'}
+              variant={selectedTags.includes(tag) ? 'filled' : 'outlined'}
+              onClick={() => toggleTag(tag)}
+              sx={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+            />
+          ))}
           {hasFilters && (
-            <Button size="small" startIcon={<ClearIcon />} onClick={clearFilters}>
-              Clear
+            <Button
+              size="small"
+              startIcon={<X size={14} />}
+              onClick={clearFilters}
+              sx={{ ml: 1 }}
+            >
+              Clear filters
             </Button>
           )}
         </Box>
-      </Card>
+      )}
 
       {/* Components Grid */}
       {filteredComponents.length === 0 ? (
