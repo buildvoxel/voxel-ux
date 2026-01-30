@@ -66,15 +66,20 @@ function App() {
   }, [initialize]);
 
   if (isLoading) {
+    // Use theme colors for loading skeleton to match the app's default theme
+    const sidebarBg = config.colors.bgDark;
+    const skeletonBg = 'rgba(255, 255, 255, 0.08)';
+    const contentBg = config.colors.bgPrimary;
+
     return (
       <ThemeProvider theme={config.muiTheme}>
         <CssBaseline />
         <Box sx={{ display: 'flex', height: '100vh' }}>
           {/* Sidebar skeleton */}
-          <Box sx={{ width: 220, bgcolor: 'grey.900', p: 2 }}>
+          <Box sx={{ width: 220, bgcolor: sidebarBg, p: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-              <Skeleton variant="rounded" width={32} height={32} sx={{ bgcolor: 'grey.800' }} />
-              <Skeleton variant="text" width={80} height={24} sx={{ bgcolor: 'grey.800' }} />
+              <Skeleton variant="rounded" width={32} height={32} sx={{ bgcolor: skeletonBg }} />
+              <Skeleton variant="text" width={80} height={24} sx={{ bgcolor: skeletonBg }} />
             </Box>
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <Skeleton
@@ -82,12 +87,12 @@ function App() {
                 variant="rounded"
                 width="100%"
                 height={36}
-                sx={{ mb: 1, bgcolor: 'grey.800' }}
+                sx={{ mb: 1, bgcolor: skeletonBg }}
               />
             ))}
           </Box>
           {/* Main content skeleton */}
-          <Box sx={{ flex: 1, p: 3 }}>
+          <Box sx={{ flex: 1, p: 3, bgcolor: contentBg }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
               <Skeleton variant="text" width={200} height={40} />
               <Skeleton variant="rounded" width={36} height={36} />
