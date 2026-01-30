@@ -112,6 +112,17 @@ export async function generateVariantCode(
     title: plan.title,
   });
 
+  // Debug logging
+  console.log('[VariantCodeService] Calling generate-variant-code edge function:', {
+    sessionId,
+    planId: plan.id,
+    variantIndex: plan.variant_index,
+    planTitle: plan.title,
+    sourceHtmlLength: sourceHtml.length,
+    hasMetadata: !!uiMetadata,
+    hasContext: !!productContext,
+  });
+
   // Call Edge Function
   const { data, error } = await supabase.functions.invoke('generate-variant-code', {
     body: {

@@ -16,6 +16,10 @@ export interface VariantPlan {
   description: string;
   key_changes: string[];
   style_notes: string | null;
+  // Wireframe fields (populated after wireframe generation)
+  wireframe_text?: string | null;
+  layout_description?: string | null;
+  component_list?: string[] | null;
   created_at: string;
 }
 
@@ -188,6 +192,13 @@ export async function generateVariantPlan(
   // Compact HTML for smaller payload
   const compactionResult = await compactHtml(html, { method: 'combined-optimal' });
   const compactedHtml = compactionResult.html;
+
+  console.log('[VariantPlanService] HTML compaction result:', {
+    originalSize: compactionResult.originalSize,
+    compactedSize: compactionResult.compactedSize,
+    reductionPercent: compactionResult.reductionPercent,
+    warnings: compactionResult.warnings,
+  });
 
   // Progress: Generating
   onProgress?.({

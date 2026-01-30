@@ -89,6 +89,10 @@ import {
   getVariants,
 } from '@/services/variantCodeService';
 import {
+  generateWireframes,
+  type WireframeResult,
+} from '@/services/wireframeService';
+import {
   getApiKeys,
   PROVIDER_INFO,
   type LLMProvider,
@@ -216,6 +220,7 @@ function AIPhase({
 function VariantCard({
   title,
   description,
+  wireframeText,
   isSelected = false,
   isBuilding = false,
   isComplete = false,
@@ -224,6 +229,7 @@ function VariantCard({
 }: {
   title: string;
   description: string;
+  wireframeText?: string;
   isSelected?: boolean;
   isBuilding?: boolean;
   isComplete?: boolean;
@@ -231,6 +237,7 @@ function VariantCard({
   onClick?: () => void;
 }) {
   const { config } = useThemeStore();
+  const [showWireframe, setShowWireframe] = useState(false);
 
   return (
     <Card
@@ -254,12 +261,55 @@ function VariantCard({
           <Typography variant="subtitle2" fontWeight={600}>
             {title}
           </Typography>
-          {isComplete && <Check size={16} color={config.colors.success} weight="bold" />}
-          {isBuilding && <CircularProgress size={14} />}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {wireframeText && (
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowWireframe(!showWireframe);
+                }}
+                sx={{ p: 0.25, color: showWireframe ? config.colors.primary : 'grey.500' }}
+              >
+                {showWireframe ? <CaretDown size={14} /> : <CaretRight size={14} />}
+              </IconButton>
+            )}
+            {isComplete && <Check size={16} color={config.colors.success} weight="bold" />}
+            {isBuilding && <CircularProgress size={14} />}
+          </Box>
         </Box>
         <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13, mb: isBuilding ? 1 : 0 }}>
           {description}
         </Typography>
+
+        {/* Wireframe preview */}
+        {wireframeText && showWireframe && (
+          <Box
+            sx={{
+              mt: 1.5,
+              p: 1,
+              bgcolor: '#1e1e1e',
+              borderRadius: 1,
+              overflow: 'auto',
+              maxHeight: 200,
+            }}
+          >
+            <Typography
+              component="pre"
+              sx={{
+                fontFamily: 'Monaco, Consolas, monospace',
+                fontSize: 9,
+                color: '#d4d4d4',
+                margin: 0,
+                whiteSpace: 'pre',
+                lineHeight: 1.3,
+              }}
+            >
+              {wireframeText}
+            </Typography>
+          </Box>
+        )}
+
         {isBuilding && (
           <LinearProgress
             variant="determinate"
@@ -498,6 +548,9 @@ export const VibePrototyping: React.FC = () => {
   // Track completed variants locally to prevent progress reset
   const [completedVariantIndices, setCompletedVariantIndices] = useState<Set<number>>(new Set());
 
+  // Store generated wireframes
+  const [wireframes, setWireframes] = useState<WireframeResult[]>([]);
+
   // Processing state for immediate visual feedback
   const [isProcessingPrompt, setIsProcessingPrompt] = useState(false);
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
@@ -637,6 +690,13 @@ export const VibePrototyping: React.FC = () => {
     if (!screen?.editedHtml || !screenId || !promptValue.trim()) return;
 
     const prompt = promptValue.trim();
+
+    // Debug logging
+    console.log('[VibePrototyping] Starting build...');
+    console.log('[VibePrototyping] Screen ID:', screenId);
+    console.log('[VibePrototyping] HTML length:', screen.editedHtml?.length || 0);
+    console.log('[VibePrototyping] Prompt:', prompt);
+
     setPromptValue('');
     setCurrentPrompt(prompt);
 
@@ -730,10 +790,14 @@ export const VibePrototyping: React.FC = () => {
 
   // Handle Create Wireframes button - transitions from plan_ready to wireframing
   const handleCreateWireframes = useCallback(async () => {
-    if (!currentSession || !plan) return;
+    if (!currentSession || !plan || !screen?.editedHtml) return;
+
+    console.log('[VibePrototyping] Starting wireframe generation...');
+    console.log('[VibePrototyping] Session ID:', currentSession.id);
+    console.log('[VibePrototyping] Plans count:', plan.plans?.length);
 
     try {
-      addChatMessage('assistant', 'Creating quick wireframe sketches for each paradigm...');
+      addChatMessage('assistant', 'Creating wireframe layouts for each paradigm using AI...');
 
       // Approve the plan and start wireframing
       const approvedSession = await approvePlan(currentSession.id);
@@ -741,30 +805,51 @@ export const VibePrototyping: React.FC = () => {
         storeApprovePlan();
       }
 
-      // For MVP, wireframing is quick - we simulate it with a brief delay
-      // In the future, this could generate actual low-fidelity wireframes
-      setProgress({
-        stage: 'wireframing',
-        message: 'Sketching wireframes...',
-        percent: 50,
-      });
+      // Generate real wireframes using LLM
+      setStatus('wireframing');
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const wireframeResult = await generateWireframes(
+        currentSession.id,
+        plan.plans,
+        screen.editedHtml,
+        sourceMetadata || undefined,
+        (p) => {
+          setProgress({
+            stage: 'wireframing',
+            message: p.message,
+            percent: p.percent,
+          });
+        }
+      );
+
+      console.log('[VibePrototyping] Wireframes generated:', wireframeResult.wireframes?.length);
+
+      // Store wireframes in local state for display
+      setWireframes(wireframeResult.wireframes || []);
 
       // Transition to wireframe_ready
       setStatus('wireframe_ready');
       setProgress(null);
 
-      addChatMessage('assistant', `Wireframe sketches are ready! Review the 4 concepts below. When you're happy with the direction, click "Build High-Fidelity" to generate polished prototypes.`);
+      addChatMessage('assistant', `Wireframe layouts are ready! I've created text-based wireframes showing the structure for each variant. Review the concepts below - when you're happy with the direction, click "Build High-Fidelity" to generate polished prototypes.`);
     } catch (err) {
       console.error('Error creating wireframes:', err);
-      showError('Failed to create wireframes');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to create wireframes';
+      showError(errorMsg);
+      setError(errorMsg);
     }
-  }, [currentSession, plan, addChatMessage, storeApprovePlan]);
+  }, [currentSession, plan, screen, sourceMetadata, addChatMessage, storeApprovePlan]);
 
   // Handle Build High-Fidelity button - transitions from wireframe_ready to generating
   const handleBuildHighFidelity = useCallback(async () => {
     if (!currentSession || !plan || !screen?.editedHtml) return;
+
+    // Debug logging
+    console.log('[VibePrototyping] Starting high-fidelity generation...');
+    console.log('[VibePrototyping] Session ID:', currentSession.id);
+    console.log('[VibePrototyping] Plans count:', plan.plans?.length);
+    console.log('[VibePrototyping] Source HTML length:', screen.editedHtml?.length || 0);
+    console.log('[VibePrototyping] Has metadata:', !!sourceMetadata);
 
     try {
       addChatMessage('assistant', 'Starting high-fidelity prototype generation...');
@@ -1120,12 +1205,15 @@ export const VibePrototyping: React.FC = () => {
                   const variantProgress = getVariantProgress(idx + 1);
                   const variant = getVariantByIndex(idx + 1);
                   const isBuilding = isGenerating && progress?.variantIndex === idx + 1;
+                  // Find wireframe for this variant
+                  const wireframe = wireframes.find(w => w.variantIndex === idx + 1);
 
                   return (
                     <VariantCard
                       key={p.id || idx}
                       title={p.title || `Variant ${String.fromCharCode(65 + idx)}`}
                       description={p.description || 'Generating design approach...'}
+                      wireframeText={wireframe?.wireframeText}
                       isSelected={focusedVariantIndex === idx + 1}
                       isBuilding={isBuilding}
                       isComplete={variant?.status === 'complete'}

@@ -1,16 +1,17 @@
 /**
  * HTML Tree Editor Component
  * Displays HTML as an interactive, collapsible tree structure
+ * Supports editing text nodes with changes persisted back to HTML
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Collapse from '@mui/material/Collapse';
-import { CaretRight, CaretDown, Copy, PencilSimple, Check, X } from '@phosphor-icons/react';
+import { CaretRight, CaretDown, Copy, PencilSimple, Check, X, FloppyDisk } from '@phosphor-icons/react';
 
 interface TreeNode {
   type: 'element' | 'text' | 'comment';
@@ -20,6 +21,54 @@ interface TreeNode {
   children: TreeNode[];
   id: string;
   depth: number;
+}
+
+// Convert tree back to HTML string
+function treeToHtml(nodes: TreeNode[]): string {
+  function nodeToHtml(node: TreeNode): string {
+    if (node.type === 'text') {
+      return node.textContent || '';
+    }
+
+    if (node.type === 'comment') {
+      return `<!-- ${node.textContent || ''} -->`;
+    }
+
+    if (node.type === 'element') {
+      const tag = node.tagName || 'div';
+      const attrs = Object.entries(node.attributes || {})
+        .map(([key, value]) => `${key}="${value.replace(/"/g, '&quot;')}"`)
+        .join(' ');
+
+      const openTag = attrs ? `<${tag} ${attrs}>` : `<${tag}>`;
+
+      // Self-closing tags
+      const selfClosing = ['br', 'hr', 'img', 'input', 'meta', 'link', 'area', 'base', 'col', 'embed', 'param', 'source', 'track', 'wbr'];
+      if (selfClosing.includes(tag) && node.children.length === 0) {
+        return attrs ? `<${tag} ${attrs} />` : `<${tag} />`;
+      }
+
+      const childrenHtml = node.children.map(nodeToHtml).join('');
+      return `${openTag}${childrenHtml}</${tag}>`;
+    }
+
+    return '';
+  }
+
+  return nodes.map(nodeToHtml).join('');
+}
+
+// Deep clone tree with updated text node
+function updateTreeNode(nodes: TreeNode[], nodeId: string, newText: string): TreeNode[] {
+  return nodes.map(node => {
+    if (node.id === nodeId) {
+      return { ...node, textContent: newText };
+    }
+    if (node.children.length > 0) {
+      return { ...node, children: updateTreeNode(node.children, nodeId, newText) };
+    }
+    return node;
+  });
 }
 
 interface HTMLTreeEditorProps {
@@ -358,11 +407,48 @@ export const HTMLTreeEditor: React.FC<HTMLTreeEditorProps> = ({
   onHtmlChange,
   readOnly = false,
 }) => {
-  const tree = useMemo(() => parseHTMLToTree(html), [html]);
+  // Parse initial tree from HTML
+  const initialTree = useMemo(() => parseHTMLToTree(html), [html]);
+
+  // Track local tree state for edits
+  const [tree, setTree] = useState<TreeNode[]>(initialTree);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Keep track of original HTML to detect external changes
+  const lastHtmlRef = useRef(html);
+
+  // Update tree when external HTML changes
+  useMemo(() => {
+    if (html !== lastHtmlRef.current) {
+      lastHtmlRef.current = html;
+      setTree(parseHTMLToTree(html));
+      setHasUnsavedChanges(false);
+    }
+  }, [html]);
 
   const handleCopyAll = useCallback(() => {
-    navigator.clipboard.writeText(html);
-  }, [html]);
+    const currentHtml = treeToHtml(tree);
+    navigator.clipboard.writeText(currentHtml);
+  }, [tree]);
+
+  // Handle text node edits
+  const handleTextEdit = useCallback((nodeId: string, newText: string) => {
+    setTree(prevTree => {
+      const updatedTree = updateTreeNode(prevTree, nodeId, newText);
+      return updatedTree;
+    });
+    setHasUnsavedChanges(true);
+  }, []);
+
+  // Save changes back to parent
+  const handleSave = useCallback(() => {
+    if (onHtmlChange && hasUnsavedChanges) {
+      const newHtml = treeToHtml(tree);
+      lastHtmlRef.current = newHtml;
+      onHtmlChange(newHtml);
+      setHasUnsavedChanges(false);
+    }
+  }, [tree, onHtmlChange, hasUnsavedChanges]);
 
   return (
     <Box
@@ -386,14 +472,45 @@ export const HTMLTreeEditor: React.FC<HTMLTreeEditorProps> = ({
           flexShrink: 0,
         }}
       >
-        <Typography variant="caption" sx={{ color: '#9cdcfe', fontFamily: 'monospace' }}>
-          HTML Tree View
-        </Typography>
-        <Tooltip title="Copy all">
-          <IconButton size="small" onClick={handleCopyAll} sx={{ color: 'grey.400' }}>
-            <Copy size={16} />
-          </IconButton>
-        </Tooltip>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="caption" sx={{ color: '#9cdcfe', fontFamily: 'monospace' }}>
+            HTML Tree View
+          </Typography>
+          {hasUnsavedChanges && (
+            <Typography
+              variant="caption"
+              sx={{
+                color: '#f0ad4e',
+                fontFamily: 'monospace',
+                fontSize: 10,
+                bgcolor: 'rgba(240, 173, 78, 0.15)',
+                px: 0.75,
+                py: 0.25,
+                borderRadius: 0.5,
+              }}
+            >
+              unsaved
+            </Typography>
+          )}
+        </Box>
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          {onHtmlChange && hasUnsavedChanges && (
+            <Tooltip title="Save changes">
+              <IconButton
+                size="small"
+                onClick={handleSave}
+                sx={{ color: '#4fc3f7', '&:hover': { color: '#81d4fa' } }}
+              >
+                <FloppyDisk size={16} />
+              </IconButton>
+            </Tooltip>
+          )}
+          <Tooltip title="Copy all">
+            <IconButton size="small" onClick={handleCopyAll} sx={{ color: 'grey.400' }}>
+              <Copy size={16} />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
 
       {/* Tree content */}
@@ -403,7 +520,7 @@ export const HTMLTreeEditor: React.FC<HTMLTreeEditorProps> = ({
             <TreeNodeItem
               key={node.id}
               node={node}
-              onTextEdit={onHtmlChange ? () => {} : undefined}
+              onTextEdit={!readOnly && onHtmlChange ? handleTextEdit : undefined}
               readOnly={readOnly}
               defaultExpanded
             />
