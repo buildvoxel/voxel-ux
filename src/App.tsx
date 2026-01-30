@@ -19,6 +19,7 @@ import {
   Insights,
   Collaborate,
   SharedView,
+  Share,
   Home,
   Prototypes,
   Integrations,
@@ -180,6 +181,9 @@ function App() {
 
               {/* Public shared view */}
               <Route path="/view/:shareLink" element={<SharedView />} />
+
+              {/* Public share view (new sharing system) */}
+              <Route path="/share/:token" element={<Share />} />
 
               {/* Auth callback for OAuth */}
               <Route path="/auth/callback" element={<AuthCallback />} />

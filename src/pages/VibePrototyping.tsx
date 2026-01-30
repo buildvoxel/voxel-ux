@@ -24,6 +24,12 @@ import MenuItem from '@mui/material/MenuItem';
 import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
 import Fade from '@mui/material/Fade';
+import FormControl from '@mui/material/FormControl';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import RadioGroup from '@mui/material/RadioGroup';
+import Radio from '@mui/material/Radio';
+import Select from '@mui/material/Select';
+import InputLabel from '@mui/material/InputLabel';
 import {
   Button,
   TextField,
@@ -67,6 +73,8 @@ import {
   Desktop,
   DotsSixVertical,
   ClockCounterClockwise,
+  Shuffle,
+  Timer,
 } from '@phosphor-icons/react';
 
 import { useSnackbar } from '@/components/SnackbarProvider';
@@ -114,6 +122,11 @@ import {
   approveUnderstanding as approveUnderstandingService,
   clarifyRequest,
 } from '@/services/understandingService';
+import {
+  createShareLink,
+  type ShareType,
+  type ShareLink,
+} from '@/services/sharingService';
 import DualModeEditor from '@/components/DualModeEditor';
 import WYSIWYGEditor from '@/components/WYSIWYGEditor';
 
@@ -930,6 +943,11 @@ export const VibePrototyping: React.FC = () => {
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareLink, setShareLink] = useState('');
+  const [shareType, setShareType] = useState<ShareType>('random');
+  const [shareVariantIndex, setShareVariantIndex] = useState<number>(1);
+  const [shareExpiration, setShareExpiration] = useState<number | null>(null); // null = never
+  const [isCreatingShare, setIsCreatingShare] = useState(false);
+  const [createdShare, setCreatedShare] = useState<ShareLink | null>(null);
   const [pagesAnchorEl, setPagesAnchorEl] = useState<null | HTMLElement>(null);
   const [variantSwitcherAnchorEl, setVariantSwitcherAnchorEl] = useState<null | HTMLElement>(null);
   const [previewSize, setPreviewSize] = useState<PreviewSize>('desktop');
@@ -1643,12 +1661,40 @@ export const VibePrototyping: React.FC = () => {
   // Export for potential future use
   void handleUrlAttach;
 
-  // Handle share
+  // Handle share dialog open
   const handleShare = useCallback(() => {
-    const link = `${window.location.origin}/view/${screenId}/${sessionId || 'preview'}`;
-    setShareLink(link);
+    // Reset share state when opening dialog
+    setCreatedShare(null);
+    setShareLink('');
+    setShareType('random');
+    setShareVariantIndex(focusedVariantIndex || 1);
+    setShareExpiration(null);
     setShareDialogOpen(true);
-  }, [screenId, sessionId]);
+  }, [focusedVariantIndex]);
+
+  // Create a new share link
+  const handleCreateShare = useCallback(async () => {
+    if (!currentSession) return;
+
+    setIsCreatingShare(true);
+    try {
+      const share = await createShareLink({
+        sessionId: currentSession.id,
+        shareType,
+        variantIndex: shareType === 'specific' ? shareVariantIndex : undefined,
+        expiresInDays: shareExpiration || undefined,
+      });
+
+      setCreatedShare(share);
+      setShareLink(share.shareUrl);
+      showSuccess('Share link created!');
+    } catch (err) {
+      console.error('Error creating share:', err);
+      showError(err instanceof Error ? err.message : 'Failed to create share link');
+    } finally {
+      setIsCreatingShare(false);
+    }
+  }, [currentSession, shareType, shareVariantIndex, shareExpiration, showSuccess, showError]);
 
   const handleCopyShareLink = useCallback(() => {
     navigator.clipboard.writeText(shareLink);
@@ -3172,44 +3218,180 @@ export const VibePrototyping: React.FC = () => {
         TransitionComponent={Fade}
       >
         <DialogTitle sx={{ fontFamily: config.fonts.display }}>
-          Share Prototype
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ShareNetwork size={24} />
+            Share Prototype
+          </Box>
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Share this link with your team to collaborate on this prototype.
-          </Typography>
-          <TextField
-            fullWidth
-            value={shareLink}
-            InputProps={{
-              readOnly: true,
-              endAdornment: (
-                <IconButton onClick={handleCopyShareLink}>
-                  <Copy size={20} />
-                </IconButton>
-              ),
-            }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                fontFamily: config.fonts.body,
-              },
-            }}
-          />
+          {!createdShare ? (
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Create a shareable link for your prototype variants.
+              </Typography>
+
+              {/* Share Type Selection */}
+              <FormControl component="fieldset" sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Share Type
+                </Typography>
+                <RadioGroup
+                  value={shareType}
+                  onChange={(e) => setShareType(e.target.value as ShareType)}
+                >
+                  <FormControlLabel
+                    value="random"
+                    control={<Radio size="small" />}
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Shuffle size={16} />
+                        <Box>
+                          <Typography variant="body2" fontWeight={500}>Magic Random Link</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Each viewer sees a random variant for A/B testing
+                          </Typography>
+                        </Box>
+                      </Box>
+                    }
+                  />
+                  <FormControlLabel
+                    value="specific"
+                    control={<Radio size="small" />}
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <LinkSimple size={16} />
+                        <Box>
+                          <Typography variant="body2" fontWeight={500}>Specific Variant Link</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Share a specific variant directly
+                          </Typography>
+                        </Box>
+                      </Box>
+                    }
+                  />
+                </RadioGroup>
+              </FormControl>
+
+              {/* Variant Selection (for specific type) */}
+              {shareType === 'specific' && (
+                <FormControl fullWidth sx={{ mb: 3 }}>
+                  <InputLabel>Select Variant</InputLabel>
+                  <Select
+                    value={shareVariantIndex}
+                    label="Select Variant"
+                    onChange={(e) => setShareVariantIndex(e.target.value as number)}
+                  >
+                    {[1, 2, 3, 4].map((idx) => {
+                      const variant = getVariantByIndex(idx);
+                      const planItem = getPlanByIndex(idx);
+                      const isAvailable = variant?.status === 'complete';
+                      return (
+                        <MenuItem key={idx} value={idx} disabled={!isAvailable}>
+                          Variant {String.fromCharCode(64 + idx)}: {planItem?.title || 'Not generated'}
+                          {!isAvailable && ' (Not ready)'}
+                        </MenuItem>
+                      );
+                    })}
+                  </Select>
+                </FormControl>
+              )}
+
+              {/* Expiration */}
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Link Expiration</InputLabel>
+                <Select
+                  value={shareExpiration ?? ''}
+                  label="Link Expiration"
+                  onChange={(e) => setShareExpiration(e.target.value === '' ? null : e.target.value as number)}
+                  startAdornment={<Timer size={16} style={{ marginRight: 8 }} />}
+                >
+                  <MenuItem value="">Never expires</MenuItem>
+                  <MenuItem value={1}>1 day</MenuItem>
+                  <MenuItem value={7}>7 days</MenuItem>
+                  <MenuItem value={30}>30 days</MenuItem>
+                  <MenuItem value={90}>90 days</MenuItem>
+                </Select>
+              </FormControl>
+            </>
+          ) : (
+            <>
+              <Box
+                sx={{
+                  p: 2,
+                  bgcolor: 'success.light',
+                  borderRadius: 2,
+                  mb: 3,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                }}
+              >
+                <Check size={20} color="#2e7d32" weight="bold" />
+                <Typography variant="body2" color="success.dark" fontWeight={500}>
+                  Share link created successfully!
+                </Typography>
+              </Box>
+
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Your share link:
+              </Typography>
+              <TextField
+                fullWidth
+                value={shareLink}
+                InputProps={{
+                  readOnly: true,
+                  endAdornment: (
+                    <IconButton onClick={handleCopyShareLink}>
+                      <Copy size={20} />
+                    </IconButton>
+                  ),
+                }}
+                sx={{ mb: 2 }}
+              />
+
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Chip
+                  size="small"
+                  icon={createdShare.shareType === 'random' ? <Shuffle size={14} /> : <LinkSimple size={14} />}
+                  label={createdShare.shareType === 'random' ? 'Random' : `Variant ${String.fromCharCode(64 + (createdShare.variantIndex || 1))}`}
+                />
+                <Chip
+                  size="small"
+                  icon={<Timer size={14} />}
+                  label={createdShare.expiresAt ? `Expires ${new Date(createdShare.expiresAt).toLocaleDateString()}` : 'Never expires'}
+                />
+              </Box>
+            </>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShareDialogOpen(false)} variant="outlined">
-            Close
+            {createdShare ? 'Done' : 'Cancel'}
           </Button>
-          <Button
-            variant="contained"
-            startIcon={<Download size={18} />}
-            onClick={() => {
-              showSuccess('Download started');
-              setShareDialogOpen(false);
-            }}
-          >
-            Download HTML
-          </Button>
+          {!createdShare ? (
+            <Button
+              variant="contained"
+              onClick={handleCreateShare}
+              disabled={isCreatingShare || !currentSession}
+              startIcon={isCreatingShare ? <CircularProgress size={16} /> : <ShareNetwork size={18} />}
+              sx={{
+                background: config.gradients?.primary || config.colors.primary,
+              }}
+            >
+              {isCreatingShare ? 'Creating...' : 'Create Share Link'}
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleCopyShareLink}
+              startIcon={<Copy size={18} />}
+              sx={{
+                background: config.gradients?.primary || config.colors.primary,
+              }}
+            >
+              Copy Link
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 

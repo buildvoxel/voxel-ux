@@ -10,6 +10,7 @@ export { VibePrototyping } from './VibePrototyping';
 export { Context } from './Context';
 export { Collaborate } from './Collaborate';
 export { SharedView } from './SharedView';
+export { default as Share } from './Share';
 
 // New/Renamed Pages
 export { Home } from './Home';
