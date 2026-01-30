@@ -498,15 +498,19 @@ export const useVibeStore = create<VibeState>()(
       name: 'voxel-vibe-store',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
-        // Only persist essential data, not transient UI state
+        // Only persist minimal session data, not large content
         currentSession: state.currentSession,
-        sourceHtml: state.sourceHtml,
-        sourceMetadata: state.sourceMetadata,
+        // Don't persist sourceHtml - it's too large and causes quota errors
+        // sourceHtml: state.sourceHtml,
+        // Don't persist sourceMetadata - it can be re-extracted
+        // sourceMetadata: state.sourceMetadata,
         understanding: state.understanding,
         plan: state.plan,
-        variants: state.variants,
+        // Don't persist full variants - they contain large HTML
+        // variants: state.variants,
         selectedVariants: state.selectedVariants,
-        messages: state.messages,
+        // Don't persist messages - they can grow large
+        // messages: state.messages,
         status: state.status,
         selectedVariantIndex: state.selectedVariantIndex,
         comparisonMode: state.comparisonMode,

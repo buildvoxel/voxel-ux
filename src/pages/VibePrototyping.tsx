@@ -2132,11 +2132,6 @@ export const VibePrototyping: React.FC = () => {
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Pipeline Stepper - shows current phase */}
-      {(status !== 'idle' || isProcessingPrompt) && (
-        <PipelineStepper status={status} />
-      )}
-
       {/* Main content area - Chat and Stage side by side */}
       <Box ref={containerRef} sx={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
         {/* Left Panel - Resizable Chat Panel */}
@@ -2152,6 +2147,11 @@ export const VibePrototyping: React.FC = () => {
             minHeight: 0,
           }}
         >
+          {/* Pipeline Stepper - shows current phase (inside chat panel) */}
+          {(status !== 'idle' || isProcessingPrompt) && (
+            <PipelineStepper status={status} />
+          )}
+
           {/* AI Phases and Variant Cards */}
           <Box sx={{ flex: 1, overflow: 'auto', p: 2, minHeight: 0 }}>
             {/* Initial empty state */}
