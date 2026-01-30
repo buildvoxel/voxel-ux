@@ -131,27 +131,23 @@ export function AppLayout() {
         }}
       >
         {/* Logo */}
-        <Toolbar
+        <Box
           sx={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'flex-start',
-            px: collapsed ? 1 : 2,
-            gap: collapsed ? 0 : 1.5,
-            minHeight: 64,
+            px: 2,
+            height: 64,
+            gap: 1.5,
           }}
         >
-          <Box
-            component="img"
+          <img
             src="/voxel-logo.png"
             alt="Voxel"
-            sx={{
+            style={{
               width: 32,
               height: 32,
-              minWidth: 32,
-              minHeight: 32,
               objectFit: 'contain',
-              flexShrink: 0,
             }}
           />
           {!collapsed && (
@@ -161,12 +157,13 @@ export function AppLayout() {
                 fontSize: '1.125rem',
                 fontWeight: mode === 'craftsman' ? 400 : 700,
                 color: 'white',
+                whiteSpace: 'nowrap',
               }}
             >
               Voxel
             </Typography>
           )}
-        </Toolbar>
+        </Box>
         <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)' }} />
 
         {/* Navigation */}
