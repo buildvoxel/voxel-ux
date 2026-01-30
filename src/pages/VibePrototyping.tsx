@@ -1411,7 +1411,7 @@ export const VibePrototyping: React.FC = () => {
             )}
 
             {/* Understanding phase */}
-            {(isAnalyzing || isPlanning || isGenerating || isComplete) && (
+            {(isAnalyzing || isPlanning || isPlanReady || isWireframing || isWireframeReady || isGenerating || isComplete) && (
               <AIPhase
                 label="Understanding"
                 content={phaseContent.understanding || `Analyzing "${currentPrompt}" and understanding the design context...`}
@@ -1421,12 +1421,32 @@ export const VibePrototyping: React.FC = () => {
             )}
 
             {/* Planning phase */}
-            {(isPlanning || isGenerating || isComplete) && (
+            {(isPlanning || isPlanReady || isWireframing || isWireframeReady || isGenerating || isComplete) && (
               <AIPhase
                 label="Planning"
                 content={phaseContent.planning || 'Creating 4 unique approaches to solve this design challenge...'}
                 isActive={isPlanning}
                 isComplete={!isPlanning}
+              />
+            )}
+
+            {/* Wireframing phase */}
+            {(isWireframing || isWireframeReady || isGenerating || isComplete) && (
+              <AIPhase
+                label="Wireframing"
+                content="Creating quick layout sketches for each paradigm to visualize the structure before building..."
+                isActive={isWireframing}
+                isComplete={!isWireframing && (isWireframeReady || isGenerating || isComplete)}
+              />
+            )}
+
+            {/* Building phase */}
+            {(isGenerating || isComplete) && (
+              <AIPhase
+                label="Building"
+                content="Generating high-fidelity prototypes with full styling and interactivity for each variant..."
+                isActive={isGenerating}
+                isComplete={isComplete}
               />
             )}
 
