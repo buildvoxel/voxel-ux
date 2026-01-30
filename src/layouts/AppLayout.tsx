@@ -135,9 +135,9 @@ export function AppLayout() {
           sx={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'flex-start', // Keep logo position consistent
-            px: 2,
-            gap: 1.5,
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            px: collapsed ? 1 : 2,
+            gap: collapsed ? 0 : 1.5,
             minHeight: 64,
           }}
         >
@@ -146,8 +146,9 @@ export function AppLayout() {
             src="/voxel-logo.png"
             alt="Voxel"
             sx={{
-              width: 27, // 15% smaller (was 32)
-              height: 27,
+              width: 27,
+              height: 'auto',
+              objectFit: 'contain',
               flexShrink: 0,
             }}
           />
