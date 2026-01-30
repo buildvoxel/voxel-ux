@@ -15,6 +15,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Skeleton from '@mui/material/Skeleton';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import Collapse from '@mui/material/Collapse';
 import Fade from '@mui/material/Fade';
 import {
   MagnifyingGlass,
@@ -253,12 +254,11 @@ export function Screens() {
   return (
     <Box>
       {/* Selection mode banner */}
-      <Fade in={isSelectionMode}>
+      <Collapse in={isSelectionMode}>
         <Alert
           severity="info"
           sx={{
             mb: 2,
-            transition: 'all 0.3s ease',
           }}
           action={
             <Box sx={{ display: 'flex', gap: 1 }}>
@@ -292,7 +292,7 @@ export function Screens() {
             </Typography>
           </Box>
         </Alert>
-      </Fade>
+      </Collapse>
 
       {/* Header */}
       <PageHeader
