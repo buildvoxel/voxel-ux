@@ -49,6 +49,7 @@ import {
   Warning,
   CaretDown,
   CaretRight,
+  CaretLeft,
   Image as ImageIcon,
   VideoCamera,
   LinkSimple,
@@ -583,6 +584,266 @@ function CanvasVariantCard({
         </Box>
       </CardActionArea>
     </Card>
+  );
+}
+
+// Inline Expansion Grid - shows focused variant large with thumbnails on side
+function InlineExpansionGrid({
+  wireframes,
+  focusedIndex,
+  onFocusChange,
+  onBackToGrid,
+  onEditClick,
+  onIterateClick,
+  getVariantByIndex,
+}: {
+  wireframes: Array<{ variantIndex: number; wireframeUrl: string }>;
+  focusedIndex: number;
+  onFocusChange: (index: number) => void;
+  onBackToGrid: () => void;
+  onEditClick?: () => void;
+  onIterateClick?: () => void;
+  getVariantByIndex: (index: number) => { html_url?: string; status: string; iteration_count?: number } | undefined;
+}) {
+  const { config } = useThemeStore();
+  const labels = ['Variant A', 'Variant B', 'Variant C', 'Variant D'];
+  const focusedVariant = getVariantByIndex(focusedIndex);
+  const focusedWireframe = wireframes.find(w => w.variantIndex === focusedIndex);
+  const focusedUrl = focusedVariant?.html_url || focusedWireframe?.wireframeUrl;
+  const isWireframe = !focusedVariant?.html_url && focusedWireframe?.wireframeUrl;
+  const isComplete = focusedVariant?.status === 'complete';
+
+  // Other variants (not focused)
+  const otherIndices = [1, 2, 3, 4].filter(i => i !== focusedIndex);
+
+  return (
+    <Box sx={{ flex: 1, display: 'flex', gap: 2, p: 2, minHeight: 0 }}>
+      {/* Main focused variant - takes ~70% */}
+      <Box
+        sx={{
+          flex: '0 0 70%',
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+        {/* Header with back button and actions */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <IconButton
+              size="small"
+              onClick={onBackToGrid}
+              sx={{
+                bgcolor: 'grey.100',
+                '&:hover': { bgcolor: 'grey.200' },
+              }}
+            >
+              <CaretLeft size={18} />
+            </IconButton>
+            <Typography variant="subtitle1" fontWeight={600}>
+              {labels[focusedIndex - 1]}
+            </Typography>
+            {isWireframe && (
+              <Chip
+                size="small"
+                label="Wireframe"
+                sx={{
+                  bgcolor: 'rgba(255, 193, 7, 0.2)',
+                  color: '#f57c00',
+                  fontSize: 11,
+                  height: 22,
+                }}
+              />
+            )}
+            {focusedVariant?.iteration_count && focusedVariant.iteration_count > 0 && (
+              <Chip
+                size="small"
+                label={`${focusedVariant.iteration_count} iteration${focusedVariant.iteration_count > 1 ? 's' : ''}`}
+                sx={{ fontSize: 11, height: 22 }}
+              />
+            )}
+          </Box>
+          {/* Action buttons for complete variants */}
+          {isComplete && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {onIterateClick && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<ArrowsClockwise size={16} />}
+                  onClick={onIterateClick}
+                  sx={{
+                    borderColor: '#764ba2',
+                    color: '#764ba2',
+                    '&:hover': {
+                      borderColor: '#667eea',
+                      bgcolor: 'rgba(118, 75, 162, 0.04)',
+                    },
+                  }}
+                >
+                  Iterate
+                </Button>
+              )}
+              {onEditClick && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Code size={16} />}
+                  onClick={onEditClick}
+                  sx={{
+                    borderColor: 'grey.400',
+                    color: 'text.secondary',
+                    '&:hover': {
+                      borderColor: 'grey.600',
+                      bgcolor: 'grey.50',
+                    },
+                  }}
+                >
+                  Edit Code
+                </Button>
+              )}
+            </Box>
+          )}
+        </Box>
+
+        {/* Main preview */}
+        <Card
+          variant="outlined"
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'hidden',
+            borderRadius: 2,
+            border: `2px solid ${config.colors.primary}`,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+          }}
+        >
+          {focusedUrl ? (
+            <iframe
+              src={focusedUrl}
+              title={labels[focusedIndex - 1]}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+              }}
+            />
+          ) : (
+            <Box
+              sx={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: '#fafafa',
+              }}
+            >
+              <Typography color="text.secondary">No preview available</Typography>
+            </Box>
+          )}
+        </Card>
+      </Box>
+
+      {/* Thumbnails column - takes ~30% */}
+      <Box
+        sx={{
+          flex: '0 0 28%',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1.5,
+          minHeight: 0,
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+        <Typography variant="caption" color="text.secondary" fontWeight={500} sx={{ px: 0.5 }}>
+          Other Variants
+        </Typography>
+        {otherIndices.map((idx) => {
+          const variant = getVariantByIndex(idx);
+          const wireframe = wireframes.find(w => w.variantIndex === idx);
+          const previewUrl = variant?.html_url || wireframe?.wireframeUrl;
+          const isThumbWireframe = !variant?.html_url && wireframe?.wireframeUrl;
+
+          return (
+            <Card
+              key={idx}
+              variant="outlined"
+              onClick={() => onFocusChange(idx)}
+              sx={{
+                flex: 1,
+                minHeight: 80,
+                cursor: 'pointer',
+                overflow: 'hidden',
+                borderRadius: 1.5,
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  borderColor: config.colors.primary,
+                  transform: 'scale(1.02)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                },
+              }}
+            >
+              <Box sx={{ position: 'relative', height: '100%' }}>
+                {previewUrl ? (
+                  <>
+                    <iframe
+                      src={previewUrl}
+                      title={labels[idx - 1]}
+                      style={{
+                        width: '300%',
+                        height: '300%',
+                        border: 'none',
+                        transform: 'scale(0.333)',
+                        transformOrigin: 'top left',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        bottom: 4,
+                        left: 4,
+                        px: 1,
+                        py: 0.25,
+                        bgcolor: isThumbWireframe ? 'rgba(255, 193, 7, 0.9)' : 'rgba(0,0,0,0.7)',
+                        borderRadius: 0.5,
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: isThumbWireframe ? '#333' : 'white',
+                          fontWeight: 500,
+                          fontSize: 10,
+                        }}
+                      >
+                        {labels[idx - 1]}
+                      </Typography>
+                    </Box>
+                  </>
+                ) : (
+                  <Box
+                    sx={{
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      bgcolor: '#fafafa',
+                    }}
+                  >
+                    <Typography variant="caption" color="text.secondary">
+                      {labels[idx - 1]}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Card>
+          );
+        })}
+      </Box>
+    </Box>
   );
 }
 
@@ -2596,6 +2857,9 @@ export const VibePrototyping: React.FC = () => {
                   const variantStreamingHtml = streamingHtml[idx + 1];
                   const wireframe = wireframes.find(w => w.variantIndex === idx + 1);
 
+                  // Allow clicking when: variant complete OR wireframe ready with wireframe available
+                  const canClick = variant?.status === 'complete' || (isWireframeReady && wireframe?.wireframeUrl);
+
                   return (
                     <Grid item xs={6} key={label} sx={{ height: '50%' }}>
                       <CanvasVariantCard
@@ -2605,7 +2869,7 @@ export const VibePrototyping: React.FC = () => {
                         wireframeUrl={wireframe?.wireframeUrl}
                         streamingHtml={variantStreamingHtml}
                         progress={variantProgress}
-                        onClick={variant?.status === 'complete' ? () => handleVariantClick(idx + 1) : undefined}
+                        onClick={canClick ? () => handleVariantClick(idx + 1) : undefined}
                       />
                     </Grid>
                   );
@@ -2614,7 +2878,18 @@ export const VibePrototyping: React.FC = () => {
             </Box>
           )}
 
-          {/* Complete state - 2x2 grid with variants */}
+          {/* Wireframe ready with focus - inline expansion view */}
+          {isWireframeReady && focusedVariantIndex && (
+            <InlineExpansionGrid
+              wireframes={wireframes}
+              focusedIndex={focusedVariantIndex}
+              onFocusChange={handleVariantClick}
+              onBackToGrid={handleBackToGrid}
+              getVariantByIndex={getVariantByIndex}
+            />
+          )}
+
+          {/* Complete state - 2x2 grid with variants (no focus) */}
           {isComplete && !focusedVariantIndex && (
             <Box sx={{ flex: 1, p: 2, overflow: 'auto', minHeight: 0 }}>
               <Grid container spacing={2} sx={{ height: '100%', minHeight: 0 }}>
@@ -2636,8 +2911,21 @@ export const VibePrototyping: React.FC = () => {
             </Box>
           )}
 
-          {/* Focused variant - single full preview with edit mode support */}
-          {focusedVariantIndex && focusedVariant && (
+          {/* Complete state with focus - inline expansion view */}
+          {isComplete && focusedVariantIndex && !editMode && (
+            <InlineExpansionGrid
+              wireframes={wireframes}
+              focusedIndex={focusedVariantIndex}
+              onFocusChange={handleVariantClick}
+              onBackToGrid={handleBackToGrid}
+              onEditClick={() => setEditMode('code')}
+              onIterateClick={() => setIterationDialogOpen(true)}
+              getVariantByIndex={getVariantByIndex}
+            />
+          )}
+
+          {/* Focused variant with edit mode - single full preview with code/wysiwyg editor */}
+          {focusedVariantIndex && focusedVariant && editMode && (
             <Box sx={{ flex: 1, p: 2, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               {/* Variant action bar */}
               <Box
