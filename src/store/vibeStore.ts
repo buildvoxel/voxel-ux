@@ -9,6 +9,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { UIMetadata } from '../services/screenAnalyzerService';
 import type { VibeSession, VariantPlan } from '../services/variantPlanService';
 import type { VibeVariant } from '../services/variantCodeService';
+import type { UnderstandingResponse } from '../services/understandingService';
 
 // Chat message for the vibe coding interface
 export interface ChatMessage {
@@ -25,11 +26,21 @@ export interface ChatMessage {
 
 // Progress state
 export interface VibeProgress {
-  stage: 'analyzing' | 'planning' | 'wireframing' | 'generating' | 'complete';
+  stage: 'analyzing' | 'understanding' | 'planning' | 'wireframing' | 'generating' | 'complete';
   message: string;
   percent: number;
   variantIndex?: number;
   variantTitle?: string;
+}
+
+// Understanding response from LLM
+export interface Understanding {
+  response: UnderstandingResponse;
+  text: string;
+  model: string;
+  provider: string;
+  approved: boolean;
+  approvedAt?: string;
 }
 
 // Generated plan with all 4 variants
@@ -40,17 +51,20 @@ export interface GeneratedPlan {
 }
 
 // Status types - Multi-phase workflow
-// 1. idle -> analyzing -> planning -> plan_ready (paradigm approval)
-// 2. plan_ready -> wireframing -> wireframe_ready (sketch iteration)
-// 3. wireframe_ready -> generating -> complete (high-fidelity)
+// 1. idle -> analyzing -> understanding -> understanding_ready (understanding approval)
+// 2. understanding_ready -> planning -> plan_ready (paradigm approval)
+// 3. plan_ready -> wireframing -> wireframe_ready (sketch iteration)
+// 4. wireframe_ready -> generating -> complete (high-fidelity)
 export type VibeStatus =
   | 'idle'
   | 'analyzing'
+  | 'understanding'        // LLM is generating its understanding
+  | 'understanding_ready'  // Understanding ready for user approval
   | 'planning'
-  | 'plan_ready'      // Paradigms ready for approval
-  | 'wireframing'     // Creating wireframe sketches
-  | 'wireframe_ready' // Wireframes ready for iteration
-  | 'generating'      // High-fidelity generation
+  | 'plan_ready'           // Paradigms ready for approval
+  | 'wireframing'          // Creating wireframe sketches
+  | 'wireframe_ready'      // Wireframes ready for iteration
+  | 'generating'           // High-fidelity generation
   | 'complete'
   | 'failed';
 export type ComparisonMode = 'grid' | 'split' | 'overlay';
@@ -60,8 +74,12 @@ interface VibeState {
   currentSession: VibeSession | null;
   sourceHtml: string | null;
   sourceMetadata: UIMetadata | null;
+  understanding: Understanding | null;
   plan: GeneratedPlan | null;
   variants: VibeVariant[];
+
+  // Selected variants (user can choose fewer than 4)
+  selectedVariants: number[];  // Array of variant indices [1,2,3,4] by default
 
   // Chat messages for vibe coding interface
   messages: ChatMessage[];
@@ -85,6 +103,15 @@ interface VibeState {
   // Actions - Analysis
   setSourceMetadata: (metadata: UIMetadata) => void;
   setAnalyzing: (analyzing: boolean, message?: string) => void;
+
+  // Actions - Understanding phase
+  setUnderstanding: (understanding: Understanding) => void;
+  approveUnderstanding: () => void;
+  clearUnderstanding: () => void;
+
+  // Actions - Variant selection
+  setSelectedVariants: (indices: number[]) => void;
+  toggleVariantSelection: (index: number) => void;
 
   // Actions - Plan management (paradigms)
   setPlan: (plan: GeneratedPlan) => void;
@@ -130,8 +157,10 @@ export const useVibeStore = create<VibeState>()(
   currentSession: null,
   sourceHtml: null,
   sourceMetadata: null,
+  understanding: null,
   plan: null,
   variants: [],
+  selectedVariants: [1, 2, 3, 4],  // Default: all 4 selected
   messages: [],
 
   status: 'idle',
@@ -149,8 +178,10 @@ export const useVibeStore = create<VibeState>()(
       currentSession: session,
       sourceHtml,
       sourceMetadata: null,
+      understanding: null,
       plan: null,
       variants: [],
+      selectedVariants: [1, 2, 3, 4],
       messages: [],
       status: session.status as VibeStatus,
       progress: null,
@@ -175,8 +206,10 @@ export const useVibeStore = create<VibeState>()(
       currentSession: null,
       sourceHtml: null,
       sourceMetadata: null,
+      understanding: null,
       plan: null,
       variants: [],
+      selectedVariants: [1, 2, 3, 4],
       messages: [],
       status: 'idle',
       progress: null,
@@ -206,6 +239,58 @@ export const useVibeStore = create<VibeState>()(
       set({
         progress: null,
       });
+    }
+  },
+
+  // Understanding phase
+  setUnderstanding: (understanding) => {
+    set({
+      understanding,
+      status: 'understanding_ready',
+      progress: null,
+    });
+  },
+
+  approveUnderstanding: () => {
+    const { understanding } = get();
+    if (understanding) {
+      set({
+        understanding: {
+          ...understanding,
+          approved: true,
+          approvedAt: new Date().toISOString(),
+        },
+        status: 'planning',
+        progress: {
+          stage: 'planning',
+          message: 'Generating 4 design approaches...',
+          percent: 30,
+        },
+      });
+    }
+  },
+
+  clearUnderstanding: () => {
+    set({
+      understanding: null,
+      status: 'idle',
+    });
+  },
+
+  // Variant selection
+  setSelectedVariants: (indices) => {
+    set({ selectedVariants: indices });
+  },
+
+  toggleVariantSelection: (index) => {
+    const { selectedVariants } = get();
+    if (selectedVariants.includes(index)) {
+      // Don't allow deselecting if only one is selected
+      if (selectedVariants.length > 1) {
+        set({ selectedVariants: selectedVariants.filter(i => i !== index) });
+      }
+    } else {
+      set({ selectedVariants: [...selectedVariants, index].sort() });
     }
   },
 
@@ -417,8 +502,10 @@ export const useVibeStore = create<VibeState>()(
         currentSession: state.currentSession,
         sourceHtml: state.sourceHtml,
         sourceMetadata: state.sourceMetadata,
+        understanding: state.understanding,
         plan: state.plan,
         variants: state.variants,
+        selectedVariants: state.selectedVariants,
         messages: state.messages,
         status: state.status,
         selectedVariantIndex: state.selectedVariantIndex,

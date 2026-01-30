@@ -6,13 +6,17 @@ Voxel is a desktop-first AI prototyping tool for product teams. It enables teams
 
 ## Tech Stack
 
-- **Framework**: React 18 with TypeScript
+- **Framework**: React 19 with TypeScript
 - **Build Tool**: Vite
-- **UI Library**: Ant Design (antd) - desktop-first
-- **Routing**: React Router v6
+- **UI Library**: MUI (Material-UI) v5 - desktop-first
+- **Icons**: Phosphor Icons + MUI Icons
+- **Styling**: Tailwind CSS + Emotion
+- **Routing**: React Router v7
 - **State Management**: Zustand
 - **Server State**: TanStack Query (React Query)
 - **Forms**: React Hook Form + Zod validation
+- **Code Editor**: Monaco Editor
+- **Backend**: Supabase (Auth, Database, Storage, Edge Functions)
 - **HTTP Client**: Axios
 
 ## Project Structure
@@ -73,13 +77,14 @@ src/
 ### Components
 - Use function components with TypeScript
 - Export as named exports
-- Use Ant Design components as foundation
+- Use MUI components as foundation
+- Use Phosphor icons for consistency
 
 ### Styling
 - **Desktop-first** application (NOT mobile-first)
-- Use Ant Design's built-in styling
-- Use inline styles or style props
-- Theme customization via ConfigProvider
+- Use MUI's sx prop for component styling
+- Use Tailwind CSS for utility classes
+- Theme customization via MUI ThemeProvider and Zustand themeStore
 
 ### State Management
 - **Local state**: `useState` for component-specific state

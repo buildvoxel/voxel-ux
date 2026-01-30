@@ -108,6 +108,11 @@ import {
   revertToIteration,
   type VibeIteration,
 } from '@/services/iterationService';
+import {
+  generateUnderstanding,
+  approveUnderstanding as approveUnderstandingService,
+  clarifyRequest,
+} from '@/services/understandingService';
 import DualModeEditor from '@/components/DualModeEditor';
 import WYSIWYGEditor from '@/components/WYSIWYGEditor';
 
@@ -231,19 +236,27 @@ function VariantCard({
   title,
   description,
   wireframeText,
+  variantIndex: _variantIndex,
   isSelected = false,
+  isChecked = true,
   isBuilding = false,
   isComplete = false,
   progress = 0,
+  showCheckbox = false,
+  onToggleCheck,
   onClick,
 }: {
   title: string;
   description: string;
   wireframeText?: string;
+  variantIndex?: number;
   isSelected?: boolean;
+  isChecked?: boolean;
   isBuilding?: boolean;
   isComplete?: boolean;
   progress?: number;
+  showCheckbox?: boolean;
+  onToggleCheck?: () => void;
   onClick?: () => void;
 }) {
   const { config } = useThemeStore();
@@ -256,9 +269,9 @@ function VariantCard({
         mb: 1.5,
         cursor: onClick ? 'pointer' : 'default',
         border: isSelected ? `2px solid ${config.colors.primary}` : '1px solid #e0e0e0',
-        backgroundColor: 'white',
+        backgroundColor: isChecked ? 'white' : 'grey.50',
         transition: 'all 0.2s ease',
-        opacity: isBuilding ? 0.9 : 1,
+        opacity: isBuilding ? 0.9 : isChecked ? 1 : 0.6,
         '&:hover': onClick ? {
           borderColor: config.colors.primary,
           transform: 'translateX(4px)',
@@ -268,9 +281,38 @@ function VariantCard({
     >
       <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-          <Typography variant="subtitle2" fontWeight={600}>
-            {title}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {showCheckbox && (
+              <Box
+                component="span"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleCheck?.();
+                }}
+                sx={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '4px',
+                  border: '2px solid',
+                  borderColor: isChecked ? config.colors.primary : 'grey.400',
+                  backgroundColor: isChecked ? config.colors.primary : 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  '&:hover': {
+                    borderColor: config.colors.primary,
+                  },
+                }}
+              >
+                {isChecked && <Check size={12} color="white" weight="bold" />}
+              </Box>
+            )}
+            <Typography variant="subtitle2" fontWeight={600} sx={{ color: isChecked ? 'text.primary' : 'text.secondary' }}>
+              {title}
+            </Typography>
+          </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             {wireframeText && (
               <IconButton
@@ -555,8 +597,10 @@ export const VibePrototyping: React.FC = () => {
   const {
     currentSession,
     sourceMetadata,
+    understanding,
     plan,
     variants,
+    selectedVariants,
     status,
     progress,
     initSession,
@@ -564,6 +608,9 @@ export const VibePrototyping: React.FC = () => {
     clearSession,
     setSourceMetadata,
     setAnalyzing,
+    setUnderstanding,
+    approveUnderstanding: storeApproveUnderstanding,
+    toggleVariantSelection,
     setPlan,
     approvePlan: storeApprovePlan,
     setVariants,
@@ -772,7 +819,7 @@ export const VibePrototyping: React.FC = () => {
     [addMessage]
   );
 
-  // Handle Build button click
+  // Handle Build button click - starts with understanding phase
   const handleBuild = useCallback(async () => {
     if (!screen?.editedHtml || !screenId || !promptValue.trim()) return;
 
@@ -807,7 +854,7 @@ export const VibePrototyping: React.FC = () => {
       // Update URL without causing a re-render/reload
       window.history.replaceState(null, '', `/prototypes/${screenId}/${session.id}`);
 
-      // Understanding phase
+      // Analyzing phase - extract UI metadata
       setAnalyzing(true, 'Analyzing screen design...');
 
       let metadata = sourceMetadata;
@@ -823,19 +870,87 @@ export const VibePrototyping: React.FC = () => {
         setSourceMetadata(metadata);
       }
 
-      // Planning phase
-      setStatus('planning');
+      // Understanding phase - LLM interprets the request
+      setStatus('understanding');
       setProgress({
-        stage: 'planning',
-        message: 'AI is designing 4 variants...',
-        percent: 30,
+        stage: 'understanding',
+        message: 'AI is interpreting your request...',
+        percent: 20,
       });
 
-      const result = await generateVariantPlan(
+      const understandingResult = await generateUnderstanding(
         session.id,
         prompt,
         screen.editedHtml,
         metadata,
+        undefined, // productContext
+        undefined, // provider
+        undefined, // model
+        (p: { message: string; percent: number }) => {
+          setProgress({
+            stage: 'understanding',
+            message: p.message,
+            percent: 10 + p.percent * 0.15,
+          });
+        }
+      );
+
+      // Store understanding in state
+      setUnderstanding({
+        response: understandingResult.understanding,
+        text: understandingResult.understandingText,
+        model: understandingResult.model,
+        provider: understandingResult.provider,
+        approved: false,
+      });
+
+      // Stop at understanding_ready - user must approve understanding before planning
+      setStatus('understanding_ready');
+      setProgress(null);
+
+      // Clear processing state
+      setIsProcessingPrompt(false);
+      setPendingPrompt(null);
+
+      addChatMessage('assistant', `Here's my understanding of your request. Please review and confirm, or provide additional clarification if needed.`);
+    } catch (err) {
+      console.error('Error generating understanding:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Failed to analyze request';
+      setError(errorMsg);
+      showError('Failed to analyze your request');
+
+      // Clear processing state on error
+      setIsProcessingPrompt(false);
+      setPendingPrompt(null);
+    }
+  }, [screen, screenId, promptValue, sourceMetadata, contexts, generatePhaseContent]);
+
+  // Handle understanding approval - proceeds to planning phase
+  const handleApproveUnderstanding = useCallback(async () => {
+    if (!currentSession || !screen?.editedHtml) return;
+
+    console.log('[VibePrototyping] Approving understanding, proceeding to planning...');
+
+    try {
+      // Approve understanding in store and service
+      storeApproveUnderstanding();
+      await approveUnderstandingService(currentSession.id);
+
+      // Planning phase
+      setStatus('planning');
+      setProgress({
+        stage: 'planning',
+        message: 'AI is designing 4 distinct solutions...',
+        percent: 30,
+      });
+
+      addChatMessage('assistant', 'Great! Now generating 4 unique design approaches based on your request...');
+
+      const result = await generateVariantPlan(
+        currentSession.id,
+        currentSession.prompt,
+        screen.editedHtml,
+        sourceMetadata || undefined,
         undefined,
         (p) => {
           setProgress({
@@ -858,20 +973,72 @@ export const VibePrototyping: React.FC = () => {
       setStatus('plan_ready');
       setProgress(null);
 
-      // Clear processing state
-      setIsProcessingPrompt(false);
-      setPendingPrompt(null);
-
-      addChatMessage('assistant', `I've analyzed your request and created 4 unique paradigms to explore. Review each approach below and click "Create Wireframes" when you're ready to see quick sketches of each concept.`);
+      addChatMessage('assistant', `I've created 4 unique paradigms to explore. Review each approach below, select which ones you want to proceed with, then click "Create Wireframes".`);
     } catch (err) {
       console.error('Error generating plan:', err);
       const errorMsg = err instanceof Error ? err.message : 'Failed to generate plan';
       setError(errorMsg);
       showError('Failed to generate variant plan');
+    }
+  }, [currentSession, screen, sourceMetadata, storeApproveUnderstanding]);
 
-      // Clear processing state on error
-      setIsProcessingPrompt(false);
-      setPendingPrompt(null);
+  // Handle clarification - user wants to elaborate on their request
+  const [clarificationInput, setClarificationInput] = useState('');
+  const [isClarifying, setIsClarifying] = useState(false);
+
+  const handleClarify = useCallback(async () => {
+    if (!currentSession || !screen?.editedHtml || !clarificationInput.trim()) return;
+
+    console.log('[VibePrototyping] User clarifying request...');
+    setIsClarifying(true);
+
+    try {
+      addChatMessage('user', `Clarification: ${clarificationInput.trim()}`);
+
+      setStatus('understanding');
+      setProgress({
+        stage: 'understanding',
+        message: 'Re-analyzing with your clarification...',
+        percent: 20,
+      });
+
+      const understandingResult = await clarifyRequest(
+        currentSession.id,
+        currentSession.prompt,
+        clarificationInput.trim(),
+        screen.editedHtml,
+        sourceMetadata || undefined,
+        undefined, // productContext
+        undefined, // provider
+        undefined, // model
+        (p: { message: string; percent: number }) => {
+          setProgress({
+            stage: 'understanding',
+            message: p.message,
+            percent: 10 + p.percent * 0.15,
+          });
+        }
+      );
+
+      // Update understanding
+      setUnderstanding({
+        response: understandingResult.understanding,
+        text: understandingResult.understandingText,
+        model: understandingResult.model,
+        provider: understandingResult.provider,
+        approved: false,
+      });
+
+      setStatus('understanding_ready');
+      setProgress(null);
+      setClarificationInput('');
+
+      addChatMessage('assistant', `I've updated my understanding based on your clarification. Please review again.`);
+    } catch (err) {
+      console.error('Error clarifying:', err);
+      showError('Failed to process clarification');
+    } finally {
+      setIsClarifying(false);
     }
   }, [screen, screenId, promptValue, sourceMetadata, contexts, generatePhaseContent]);
 
@@ -1258,6 +1425,8 @@ export const VibePrototyping: React.FC = () => {
 
   // Computed values
   const isAnalyzing = status === 'analyzing';
+  const isUnderstanding = status === 'understanding';
+  const isUnderstandingReady = status === 'understanding_ready';
   const isPlanning = status === 'planning';
   const isPlanReady = status === 'plan_ready';
   const isWireframing = status === 'wireframing';
@@ -1410,14 +1579,143 @@ export const VibePrototyping: React.FC = () => {
               </Box>
             )}
 
-            {/* Understanding phase */}
-            {(isAnalyzing || isPlanning || isPlanReady || isWireframing || isWireframeReady || isGenerating || isComplete) && (
+            {/* Analyzing phase */}
+            {(isAnalyzing || isUnderstanding || isUnderstandingReady || isPlanning || isPlanReady || isWireframing || isWireframeReady || isGenerating || isComplete) && (
               <AIPhase
-                label="Understanding"
-                content={phaseContent.understanding || `Analyzing "${currentPrompt}" and understanding the design context...`}
+                label="Analyzing"
+                content={`Extracting UI patterns and design elements from "${currentPrompt?.slice(0, 30) || 'screen'}..."...`}
                 isActive={isAnalyzing}
                 isComplete={!isAnalyzing}
               />
+            )}
+
+            {/* Understanding phase */}
+            {(isUnderstanding || isUnderstandingReady || isPlanning || isPlanReady || isWireframing || isWireframeReady || isGenerating || isComplete) && (
+              <AIPhase
+                label="Understanding"
+                content={phaseContent.understanding || 'AI is interpreting your request and identifying key goals...'}
+                isActive={isUnderstanding}
+                isComplete={!isUnderstanding && !isUnderstandingReady}
+              />
+            )}
+
+            {/* Understanding Ready - show LLM's interpretation for approval */}
+            {isUnderstandingReady && understanding && (
+              <Box
+                sx={{
+                  mt: 2,
+                  p: 2,
+                  bgcolor: 'background.paper',
+                  borderRadius: 2,
+                  border: '2px solid',
+                  borderColor: 'primary.main',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5, color: 'primary.main' }}>
+                  Here's my understanding:
+                </Typography>
+
+                {/* Summary */}
+                <Typography variant="body2" sx={{ mb: 2, lineHeight: 1.6 }}>
+                  {understanding.response.summary}
+                </Typography>
+
+                {/* Goals */}
+                {understanding.response.goals.length > 0 && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                      Key Goals:
+                    </Typography>
+                    {understanding.response.goals.map((goal, i) => (
+                      <Typography key={i} variant="body2" sx={{ pl: 2, mb: 0.5, fontSize: '0.85rem' }}>
+                        {i + 1}. {goal}
+                      </Typography>
+                    ))}
+                  </Box>
+                )}
+
+                {/* Scope */}
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                    Scope:
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                    {understanding.response.scope}
+                  </Typography>
+                </Box>
+
+                {/* Assumptions */}
+                {understanding.response.assumptions.length > 0 && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                      Assumptions:
+                    </Typography>
+                    {understanding.response.assumptions.map((assumption, i) => (
+                      <Typography key={i} variant="body2" sx={{ pl: 2, mb: 0.5, fontSize: '0.85rem', color: 'text.secondary' }}>
+                        • {assumption}
+                      </Typography>
+                    ))}
+                  </Box>
+                )}
+
+                {/* Clarifying Questions */}
+                {understanding.response.clarifyingQuestions && understanding.response.clarifyingQuestions.length > 0 && (
+                  <Box sx={{ mb: 2, p: 1.5, bgcolor: 'warning.50', borderRadius: 1 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'warning.dark', display: 'block', mb: 0.5 }}>
+                      Questions for you:
+                    </Typography>
+                    {understanding.response.clarifyingQuestions.map((q, i) => (
+                      <Typography key={i} variant="body2" sx={{ mb: 0.5, fontSize: '0.85rem', color: 'warning.dark' }}>
+                        • {q}
+                      </Typography>
+                    ))}
+                  </Box>
+                )}
+
+                {/* Clarification input */}
+                <Box sx={{ mb: 2 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    multiline
+                    rows={2}
+                    placeholder="Add clarification or additional context (optional)..."
+                    value={clarificationInput}
+                    onChange={(e) => setClarificationInput(e.target.value)}
+                    sx={{ mb: 1 }}
+                  />
+                </Box>
+
+                {/* Action buttons */}
+                <Box sx={{ display: 'flex', gap: 1.5 }}>
+                  <Button
+                    variant="contained"
+                    onClick={handleApproveUnderstanding}
+                    disabled={isClarifying}
+                    sx={{
+                      flex: 1,
+                      background: config.gradients?.primary || config.colors.primary,
+                    }}
+                  >
+                    <Check size={18} style={{ marginRight: 6 }} />
+                    Looks Good, Proceed
+                  </Button>
+                  {clarificationInput.trim() && (
+                    <Button
+                      variant="outlined"
+                      onClick={handleClarify}
+                      disabled={isClarifying}
+                    >
+                      {isClarifying ? <CircularProgress size={18} /> : 'Update Understanding'}
+                    </Button>
+                  )}
+                </Box>
+
+                <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
+                  AI will create 4 design approaches based on this understanding
+                </Typography>
+              </Box>
             )}
 
             {/* Planning phase */}
@@ -1466,7 +1764,11 @@ export const VibePrototyping: React.FC = () => {
                       title={p.title || `Variant ${String.fromCharCode(65 + idx)}`}
                       description={p.description || 'Generating design approach...'}
                       wireframeText={wireframe?.wireframeText}
+                      variantIndex={idx + 1}
                       isSelected={focusedVariantIndex === idx + 1}
+                      isChecked={selectedVariants.includes(idx + 1)}
+                      showCheckbox={isPlanReady}
+                      onToggleCheck={() => toggleVariantSelection(idx + 1)}
                       isBuilding={isBuilding}
                       isComplete={variant?.status === 'complete'}
                       progress={variantProgress}
@@ -1478,20 +1780,24 @@ export const VibePrototyping: React.FC = () => {
                 {/* Action button based on phase */}
                 {isPlanReady && (
                   <Box sx={{ mt: 2, textAlign: 'center' }}>
+                    <Typography variant="caption" display="block" color="text.secondary" sx={{ mb: 1 }}>
+                      {selectedVariants.length === 4
+                        ? 'All 4 variants selected'
+                        : `${selectedVariants.length} of 4 variants selected`}
+                      {' '}— click checkboxes to adjust
+                    </Typography>
                     <Button
                       variant="contained"
                       onClick={handleCreateWireframes}
+                      disabled={selectedVariants.length === 0}
                       sx={{
                         background: config.gradients?.primary || config.colors.primary,
                         px: 4,
                         py: 1,
                       }}
                     >
-                      Create Wireframes
+                      Create Wireframes for {selectedVariants.length} Variant{selectedVariants.length !== 1 ? 's' : ''}
                     </Button>
-                    <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
-                      Review the paradigms above, then create quick sketches
-                    </Typography>
                   </Box>
                 )}
 
