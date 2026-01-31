@@ -128,6 +128,9 @@ export async function testUnderstandRequest(sessionId: string): Promise<TestResu
       console.log('[TEST] Found active API key for:', apiKeyRefs[0].provider);
     }
 
+    console.log('[TEST] Access token (first 20 chars):', session.access_token?.substring(0, 20) + '...');
+
+    // Use supabase.functions.invoke - it handles auth automatically
     const { data, error } = await supabase.functions.invoke('understand-request', {
       body: {
         sessionId,
@@ -135,17 +138,18 @@ export async function testUnderstandRequest(sessionId: string): Promise<TestResu
         compactedHtml: SAMPLE_HTML,
         uiMetadata: SAMPLE_UI_METADATA,
       },
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-      },
     });
 
     const duration = Date.now() - startTime;
 
     if (error) {
       console.error(`[TEST] ${name} FAILED:`, error);
+      console.error(`[TEST] Full error object:`, JSON.stringify(error, null, 2));
       // Try to extract more details from the error
-      const errorDetail = error.context?.body ? JSON.stringify(error.context.body) : error.message;
+      let errorDetail = error.message || 'Unknown error';
+      if (error.context) {
+        errorDetail += ` | Context: ${JSON.stringify(error.context)}`;
+      }
       return { name, success: false, duration, error: errorDetail };
     }
 

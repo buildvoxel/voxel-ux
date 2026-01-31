@@ -222,20 +222,34 @@ Deno.serve(async (req) => {
 
     // Verify authorization
     const authHeader = req.headers.get('Authorization')
+    console.log('[understand-request] Auth header present:', !!authHeader)
     if (!authHeader?.startsWith('Bearer ')) {
+      console.error('[understand-request] Missing or invalid auth header format')
       throw new Error('Missing or invalid authorization header')
     }
     const jwt = authHeader.replace('Bearer ', '')
+    console.log('[understand-request] JWT length:', jwt.length)
 
-    // Create Supabase client
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    // Create Supabase client with service role
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
 
-    // Verify user
+    // Verify user using the JWT
+    console.log('[understand-request] Verifying user token...')
     const { data: { user }, error: userError } = await supabase.auth.getUser(jwt)
-    if (userError || !user) {
-      throw new Error(`Unauthorized: ${userError?.message || 'Invalid token'}`)
+    if (userError) {
+      console.error('[understand-request] Auth error:', userError.message)
+      throw new Error(`Unauthorized: ${userError.message}`)
     }
-    console.log('[understand-request] User authenticated:', user.id)
+    if (!user) {
+      console.error('[understand-request] No user found for token')
+      throw new Error('Unauthorized: Invalid token - no user found')
+    }
+    console.log('[understand-request] User authenticated:', user.id, user.email)
 
     // Parse request
     const body: UnderstandRequest = await req.json()
