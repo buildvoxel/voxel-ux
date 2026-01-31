@@ -2513,19 +2513,26 @@ export const VibePrototyping: React.FC = () => {
   const focusedVariant = focusedVariantIndex ? getVariantByIndex(focusedVariantIndex) : null;
   const focusedPlan = focusedVariantIndex ? getPlanByIndex(focusedVariantIndex) : null;
 
-  // Get progress for each variant - use local tracking for completed variants
+  // Get progress for each variant - calculate per-variant progress from overall
   const getVariantProgress = useCallback((index: number) => {
     // Check local completed set first (prevents race conditions)
     if (completedVariantIndices.has(index)) return 100;
     // Check store for completed status
     const variant = getVariantByIndex(index);
     if (variant?.status === 'complete') return 100;
-    // If currently building this variant, return the progress
+    // If currently building this variant, calculate per-variant progress
     if (progress?.stage === 'generating' && progress.variantIndex === index) {
-      return progress.percent;
+      // Calculate per-variant progress from overall progress
+      // Each variant takes ~25% of total, so variant 1 is 0-25%, variant 2 is 25-50%, etc.
+      const variantCount = selectedVariants.length || 4;
+      const variantStartPercent = ((index - 1) / variantCount) * 100;
+      const variantEndPercent = (index / variantCount) * 100;
+      const variantRange = variantEndPercent - variantStartPercent;
+      const currentProgress = Math.max(0, progress.percent - variantStartPercent);
+      return Math.min(100, (currentProgress / variantRange) * 100);
     }
     return 0;
-  }, [progress, getVariantByIndex, completedVariantIndices]);
+  }, [progress, getVariantByIndex, completedVariantIndices, selectedVariants]);
 
   // Loading state
   if (isLoading) {
@@ -3280,29 +3287,37 @@ export const VibePrototyping: React.FC = () => {
                     <Cursor size={18} weight={editMode === 'cursor' ? 'fill' : 'regular'} />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Code Editor">
-                  <IconButton
-                    size="small"
-                    onClick={() => setEditMode('code')}
-                    sx={{
-                      bgcolor: editMode === 'code' ? 'background.paper' : 'transparent',
-                      boxShadow: editMode === 'code' ? 1 : 0,
-                    }}
-                  >
-                    <Code size={18} weight={editMode === 'code' ? 'fill' : 'regular'} />
-                  </IconButton>
+                <Tooltip title={!isComplete && !variants.some(v => v.status === 'complete') ? 'Code Editor (available after variants are built)' : 'Code Editor'}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => setEditMode('code')}
+                      disabled={!isComplete && !variants.some(v => v.status === 'complete')}
+                      sx={{
+                        bgcolor: editMode === 'code' ? 'background.paper' : 'transparent',
+                        boxShadow: editMode === 'code' ? 1 : 0,
+                        opacity: (!isComplete && !variants.some(v => v.status === 'complete')) ? 0.4 : 1,
+                      }}
+                    >
+                      <Code size={18} weight={editMode === 'code' ? 'fill' : 'regular'} />
+                    </IconButton>
+                  </span>
                 </Tooltip>
-                <Tooltip title="WYSIWYG Editor">
-                  <IconButton
-                    size="small"
-                    onClick={() => setEditMode('wysiwyg')}
-                    sx={{
-                      bgcolor: editMode === 'wysiwyg' ? 'background.paper' : 'transparent',
-                      boxShadow: editMode === 'wysiwyg' ? 1 : 0,
-                    }}
-                  >
-                    <PencilSimple size={18} weight={editMode === 'wysiwyg' ? 'fill' : 'regular'} />
-                  </IconButton>
+                <Tooltip title={!isComplete && !variants.some(v => v.status === 'complete') ? 'WYSIWYG Editor (available after variants are built)' : 'WYSIWYG Editor'}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => setEditMode('wysiwyg')}
+                      disabled={!isComplete && !variants.some(v => v.status === 'complete')}
+                      sx={{
+                        bgcolor: editMode === 'wysiwyg' ? 'background.paper' : 'transparent',
+                        boxShadow: editMode === 'wysiwyg' ? 1 : 0,
+                        opacity: (!isComplete && !variants.some(v => v.status === 'complete')) ? 0.4 : 1,
+                      }}
+                    >
+                      <PencilSimple size={18} weight={editMode === 'wysiwyg' ? 'fill' : 'regular'} />
+                    </IconButton>
+                  </span>
                 </Tooltip>
               </Box>
 
