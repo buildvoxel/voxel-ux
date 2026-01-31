@@ -46,7 +46,9 @@ import {
   Crown,
   Lightning,
   Buildings,
+  Bug,
 } from '@phosphor-icons/react';
+import { EdgeFunctionTester } from '@/components/EdgeFunctionTester';
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { useThemeStore } from '@/store/themeStore';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -1270,14 +1272,30 @@ function UserManagementTab() {
   );
 }
 
+function DeveloperTab() {
+  return (
+    <Box>
+      <Typography variant="h5" fontWeight={600} gutterBottom>
+        Developer Tools
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Tools for testing and debugging the application.
+      </Typography>
+
+      <EdgeFunctionTester />
+    </Box>
+  );
+}
+
 export function Settings() {
   const [tabValue, setTabValue] = useState(0);
   const { isAdmin } = useAuthStore();
 
   // Calculate tab indices dynamically based on admin status
-  const getTabIndex = (tab: 'api' | 'account' | 'billing' | 'users') => {
+  const getTabIndex = (tab: 'api' | 'account' | 'billing' | 'users' | 'developer') => {
     const tabs = ['api', 'account', 'billing'];
     if (isAdmin()) tabs.push('users');
+    tabs.push('developer');
     return tabs.indexOf(tab);
   };
 
@@ -1291,6 +1309,7 @@ export function Settings() {
           <Tab icon={<User size={18} />} label="Account" iconPosition="start" />
           <Tab icon={<CreditCard size={18} />} label="Billing" iconPosition="start" />
           {isAdmin() && <Tab icon={<Users size={18} />} label="Users" iconPosition="start" />}
+          <Tab icon={<Bug size={18} />} label="Developer" iconPosition="start" />
         </Tabs>
       </Box>
 
@@ -1308,6 +1327,9 @@ export function Settings() {
           <UserManagementTab />
         </TabPanel>
       )}
+      <TabPanel value={tabValue} index={getTabIndex('developer')}>
+        <DeveloperTab />
+      </TabPanel>
     </Box>
   );
 }
