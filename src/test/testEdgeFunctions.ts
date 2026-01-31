@@ -343,9 +343,10 @@ export async function createTestSession(): Promise<string | null> {
     console.log('[TEST] Authenticated as:', user.email);
 
     // Get or create a test screen
+    // Note: Table is named 'screens' not 'captured_screens'
     console.log('[TEST] Looking for existing screens...');
     const { data: screens, error: screensError } = await supabase
-      .from('captured_screens')
+      .from('screens')
       .select('id')
       .eq('user_id', user.id)
       .limit(1);
@@ -364,12 +365,13 @@ export async function createTestSession(): Promise<string | null> {
       // Create a test screen
       console.log('[TEST] No screens found, creating test screen...');
       const { data: newScreen, error: screenError } = await supabase
-        .from('captured_screens')
+        .from('screens')
         .insert({
           user_id: user.id,
           name: 'Test Screen',
+          file_name: 'test-screen.html',
           html: SAMPLE_HTML,
-          source_url: 'http://test.local',
+          source: 'http://test.local',
         })
         .select()
         .single();
