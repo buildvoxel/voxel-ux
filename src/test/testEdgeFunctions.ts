@@ -290,6 +290,19 @@ export async function testGenerateVariantCode(sessionId: string, planId: string)
       throw new Error('Not authenticated');
     }
 
+    // First fetch the plan details from the database
+    const { data: planData, error: planError } = await supabase
+      .from('vibe_variant_plans')
+      .select('*')
+      .eq('id', planId)
+      .single();
+
+    if (planError || !planData) {
+      throw new Error(`Failed to fetch plan: ${planError?.message || 'Not found'}`);
+    }
+
+    console.log(`[TEST] Fetched plan: ${planData.title}`);
+
     // Use direct fetch with apikey header
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -305,7 +318,13 @@ export async function testGenerateVariantCode(sessionId: string, planId: string)
       body: JSON.stringify({
         sessionId,
         planId,
-        variantIndex: 1,
+        variantIndex: planData.variant_index,
+        plan: {
+          title: planData.title,
+          description: planData.description,
+          keyChanges: planData.key_changes || [],
+          styleNotes: planData.style_notes || '',
+        },
         sourceHtml: SAMPLE_HTML,
       }),
     });
@@ -379,10 +398,11 @@ export async function testGenerateWireframes(sessionId: string): Promise<TestRes
         sessionId,
         plans: plans.map(p => ({
           id: p.id,
-          variant_index: p.variant_index,
+          variantIndex: p.variant_index,
           title: p.title,
           description: p.description,
-          key_changes: p.key_changes,
+          keyChanges: p.key_changes || [],
+          styleNotes: p.style_notes || '',
         })),
         compactedHtml: SAMPLE_HTML,
       }),
