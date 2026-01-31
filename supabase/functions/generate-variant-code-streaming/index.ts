@@ -234,6 +234,7 @@ async function getApiKeyFromVault(
 // Get user ID from JWT token
 function getUserIdFromToken(authHeader: string | null): string | null {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('[streaming] No valid Bearer token in auth header')
     return null
   }
 
@@ -241,9 +242,20 @@ function getUserIdFromToken(authHeader: string | null): string | null {
     const token = authHeader.slice(7)
     // Decode JWT payload (middle part)
     const parts = token.split('.')
-    if (parts.length !== 3) return null
+    if (parts.length !== 3) {
+      console.log('[streaming] Invalid JWT format - expected 3 parts, got:', parts.length)
+      return null
+    }
 
-    const payload = JSON.parse(atob(parts[1]))
+    // JWT uses base64url encoding, need to convert to standard base64
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    // Add padding if needed
+    while (base64.length % 4) {
+      base64 += '='
+    }
+
+    const payload = JSON.parse(atob(base64))
+    console.log('[streaming] JWT decoded successfully, user:', payload.sub)
     return payload.sub || null
   } catch (error) {
     console.error('[streaming] Error decoding JWT:', error)
