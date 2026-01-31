@@ -140,14 +140,17 @@ export async function testUnderstandRequest(sessionId: string): Promise<TestResu
 
     // Try direct fetch to see the raw response
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     const functionUrl = `${supabaseUrl}/functions/v1/understand-request`;
     console.log('[TEST] Function URL:', functionUrl);
+    console.log('[TEST] Anon key (first 20 chars):', supabaseAnonKey?.substring(0, 20) + '...');
 
     const rawResponse = await fetch(functionUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`,
+        'apikey': supabaseAnonKey,
       },
       body: JSON.stringify({
         sessionId,
@@ -220,24 +223,35 @@ export async function testGenerateVariantPlan(sessionId: string): Promise<TestRe
       throw new Error('Not authenticated');
     }
 
-    const { data, error } = await supabase.functions.invoke('generate-variant-plan', {
-      body: {
+    // Use direct fetch with apikey header
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const functionUrl = `${supabaseUrl}/functions/v1/generate-variant-plan`;
+
+    const rawResponse = await fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': supabaseAnonKey,
+      },
+      body: JSON.stringify({
         sessionId,
         prompt: SAMPLE_PROMPT,
         compactedHtml: SAMPLE_HTML,
         uiMetadata: SAMPLE_UI_METADATA,
-      },
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      }),
     });
 
     const duration = Date.now() - startTime;
+    const responseText = await rawResponse.text();
 
-    if (error) {
-      console.error(`[TEST] ${name} FAILED:`, error);
-      return { name, success: false, duration, error: error.message };
+    if (!rawResponse.ok) {
+      console.error(`[TEST] ${name} FAILED: HTTP ${rawResponse.status}:`, responseText);
+      return { name, success: false, duration, error: `HTTP ${rawResponse.status}: ${responseText}` };
     }
+
+    const data = JSON.parse(responseText);
 
     if (!data?.success) {
       console.error(`[TEST] ${name} returned error:`, data?.error);
@@ -338,8 +352,19 @@ export async function testGenerateWireframes(sessionId: string): Promise<TestRes
       throw new Error('No plans found for session - run testGenerateVariantPlan first');
     }
 
-    const { data, error } = await supabase.functions.invoke('generate-wireframes', {
-      body: {
+    // Use direct fetch with apikey header
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const functionUrl = `${supabaseUrl}/functions/v1/generate-wireframes`;
+
+    const rawResponse = await fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': supabaseAnonKey,
+      },
+      body: JSON.stringify({
         sessionId,
         plans: plans.map(p => ({
           id: p.id,
@@ -349,18 +374,18 @@ export async function testGenerateWireframes(sessionId: string): Promise<TestRes
           key_changes: p.key_changes,
         })),
         sourceHtml: SAMPLE_HTML,
-      },
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      }),
     });
 
     const duration = Date.now() - startTime;
+    const responseText = await rawResponse.text();
 
-    if (error) {
-      console.error(`[TEST] ${name} FAILED:`, error);
-      return { name, success: false, duration, error: error.message };
+    if (!rawResponse.ok) {
+      console.error(`[TEST] ${name} FAILED: HTTP ${rawResponse.status}:`, responseText);
+      return { name, success: false, duration, error: `HTTP ${rawResponse.status}: ${responseText}` };
     }
+
+    const data = JSON.parse(responseText);
 
     if (!data?.success) {
       console.error(`[TEST] ${name} returned error:`, data?.error);
