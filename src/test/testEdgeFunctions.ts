@@ -113,6 +113,21 @@ export async function testUnderstandRequest(sessionId: string): Promise<TestResu
       throw new Error('Not authenticated');
     }
 
+    // First check if user has an API key configured
+    const { data: apiKeyRefs, error: apiKeyError } = await supabase
+      .from('user_api_key_refs')
+      .select('provider, is_active')
+      .eq('is_active', true)
+      .limit(1);
+
+    if (apiKeyError) {
+      console.log('[TEST] Warning: Could not check API keys:', apiKeyError.message);
+    } else if (!apiKeyRefs || apiKeyRefs.length === 0) {
+      throw new Error('No API key configured. Go to Settings → API Keys and add your Anthropic/OpenAI/Google API key first.');
+    } else {
+      console.log('[TEST] Found active API key for:', apiKeyRefs[0].provider);
+    }
+
     const { data, error } = await supabase.functions.invoke('understand-request', {
       body: {
         sessionId,
@@ -129,7 +144,9 @@ export async function testUnderstandRequest(sessionId: string): Promise<TestResu
 
     if (error) {
       console.error(`[TEST] ${name} FAILED:`, error);
-      return { name, success: false, duration, error: error.message };
+      // Try to extract more details from the error
+      const errorDetail = error.context?.body ? JSON.stringify(error.context.body) : error.message;
+      return { name, success: false, duration, error: errorDetail };
     }
 
     if (!data?.success) {
