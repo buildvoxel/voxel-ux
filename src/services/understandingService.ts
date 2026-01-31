@@ -93,9 +93,30 @@ export async function generateUnderstanding(
   });
 
   if (error) {
-    // Try to extract the actual error from the response data (edge function error body)
-    const actualError = data?.error || error.message || 'Failed to generate understanding';
-    console.error('[UnderstandingService] Edge function error:', error, 'Data:', data);
+    // Try to extract the actual error from multiple possible locations
+    // Supabase edge function errors can have the message in different places
+    let actualError = 'Failed to generate understanding';
+
+    // Check data.error first (our edge function format)
+    if (data?.error) {
+      actualError = data.error;
+    }
+    // Check error.context for FunctionsHttpError
+    else if ((error as unknown as { context?: { json?: () => Promise<{ error?: string }> } }).context) {
+      try {
+        const context = (error as unknown as { context: { json: () => Promise<{ error?: string }> } }).context;
+        const errorBody = await context.json();
+        actualError = errorBody?.error || error.message;
+      } catch {
+        actualError = error.message;
+      }
+    }
+    // Fallback to error.message
+    else if (error.message) {
+      actualError = error.message;
+    }
+
+    console.error('[UnderstandingService] Edge function error:', error, 'Data:', data, 'Extracted:', actualError);
     onProgress?.({
       stage: 'failed',
       message: `Failed: ${actualError}`,

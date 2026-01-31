@@ -261,6 +261,14 @@ function AIPhase({
   );
 }
 
+// Debug log entry type
+interface DebugLogEntry {
+  timestamp: Date;
+  type: 'request' | 'response' | 'error';
+  endpoint: string;
+  data: unknown;
+}
+
 // Debug Panel Component
 function DebugPanel({
   isOpen,
@@ -274,6 +282,7 @@ function DebugPanel({
   variants,
   sourceMetadata,
   currentPrompt,
+  debugLogs,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -286,8 +295,10 @@ function DebugPanel({
   variants: { variant_index: number; status: string; html_url?: string }[];
   sourceMetadata: UIMetadata | null;
   currentPrompt: string;
+  debugLogs: DebugLogEntry[];
 }) {
   const { config } = useThemeStore();
+  const [expandedLogs, setExpandedLogs] = useState<Record<number, boolean>>({});
 
   if (!isOpen) return null;
 
@@ -298,14 +309,35 @@ function DebugPanel({
     return config.colors.primary;
   };
 
+  const getLogColor = (type: DebugLogEntry['type']) => {
+    switch (type) {
+      case 'request': return '#2196f3';
+      case 'response': return '#4caf50';
+      case 'error': return '#f44336';
+      default: return '#9e9e9e';
+    }
+  };
+
+  const toggleLog = (index: number) => {
+    setExpandedLogs(prev => ({ ...prev, [index]: !prev[index] }));
+  };
+
+  const formatData = (data: unknown): string => {
+    try {
+      return JSON.stringify(data, null, 2);
+    } catch {
+      return String(data);
+    }
+  };
+
   return (
     <Box
       sx={{
         position: 'fixed',
         bottom: 16,
         right: 16,
-        width: 400,
-        maxHeight: '60vh',
+        width: 450,
+        maxHeight: '70vh',
         bgcolor: 'background.paper',
         borderRadius: 2,
         boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
@@ -351,7 +383,9 @@ function DebugPanel({
             </Box>
           )}
           {error && (
-            <Typography sx={{ color: config.colors.error, mt: 1, fontSize: '0.75rem' }}>Error: {error}</Typography>
+            <Box sx={{ mt: 1, p: 1, bgcolor: '#ffebee', borderRadius: 1, border: '1px solid #ffcdd2' }}>
+              <Typography sx={{ color: '#c62828', fontSize: '0.75rem', fontWeight: 500 }}>Error: {error}</Typography>
+            </Box>
           )}
         </Box>
 
@@ -369,6 +403,88 @@ function DebugPanel({
           <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>PROMPT</Typography>
           <Box sx={{ mt: 0.5, p: 1, bgcolor: 'grey.100', borderRadius: 1, fontSize: '0.7rem', maxHeight: 80, overflow: 'auto' }}>
             {currentPrompt || currentSession?.prompt || 'No prompt yet'}
+          </Box>
+        </Box>
+
+        {/* API Logs - Inputs/Outputs */}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+            API LOGS ({debugLogs.length})
+          </Typography>
+          <Box sx={{ mt: 0.5, maxHeight: 200, overflow: 'auto' }}>
+            {debugLogs.length === 0 ? (
+              <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', fontStyle: 'italic' }}>
+                No API calls yet
+              </Typography>
+            ) : (
+              debugLogs.map((log, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    mb: 1,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Box
+                    onClick={() => toggleLog(index)}
+                    sx={{
+                      p: 0.75,
+                      bgcolor: 'grey.50',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: 'grey.100' },
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        px: 0.5,
+                        py: 0.25,
+                        borderRadius: 0.5,
+                        bgcolor: getLogColor(log.type),
+                        color: 'white',
+                        fontSize: '0.6rem',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {log.type}
+                    </Box>
+                    <Typography sx={{ fontSize: '0.7rem', flex: 1, fontWeight: 500 }}>
+                      {log.endpoint}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.6rem', color: 'text.secondary' }}>
+                      {log.timestamp.toLocaleTimeString()}
+                    </Typography>
+                    <CaretRight
+                      size={12}
+                      style={{
+                        transform: expandedLogs[index] ? 'rotate(90deg)' : 'none',
+                        transition: 'transform 0.2s',
+                      }}
+                    />
+                  </Box>
+                  {expandedLogs[index] && (
+                    <Box
+                      sx={{
+                        p: 1,
+                        bgcolor: log.type === 'error' ? '#fff3f3' : '#f5f5f5',
+                        maxHeight: 150,
+                        overflow: 'auto',
+                      }}
+                    >
+                      <pre style={{ margin: 0, fontSize: '0.65rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                        {formatData(log.data)}
+                      </pre>
+                    </Box>
+                  )}
+                </Box>
+              ))
+            )}
           </Box>
         </Box>
 
@@ -421,8 +537,10 @@ function DebugPanel({
         {sourceMetadata && (
           <Box>
             <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>METADATA</Typography>
-            <Box sx={{ mt: 0.5, p: 1, bgcolor: 'grey.100', borderRadius: 1, fontSize: '0.65rem' }}>
-              {JSON.stringify(sourceMetadata, null, 2).slice(0, 300)}...
+            <Box sx={{ mt: 0.5, p: 1, bgcolor: 'grey.100', borderRadius: 1, fontSize: '0.65rem', maxHeight: 100, overflow: 'auto' }}>
+              <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+                {JSON.stringify(sourceMetadata, null, 2).slice(0, 500)}...
+              </pre>
             </Box>
           </Box>
         )}
@@ -1290,6 +1408,12 @@ export const VibePrototyping: React.FC = () => {
 
   // Debug mode - toggle with keyboard shortcut (Ctrl+Shift+D)
   const [debugMode, setDebugMode] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<DebugLogEntry[]>([]);
+
+  // Helper to add debug log entries
+  const addDebugLog = useCallback((type: DebugLogEntry['type'], endpoint: string, data: unknown) => {
+    setDebugLogs(prev => [...prev.slice(-19), { timestamp: new Date(), type, endpoint, data }]);
+  }, []);
 
   // Debug mode keyboard shortcut
   useEffect(() => {
@@ -1500,6 +1624,16 @@ export const VibePrototyping: React.FC = () => {
         percent: 20,
       });
 
+      // Log the request being sent
+      const understandingRequest = {
+        sessionId: session.id,
+        prompt,
+        htmlLength: screen.editedHtml?.length || 0,
+        hasMetadata: !!metadata,
+        metadataComponents: metadata?.components?.length || 0,
+      };
+      addDebugLog('request', 'understand-request', understandingRequest);
+
       const understandingResult = await generateUnderstanding(
         session.id,
         prompt,
@@ -1516,6 +1650,15 @@ export const VibePrototyping: React.FC = () => {
           });
         }
       );
+
+      // Log the response received
+      addDebugLog('response', 'understand-request', {
+        success: true,
+        model: understandingResult.model,
+        provider: understandingResult.provider,
+        goalsCount: understandingResult.understanding?.goals?.length || 0,
+        durationMs: understandingResult.durationMs,
+      });
 
       // Store understanding in state
       setUnderstanding({
@@ -1538,6 +1681,13 @@ export const VibePrototyping: React.FC = () => {
     } catch (err) {
       console.error('Error generating understanding:', err);
       const errorMsg = err instanceof Error ? err.message : 'Failed to analyze request';
+
+      // Log the error
+      addDebugLog('error', 'understand-request', {
+        error: errorMsg,
+        stack: err instanceof Error ? err.stack : undefined,
+      });
+
       setError(errorMsg);
       showError('Failed to analyze your request');
 
@@ -1545,7 +1695,7 @@ export const VibePrototyping: React.FC = () => {
       setIsProcessingPrompt(false);
       setPendingPrompt(null);
     }
-  }, [screen, screenId, promptValue, sourceMetadata, contexts, generatePhaseContent]);
+  }, [screen, screenId, promptValue, sourceMetadata, contexts, generatePhaseContent, addDebugLog]);
 
   // Handle understanding approval - proceeds to planning phase
   const handleApproveUnderstanding = useCallback(async () => {
@@ -3843,6 +3993,7 @@ export const VibePrototyping: React.FC = () => {
         variants={variants}
         sourceMetadata={sourceMetadata}
         currentPrompt={currentPrompt}
+        debugLogs={debugLogs}
       />
 
       {/* Debug toggle hint */}
