@@ -231,38 +231,6 @@ async function getApiKeyFromVault(
   return data
 }
 
-// Get user ID from JWT token
-function getUserIdFromToken(authHeader: string | null): string | null {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log('[streaming] No valid Bearer token in auth header')
-    return null
-  }
-
-  try {
-    const token = authHeader.slice(7)
-    // Decode JWT payload (middle part)
-    const parts = token.split('.')
-    if (parts.length !== 3) {
-      console.log('[streaming] Invalid JWT format - expected 3 parts, got:', parts.length)
-      return null
-    }
-
-    // JWT uses base64url encoding, need to convert to standard base64
-    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
-    // Add padding if needed
-    while (base64.length % 4) {
-      base64 += '='
-    }
-
-    const payload = JSON.parse(atob(base64))
-    console.log('[streaming] JWT decoded successfully, user:', payload.sub)
-    return payload.sub || null
-  } catch (error) {
-    console.error('[streaming] Error decoding JWT:', error)
-    return null
-  }
-}
-
 // Stream with Anthropic (VISION REQUIRED)
 async function* streamWithAnthropic(
   apiKey: string,
@@ -528,24 +496,34 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Get user ID from JWT
-    const authHeader = req.headers.get('authorization')
-    const userId = getUserIdFromToken(authHeader)
+    // Initialize Supabase client with service role for Vault access
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabase = createClient(supabaseUrl, supabaseKey)
 
-    if (!userId) {
-      console.error('[streaming] No user ID found in JWT')
+    // Verify authorization using Supabase auth
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      console.error('[streaming] Missing or invalid authorization header')
       return new Response(
         JSON.stringify({ error: 'Authentication required. Please log in.' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('[streaming] User ID from JWT:', userId)
+    const jwt = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt)
 
-    // Initialize Supabase client with service role for Vault access
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    if (userError || !user) {
+      console.error('[streaming] Auth error:', userError?.message || 'No user found')
+      return new Response(
+        JSON.stringify({ error: `Unauthorized: ${userError?.message || 'Invalid token'}` }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const userId = user.id
+    console.log('[streaming] User authenticated:', userId)
 
     // Determine provider and get API key from Vault
     const provider = request.provider || 'anthropic'
