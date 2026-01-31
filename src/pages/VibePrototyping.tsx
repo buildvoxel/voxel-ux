@@ -1382,7 +1382,7 @@ export const VibePrototyping: React.FC = () => {
   const resizeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const variantEditDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const variantEditDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Dynamic phase content based on user prompt
   const [phaseContent, setPhaseContent] = useState({
