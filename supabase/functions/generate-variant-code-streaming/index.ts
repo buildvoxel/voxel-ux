@@ -496,12 +496,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Initialize Supabase client with service role for Vault access
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseKey)
-
-    // Verify authorization using Supabase auth
+    // Verify authorization header first
     const authHeader = req.headers.get('Authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       console.error('[streaming] Missing or invalid authorization header')
@@ -512,10 +507,33 @@ Deno.serve(async (req) => {
     }
 
     const jwt = authHeader.replace('Bearer ', '')
+    console.log('[streaming] JWT token length:', jwt.length)
+
+    // Initialize Supabase client with service role for operations
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('[streaming] Missing Supabase environment variables')
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+
+    // Verify user using service client with the JWT
+    console.log('[streaming] Verifying user with getUser...')
     const { data: { user }, error: userError } = await supabase.auth.getUser(jwt)
 
     if (userError || !user) {
-      console.error('[streaming] Auth error:', userError?.message || 'No user found')
+      console.error('[streaming] Auth error:', userError?.message || 'No user found', userError)
       return new Response(
         JSON.stringify({ error: `Unauthorized: ${userError?.message || 'Invalid token'}` }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
