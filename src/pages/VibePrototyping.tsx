@@ -1550,14 +1550,16 @@ export const VibePrototyping: React.FC = () => {
               initSession(session, s.editedHtml);
               setCurrentPrompt(session.prompt || '');
 
+              // Load plans without changing status (status already set from session)
               const plans = await getVariantPlans(sessionId);
               if (plans.length > 0) {
-                setPlan({ plans, model: '', provider: '' });
+                setPlan({ plans, model: '', provider: '' }, true); // skipStatusUpdate
               }
 
+              // Load variants without changing status
               const existingVariants = await getVariants(sessionId);
               if (existingVariants.length > 0) {
-                setVariants(existingVariants);
+                setVariants(existingVariants, true); // skipStatusUpdate
               }
 
               // Load wireframes if they exist

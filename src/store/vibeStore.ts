@@ -114,7 +114,7 @@ interface VibeState {
   toggleVariantSelection: (index: number) => void;
 
   // Actions - Plan management (paradigms)
-  setPlan: (plan: GeneratedPlan) => void;
+  setPlan: (plan: GeneratedPlan, skipStatusUpdate?: boolean) => void;
   updatePlanItem: (variantIndex: number, updates: Partial<VariantPlan>) => void;
   approvePlan: () => void;  // Approves paradigms -> starts wireframing
 
@@ -123,7 +123,7 @@ interface VibeState {
   approveWireframes: () => void;  // Approves wireframes -> starts generation
 
   // Actions - Variant management
-  setVariants: (variants: VibeVariant[]) => void;
+  setVariants: (variants: VibeVariant[], skipStatusUpdate?: boolean) => void;
   updateVariant: (variantIndex: number, updates: Partial<VibeVariant>) => void;
   addVariant: (variant: VibeVariant) => void;
 
@@ -295,12 +295,16 @@ export const useVibeStore = create<VibeState>()(
   },
 
   // Plan management
-  setPlan: (plan) => {
-    set({
-      plan,
-      status: 'plan_ready',
-      progress: null,
-    });
+  setPlan: (plan, skipStatusUpdate = false) => {
+    if (skipStatusUpdate) {
+      set({ plan });
+    } else {
+      set({
+        plan,
+        status: 'plan_ready',
+        progress: null,
+      });
+    }
   },
 
   updatePlanItem: (variantIndex, updates) => {
@@ -366,17 +370,19 @@ export const useVibeStore = create<VibeState>()(
   },
 
   // Variant management
-  setVariants: (variants) => {
+  setVariants: (variants, skipStatusUpdate = false) => {
     set({ variants });
 
-    // Check if all complete or if we have any completed variants (for existing sessions)
-    const completedCount = variants.filter((v) => v.status === 'complete').length;
-    const allComplete = variants.length === 4 && completedCount === 4;
+    if (!skipStatusUpdate) {
+      // Check if all complete or if we have any completed variants (for existing sessions)
+      const completedCount = variants.filter((v) => v.status === 'complete').length;
+      const allComplete = variants.length === 4 && completedCount === 4;
 
-    // If all 4 are complete, or if we're loading an existing session with some completed variants,
-    // set status to 'complete' (this allows tabs to be clickable)
-    if (allComplete || (completedCount > 0 && get().status !== 'generating')) {
-      set({ status: 'complete' });
+      // If all 4 are complete, or if we're loading an existing session with some completed variants,
+      // set status to 'complete' (this allows tabs to be clickable)
+      if (allComplete || (completedCount > 0 && get().status !== 'generating')) {
+        set({ status: 'complete' });
+      }
     }
   },
 
