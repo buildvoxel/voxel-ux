@@ -227,20 +227,28 @@ Deno.serve(async (req) => {
       console.error('[understand-request] Missing or invalid auth header format')
       throw new Error('Missing or invalid authorization header')
     }
-    const jwt = authHeader.replace('Bearer ', '')
-    console.log('[understand-request] JWT length:', jwt.length)
 
-    // Create Supabase client with service role
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    // Get the anon key for user auth verification
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+    if (!supabaseAnonKey) {
+      throw new Error('Missing SUPABASE_ANON_KEY environment variable')
+    }
+
+    // Create Supabase client with anon key and pass the auth header
+    // This is the recommended way to verify user JWTs in edge functions
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader },
+      },
       auth: {
         autoRefreshToken: false,
         persistSession: false,
       },
     })
 
-    // Verify user using the JWT
+    // Verify user - the client will use the Authorization header
     console.log('[understand-request] Verifying user token...')
-    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt)
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
     if (userError) {
       console.error('[understand-request] Auth error:', userError.message)
       throw new Error(`Unauthorized: ${userError.message}`)
@@ -250,6 +258,14 @@ Deno.serve(async (req) => {
       throw new Error('Unauthorized: Invalid token - no user found')
     }
     console.log('[understand-request] User authenticated:', user.id, user.email)
+
+    // Create a service role client for database operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
 
     // Parse request
     const body: UnderstandRequest = await req.json()
