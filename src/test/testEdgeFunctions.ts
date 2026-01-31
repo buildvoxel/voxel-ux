@@ -332,16 +332,28 @@ export async function createTestSession(): Promise<string | null> {
   console.log('\n[TEST] Creating test session...');
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      throw new Error('Not authenticated');
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) {
+      console.error('[TEST] Auth error:', userError);
+      throw new Error(`Auth failed: ${userError.message}`);
     }
+    if (!user) {
+      throw new Error('Not authenticated - please log in first');
+    }
+    console.log('[TEST] Authenticated as:', user.email);
 
     // Get or create a test screen
-    let { data: screens } = await supabase
+    console.log('[TEST] Looking for existing screens...');
+    const { data: screens, error: screensError } = await supabase
       .from('captured_screens')
       .select('id')
+      .eq('user_id', user.id)
       .limit(1);
+
+    if (screensError) {
+      console.error('[TEST] Error fetching screens:', screensError);
+      throw new Error(`Failed to fetch screens: ${screensError.message}`);
+    }
 
     let screenId: string;
 
@@ -350,6 +362,7 @@ export async function createTestSession(): Promise<string | null> {
       console.log('[TEST] Using existing screen:', screenId);
     } else {
       // Create a test screen
+      console.log('[TEST] No screens found, creating test screen...');
       const { data: newScreen, error: screenError } = await supabase
         .from('captured_screens')
         .insert({
@@ -361,12 +374,16 @@ export async function createTestSession(): Promise<string | null> {
         .select()
         .single();
 
-      if (screenError) throw screenError;
+      if (screenError) {
+        console.error('[TEST] Error creating screen:', screenError);
+        throw new Error(`Failed to create screen: ${screenError.message} (code: ${screenError.code})`);
+      }
       screenId = newScreen.id;
       console.log('[TEST] Created test screen:', screenId);
     }
 
     // Create test session
+    console.log('[TEST] Creating vibe session...');
     const { data: session, error: sessionError } = await supabase
       .from('vibe_sessions')
       .insert({
@@ -379,13 +396,17 @@ export async function createTestSession(): Promise<string | null> {
       .select()
       .single();
 
-    if (sessionError) throw sessionError;
+    if (sessionError) {
+      console.error('[TEST] Error creating session:', sessionError);
+      throw new Error(`Failed to create session: ${sessionError.message} (code: ${sessionError.code})`);
+    }
 
     console.log('[TEST] Created test session:', session.id);
     return session.id;
   } catch (err) {
-    console.error('[TEST] Failed to create test session:', err);
-    return null;
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[TEST] Failed to create test session:', errorMsg);
+    throw err; // Re-throw to show in UI
   }
 }
 
@@ -408,9 +429,16 @@ export async function testAllFunctions(): Promise<TestResult[]> {
   console.log('[TEST] Authenticated as:', session.user.email);
 
   // Create test session
-  const sessionId = await createTestSession();
-  if (!sessionId) {
-    return [{ name: 'create-session', success: false, duration: 0, error: 'Failed to create test session' }];
+  let sessionId: string;
+  try {
+    const result = await createTestSession();
+    if (!result) {
+      return [{ name: 'create-session', success: false, duration: 0, error: 'Failed to create test session (null result)' }];
+    }
+    sessionId = result;
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+    return [{ name: 'create-session', success: false, duration: 0, error: errorMsg }];
   }
 
   // Test 1: understand-request

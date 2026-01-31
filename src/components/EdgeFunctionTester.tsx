@@ -52,11 +52,12 @@ export const EdgeFunctionTester: React.FC = () => {
       setResults(testResults);
     } catch (err) {
       console.error('Test suite error:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       setResults([{
-        name: 'test-suite',
+        name: 'test-suite-error',
         success: false,
         duration: 0,
-        error: err instanceof Error ? err.message : 'Unknown error',
+        error: errorMsg,
       }]);
     } finally {
       setIsRunning(false);
