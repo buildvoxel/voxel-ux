@@ -922,16 +922,30 @@ export const DesignSystem: React.FC = () => {
                   startIcon={<Robot size={18} />}
                   onClick={handleGenerateAILabels}
                   disabled={isLabeling || isExtracting}
+                  sx={{
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    },
+                  }}
                 >
                   {isLabeling ? 'Labeling...' : 'AI Labels'}
                 </Button>
               </Tooltip>
             )}
             <Button
-              variant="outlined"
+              variant="contained"
               startIcon={<ArrowClockwise size={18} />}
               onClick={extractDesignSystem}
               disabled={isExtracting || screens.length === 0}
+              sx={{
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                },
+              }}
             >
               Re-extract
             </Button>
