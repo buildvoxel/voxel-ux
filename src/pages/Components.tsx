@@ -397,8 +397,7 @@ export function Components() {
             </ToggleButtonGroup>
             <Button
               variant="contained"
-              size="small"
-              startIcon={isExtracting ? <CircularProgress size={16} color="inherit" /> : <ArrowsClockwise size={18} />}
+              startIcon={isExtracting ? <CircularProgress size={18} color="inherit" /> : <ArrowsClockwise size={18} />}
               onClick={handleRefresh}
               disabled={isExtracting || screens.length === 0}
               sx={{
