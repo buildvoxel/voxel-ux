@@ -1610,7 +1610,8 @@ export const VibePrototyping: React.FC = () => {
 
   // Update elapsed times every second during generation
   useEffect(() => {
-    if (!isGenerating || Object.keys(variantStartTimes).length === 0) return;
+    const generating = status === 'generating';
+    if (!generating || Object.keys(variantStartTimes).length === 0) return;
 
     const interval = setInterval(() => {
       const now = Date.now();
@@ -1632,7 +1633,7 @@ export const VibePrototyping: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isGenerating, variantStartTimes, completedVariantIndices]);
+  }, [status, variantStartTimes, completedVariantIndices]);
 
   // Generate progress message based on percentage
   const getProgressStage = useCallback((percent: number): string => {
@@ -3794,37 +3795,6 @@ export const VibePrototyping: React.FC = () => {
                     overflow: 'hidden',
                   }}
                 >
-                  {/* Preview Mode (cursor) - prefers edited HTML over original URL */}
-                  {editMode === 'cursor' && (
-                    (focusedVariant.edited_html || focusedVariant.html_url) ? (
-                      <iframe
-                        {...(focusedVariant.edited_html
-                          ? { srcDoc: focusedVariant.edited_html }
-                          : { src: focusedVariant.html_url }
-                        )}
-                        title={`Preview Variant ${focusedVariantIndex}`}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          border: 'none',
-                        }}
-                      />
-                    ) : (
-                      <Box
-                        sx={{
-                          height: '100%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Typography color="text.secondary">
-                          Preview Variant {String.fromCharCode(64 + focusedVariantIndex)}
-                        </Typography>
-                      </Box>
-                    )
-                  )}
-
                   {/* Code Editor Mode - HTML Tree View */}
                   {editMode === 'code' && (
                     isFetchingHtml ? (
