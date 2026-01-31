@@ -109,6 +109,7 @@ import {
 } from '@/services/variantCodeService';
 import {
   generateVisualWireframes,
+  getVisualWireframesForSession,
   type VisualWireframeResult,
 } from '@/services/wireframeService';
 import {
@@ -1557,6 +1558,12 @@ export const VibePrototyping: React.FC = () => {
               const existingVariants = await getVariants(sessionId);
               if (existingVariants.length > 0) {
                 setVariants(existingVariants);
+              }
+
+              // Load wireframes if they exist
+              const existingWireframes = await getVisualWireframesForSession(sessionId);
+              if (existingWireframes.length > 0) {
+                setWireframes(existingWireframes);
               }
             }
           } else {
