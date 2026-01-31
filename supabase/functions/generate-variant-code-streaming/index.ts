@@ -154,8 +154,11 @@ async function* streamWithAnthropic(
 
   if (!response.ok) {
     const error = await response.json()
-    throw new Error(error.error?.message || 'Anthropic API error')
+    console.error('[streaming] Anthropic API error:', response.status, error)
+    throw new Error(error.error?.message || `Anthropic API error: ${response.status}`)
   }
+
+  console.log('[streaming] Anthropic response OK, starting to read stream...')
 
   const reader = response.body?.getReader()
   if (!reader) throw new Error('No response body')
@@ -235,8 +238,11 @@ async function* streamWithOpenAI(
 
   if (!response.ok) {
     const error = await response.json()
-    throw new Error(error.error?.message || 'OpenAI API error')
+    console.error('[streaming] OpenAI API error:', response.status, error)
+    throw new Error(error.error?.message || `OpenAI API error: ${response.status}`)
   }
+
+  console.log('[streaming] OpenAI response OK, starting to read stream...')
 
   const reader = response.body?.getReader()
   if (!reader) throw new Error('No response body')
@@ -311,8 +317,11 @@ async function* streamWithGoogle(
 
   if (!response.ok) {
     const error = await response.json()
-    throw new Error(error.error?.message || 'Google AI API error')
+    console.error('[streaming] Google API error:', response.status, error)
+    throw new Error(error.error?.message || `Google AI API error: ${response.status}`)
   }
+
+  console.log('[streaming] Google response OK, starting to read stream...')
 
   const reader = response.body?.getReader()
   if (!reader) throw new Error('No response body')

@@ -88,6 +88,7 @@ import { useVibeStore, type ChatMessage } from '@/store/vibeStore';
 import { useContextStore } from '@/store/contextStore';
 import { useThemeStore } from '@/store/themeStore';
 import { getContextFiles, type ContextFile } from '@/services/contextFilesService';
+import { compactHtml } from '@/services/htmlCompactor';
 
 import {
   analyzeScreen,
@@ -2151,6 +2152,8 @@ export const VibePrototyping: React.FC = () => {
     console.log('[VibePrototyping] Source HTML length:', screen.editedHtml?.length || 0);
     console.log('[VibePrototyping] Has metadata:', !!sourceMetadata);
     console.log('[VibePrototyping] Streaming enabled:', useStreaming);
+    console.log('[VibePrototyping] Screenshot available:', !!screenScreenshot, screenScreenshot ? `${Math.round(screenScreenshot.length / 1024)}KB` : 'none');
+    console.log('[VibePrototyping] Provider:', selectedProvider, 'Model:', selectedModel);
 
     try {
       addChatMessage('assistant', useStreaming
@@ -2168,6 +2171,15 @@ export const VibePrototyping: React.FC = () => {
       setVariantProgressMessages({});
       setElapsedTimes({});
 
+      // Compact HTML to reduce token count (2MB+ HTML causes rate limit issues)
+      const compactionResult = await compactHtml(screen.editedHtml, { method: 'combined-optimal' });
+      const compactedHtml = compactionResult.html;
+      console.log('[VibePrototyping] HTML compaction:', {
+        originalSize: compactionResult.originalSize,
+        compactedSize: compactionResult.compactedSize,
+        reductionPercent: compactionResult.reductionPercent,
+      });
+
       let generatedVariants;
 
       if (useStreaming) {
@@ -2175,7 +2187,7 @@ export const VibePrototyping: React.FC = () => {
         generatedVariants = await generateAllVariantsStreaming(
           currentSession.id,
           plan.plans,
-          screen.editedHtml,
+          compactedHtml,
           sourceMetadata || undefined,
           undefined,
           (p) => {
@@ -2228,7 +2240,7 @@ export const VibePrototyping: React.FC = () => {
         generatedVariants = await generateAllVariants(
           currentSession.id,
           plan.plans,
-          screen.editedHtml,
+          compactedHtml,
           sourceMetadata || undefined,
           undefined,
           (p) => {
@@ -2257,8 +2269,10 @@ export const VibePrototyping: React.FC = () => {
 
       showSuccess('All variants generated successfully!');
     } catch (err) {
-      console.error('Error generating variants:', err);
-      showError('Failed to generate prototypes');
+      console.error('[VibePrototyping] Error generating variants:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error('[VibePrototyping] Error details:', errorMessage);
+      showError(`Failed to generate prototypes: ${errorMessage}`);
     }
   }, [currentSession, plan, screen, sourceMetadata, screenScreenshot, selectedProvider, selectedModel, addChatMessage, setVariants, setStatus, setProgress, debouncedSavePartialHtml]);
 

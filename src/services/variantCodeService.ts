@@ -490,6 +490,10 @@ export async function generateVariantCodeStreaming(
     variantIndex: plan.variant_index,
     planTitle: plan.title,
     sourceHtmlLength: sourceHtml.length,
+    hasScreenshot: !!screenshotBase64,
+    screenshotSize: screenshotBase64 ? `${Math.round(screenshotBase64.length / 1024)}KB` : 'none',
+    provider,
+    model,
   });
 
   // Build the streaming endpoint URL
@@ -521,8 +525,15 @@ export async function generateVariantCodeStreaming(
     }),
   });
 
+  console.log('[VariantCodeService] Response received:', {
+    status: response.status,
+    statusText: response.statusText,
+    contentType: response.headers.get('Content-Type'),
+  });
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    console.error('[VariantCodeService] Error response:', error);
     throw new Error(error.error || `HTTP ${response.status}`);
   }
 
@@ -673,13 +684,17 @@ export async function generateAllVariantsStreaming(
       );
 
       if (variant) {
+        console.log(`[VariantCodeService] Variant ${plan.variant_index} generated successfully`);
         variants.push(variant);
+      } else {
+        console.warn(`[VariantCodeService] Variant ${plan.variant_index} returned null`);
       }
     } catch (error) {
-      console.error(`Failed to generate variant ${plan.variant_index}:`, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[VariantCodeService] Failed to generate variant ${plan.variant_index}:`, errorMessage, error);
       onProgress?.({
         stage: 'failed',
-        message: `Variant ${plan.variant_index} failed, continuing...`,
+        message: `Variant ${plan.variant_index} failed: ${errorMessage}`,
         percent: Math.round(((i + 1) / totalPlans) * 100),
         variantIndex: plan.variant_index,
         title: plan.title,
