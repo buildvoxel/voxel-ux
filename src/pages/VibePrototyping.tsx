@@ -107,6 +107,7 @@ import {
   saveVariantEditedHtml,
   saveVariantPartialHtml,
   getPartialHtmlForSession,
+  GenerationError,
 } from '@/services/variantCodeService';
 import {
   generateVisualWireframes,
@@ -1655,6 +1656,13 @@ export const VibePrototyping: React.FC = () => {
   const [iterationHistory, setIterationHistory] = useState<VibeIteration[]>([]);
   const [showIterationHistory, setShowIterationHistory] = useState(false);
 
+  // Generation error state (for retry dialog)
+  const [generationError, setGenerationError] = useState<{
+    message: string;
+    code?: string;
+    provider?: string;
+  } | null>(null);
+
   // Product context files
   const [contextFiles, setContextFiles] = useState<ContextFile[]>([]);
   const [contextPanelOpen, setContextPanelOpen] = useState(false);
@@ -2282,7 +2290,20 @@ export const VibePrototyping: React.FC = () => {
       console.error('[VibePrototyping] Error generating variants:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       console.error('[VibePrototyping] Error details:', errorMessage);
-      showError(`Failed to generate prototypes: ${errorMessage}`);
+
+      // Check if this is an API key error - show retry dialog
+      if (err instanceof GenerationError && err.code === 'API_KEY_MISSING') {
+        setGenerationError({
+          message: errorMessage,
+          code: err.code,
+          provider: err.provider,
+        });
+        // Reset status to wireframing so user can retry
+        setStatus('wireframing');
+        setProgress(null);
+      } else {
+        showError(`Failed to generate prototypes: ${errorMessage}`);
+      }
     }
   }, [currentSession, plan, sourceMetadata, screenScreenshot, wireframes, contextFiles, selectedProvider, selectedModel, addChatMessage, setVariants, setStatus, setProgress, debouncedSavePartialHtml, showError, showSuccess, useStreaming]);
 
@@ -4372,6 +4393,106 @@ export const VibePrototyping: React.FC = () => {
           <Button onClick={() => setShowIterationHistory(false)} variant="outlined">
             Close
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Generation Error Dialog - allows retry with different model */}
+      <Dialog
+        open={!!generationError}
+        onClose={() => setGenerationError(null)}
+        maxWidth="sm"
+        fullWidth
+        TransitionComponent={Fade}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, fontFamily: config.fonts.display, color: 'error.main' }}>
+          <Warning size={24} />
+          Generation Failed
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            {generationError?.message}
+          </Typography>
+          {generationError?.code === 'API_KEY_MISSING' && (
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                You can either add an API key for {generationError.provider} in Settings, or try a different model below.
+              </Typography>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="retry-provider-label">Select Provider</InputLabel>
+                <Select
+                  labelId="retry-provider-label"
+                  value={selectedProvider || ''}
+                  label="Select Provider"
+                  onChange={(e) => {
+                    const provider = e.target.value as LLMProvider;
+                    setSelectedProvider(provider);
+                    // Set default model for provider
+                    const providerInfo = PROVIDER_INFO[provider];
+                    if (providerInfo?.models.length) {
+                      setSelectedModel(providerInfo.models[0]);
+                    }
+                  }}
+                >
+                  {availableKeys.filter(k => k.provider !== generationError?.provider).map((key) => (
+                    <MenuItem key={key.provider} value={key.provider}>
+                      {PROVIDER_INFO[key.provider]?.name || key.provider}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {selectedProvider && PROVIDER_INFO[selectedProvider] && (
+                <FormControl fullWidth>
+                  <InputLabel id="retry-model-label">Select Model</InputLabel>
+                  <Select
+                    labelId="retry-model-label"
+                    value={selectedModel}
+                    label="Select Model"
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                  >
+                    {PROVIDER_INFO[selectedProvider].models.map((model) => (
+                      <MenuItem key={model} value={model}>
+                        {model}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setGenerationError(null);
+              navigate('/settings');
+            }}
+            variant="outlined"
+            startIcon={<LinkSimple size={18} />}
+          >
+            Go to Settings
+          </Button>
+          <Button onClick={() => setGenerationError(null)} variant="outlined">
+            Cancel
+          </Button>
+          {generationError?.code === 'API_KEY_MISSING' && selectedProvider && selectedProvider !== generationError?.provider && (
+            <Button
+              variant="contained"
+              startIcon={<ArrowsClockwise size={18} />}
+              onClick={() => {
+                setGenerationError(null);
+                // Retry with new provider/model
+                handleBuildHighFidelity();
+              }}
+              sx={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%)',
+                },
+              }}
+            >
+              Retry with {PROVIDER_INFO[selectedProvider]?.name || selectedProvider}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 

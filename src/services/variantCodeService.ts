@@ -43,6 +43,19 @@ export interface GenerationProgress {
 
 type ProgressCallback = (progress: GenerationProgress) => void;
 
+// Custom error class for generation errors with additional context
+export class GenerationError extends Error {
+  code?: string;
+  provider?: string;
+
+  constructor(message: string, code?: string, provider?: string) {
+    super(message);
+    this.name = 'GenerationError';
+    this.code = code;
+    this.provider = provider;
+  }
+}
+
 /**
  * Get all variants for a session
  */
@@ -555,9 +568,14 @@ export async function generateVariantCodeStreaming(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    console.error('[VariantCodeService] Error response:', error);
-    throw new Error(error.error || `HTTP ${response.status}`);
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    console.error('[VariantCodeService] Error response:', errorData);
+    // Throw custom error with code and provider for UI handling
+    throw new GenerationError(
+      errorData.error || `HTTP ${response.status}`,
+      errorData.errorCode,
+      errorData.provider
+    );
   }
 
   // Check if we got an SSE stream
@@ -718,6 +736,12 @@ export async function generateAllVariantsStreaming(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`[VariantCodeService] Failed to generate variant ${plan.variant_index}:`, errorMessage, error);
+
+      // Re-throw API_KEY_MISSING errors - no point trying other variants
+      if (error instanceof GenerationError && error.code === 'API_KEY_MISSING') {
+        throw error;
+      }
+
       onProgress?.({
         stage: 'failed',
         message: `Variant ${plan.variant_index} failed: ${errorMessage}`,

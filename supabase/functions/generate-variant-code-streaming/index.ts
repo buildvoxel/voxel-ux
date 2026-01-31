@@ -1,5 +1,6 @@
 // Supabase Edge Function for streaming variant HTML/CSS code generation
 // VISION-FIRST APPROACH: Uses screenshot + design tokens + wireframe instead of source HTML
+// API keys are retrieved from Vault via RPC
 // Deploy with: supabase functions deploy generate-variant-code-streaming
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -200,6 +201,53 @@ function createSSEEncoder() {
     encodeObject: (event: string, data: unknown) => {
       return encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
     },
+  }
+}
+
+// Get API key from Vault via RPC
+async function getApiKeyFromVault(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  provider: string
+): Promise<string | null> {
+  console.log('[streaming] Getting API key from Vault for provider:', provider)
+
+  const { data, error } = await supabase.rpc('get_api_key', {
+    p_user_id: userId,
+    p_provider: provider,
+  })
+
+  if (error) {
+    console.error('[streaming] Error getting API key from Vault:', error)
+    return null
+  }
+
+  if (!data) {
+    console.error('[streaming] No API key found in Vault for provider:', provider)
+    return null
+  }
+
+  console.log('[streaming] Successfully retrieved API key from Vault')
+  return data
+}
+
+// Get user ID from JWT token
+function getUserIdFromToken(authHeader: string | null): string | null {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null
+  }
+
+  try {
+    const token = authHeader.slice(7)
+    // Decode JWT payload (middle part)
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+
+    const payload = JSON.parse(atob(parts[1]))
+    return payload.sub || null
+  } catch (error) {
+    console.error('[streaming] Error decoding JWT:', error)
+    return null
   }
 }
 
@@ -468,27 +516,38 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Determine provider and get API key
-    const provider = request.provider || 'anthropic'
-    let apiKey: string | undefined
+    // Get user ID from JWT
+    const authHeader = req.headers.get('authorization')
+    const userId = getUserIdFromToken(authHeader)
 
-    switch (provider) {
-      case 'anthropic':
-        apiKey = Deno.env.get('ANTHROPIC_API_KEY')
-        break
-      case 'openai':
-        apiKey = Deno.env.get('OPENAI_API_KEY')
-        break
-      case 'google':
-        apiKey = Deno.env.get('GOOGLE_AI_API_KEY')
-        break
+    if (!userId) {
+      console.error('[streaming] No user ID found in JWT')
+      return new Response(
+        JSON.stringify({ error: 'Authentication required. Please log in.' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
+    console.log('[streaming] User ID from JWT:', userId)
+
+    // Initialize Supabase client with service role for Vault access
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    // Determine provider and get API key from Vault
+    const provider = request.provider || 'anthropic'
+    const apiKey = await getApiKeyFromVault(supabase, userId, provider)
+
     if (!apiKey) {
-      console.error('[streaming] Missing API key for provider:', provider)
+      console.error('[streaming] No API key found for provider:', provider)
       return new Response(
-        JSON.stringify({ error: `${provider} API key not configured` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: `No ${provider} API key configured. Please add your API key in Settings.`,
+          errorCode: 'API_KEY_MISSING',
+          provider: provider,
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -523,10 +582,6 @@ Deno.serve(async (req) => {
           }
 
           // Save to database
-          const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-          const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-          const supabase = createClient(supabaseUrl, supabaseKey)
-
           // Get the variant record
           const { data: variant } = await supabase
             .from('vibe_variants')
