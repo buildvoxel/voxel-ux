@@ -26,46 +26,77 @@ interface GenerateCodeRequest {
   model?: string
 }
 
-// System prompt for code generation
-const SYSTEM_PROMPT = `You are an expert front-end developer implementing a UI variant based on a design specification.
+// System prompt for code generation - emphasizes MODIFYING the existing HTML, not replacing it
+const SYSTEM_PROMPT = `You are an expert front-end developer tasked with MODIFYING an existing HTML document.
 
-Your task is to modify the source HTML according to the variant plan provided. The result should be a complete, self-contained HTML document.
+CRITICAL: You are NOT creating a new design. You are taking the SOURCE HTML provided and making TARGETED MODIFICATIONS based on the variant plan. The source HTML is from a real, captured web application that the user wants to enhance.
 
-CRITICAL REQUIREMENTS:
-1. Return ONLY the complete HTML document - no explanations, no markdown code blocks
-2. Preserve all functionality from the original (forms, links, scripts)
-3. Use inline styles for all CSS changes (no external stylesheets)
-4. Ensure the HTML is valid and renders correctly in modern browsers
-5. Implement ALL key changes from the variant plan
-6. Maintain responsive design patterns from the original
+## ABSOLUTE RULES:
+1. START with the source HTML as your base - copy it first, then modify
+2. PRESERVE the overall structure, layout, and content of the original
+3. KEEP all existing elements, classes, IDs, and inline styles unless explicitly told to change them
+4. PRESERVE all functionality (forms, links, scripts, event handlers)
+5. Make ONLY the changes specified in the variant plan - nothing more
+6. Return ONLY the complete modified HTML - no explanations, no markdown
 
-IMPLEMENTATION GUIDELINES:
-- For color changes: Update background-color, color, border-color properties
-- For typography changes: Modify font-family, font-size, font-weight, line-height
-- For layout changes: Adjust display, flex, grid, padding, margin properties
-- For new components: Insert complete HTML with inline styles
-- For removal: Delete the elements entirely (don't just hide them)
+## WHAT TO PRESERVE (unless plan says otherwise):
+- Navigation structure and menu items
+- Header/footer layout
+- Content sections and their order
+- Form fields and validation
+- Images and their positioning
+- All text content (only change if plan mentions it)
+- All JavaScript and interactivity
+- All CSS (inline, embedded, or referenced)
+
+## HOW TO MODIFY:
+- For style changes: Add/update inline styles on existing elements
+- For color theme changes: Update color, background-color, border-color values
+- For typography: Modify font properties on relevant elements
+- For layout tweaks: Adjust flex, grid, padding, margin on containers
+- For new components: INSERT them into logical positions within existing structure
+- For removals: Only remove if explicitly stated in the plan
+
+## COMMON MISTAKES TO AVOID:
+- DON'T create a new minimal HTML from scratch
+- DON'T remove content that wasn't mentioned in the plan
+- DON'T simplify or "clean up" the original HTML structure
+- DON'T replace complex layouts with simpler ones
+- DON'T remove navigation, headers, or footers
+- DON'T strip out JavaScript or interactive elements
+
+Think of yourself as making surgical edits to the source HTML, not rewriting it.
 
 Start your response directly with <!DOCTYPE html> or <html>.`
 
 function buildCodePrompt(request: GenerateCodeRequest): string {
-  let prompt = `Variant Plan to Implement:\n`
-  prompt += `Title: ${request.plan.title}\n`
-  prompt += `Description: ${request.plan.description}\n`
-  prompt += `Key Changes:\n${request.plan.keyChanges.map(c => `- ${c}`).join('\n')}\n`
-  prompt += `Style Notes: ${request.plan.styleNotes}\n\n`
+  // Put source HTML FIRST to emphasize it's the base to modify
+  let prompt = `## SOURCE HTML (this is your base - modify it, don't replace it):\n`
+  prompt += `\`\`\`html\n${request.sourceHtml}\n\`\`\`\n\n`
+
+  prompt += `## MODIFICATIONS TO MAKE:\n`
+  prompt += `Variant: ${request.plan.title}\n`
+  prompt += `Description: ${request.plan.description}\n\n`
+  prompt += `Apply these specific changes to the source HTML above:\n`
+  prompt += `${request.plan.keyChanges.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n\n`
+
+  if (request.plan.styleNotes) {
+    prompt += `Style guidance: ${request.plan.styleNotes}\n\n`
+  }
 
   if (request.productContext) {
-    prompt += `Product Context:\n${request.productContext.slice(0, 1500)}\n\n`
+    prompt += `Context about this product:\n${request.productContext.slice(0, 1500)}\n\n`
   }
 
   if (request.uiMetadata) {
-    prompt += `Original UI uses:\n`
-    prompt += `${JSON.stringify(request.uiMetadata, null, 2).slice(0, 1000)}\n\n`
+    prompt += `The original UI includes: ${JSON.stringify(request.uiMetadata).slice(0, 500)}\n\n`
   }
 
-  prompt += `Source HTML to Modify:\n${request.sourceHtml}\n\n`
-  prompt += `Generate the complete modified HTML document implementing this variant. Return ONLY the HTML.`
+  prompt += `## IMPORTANT REMINDERS:\n`
+  prompt += `- Start with the source HTML above and make targeted modifications\n`
+  prompt += `- Keep ALL existing content, structure, and functionality\n`
+  prompt += `- Only change what's needed to implement the modifications listed\n`
+  prompt += `- Return the complete modified HTML document, starting with <!DOCTYPE html> or <html>`
 
   return prompt
 }

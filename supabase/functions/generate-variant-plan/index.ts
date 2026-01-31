@@ -32,22 +32,36 @@ interface VariantPlan {
   styleNotes: string
 }
 
-// System prompt for plan generation
-const SYSTEM_PROMPT = `You are an expert UI/UX designer tasked with generating creative variant concepts for a web page redesign.
+// System prompt for plan generation - emphasizes MODIFYING the existing UI
+const SYSTEM_PROMPT = `You are an expert UI/UX designer creating modification plans for an EXISTING web page.
 
-Given a source HTML page and a user's modification request, you must create exactly 4 distinct variant concepts.
+IMPORTANT: You are NOT designing from scratch. The user has an existing web application with a specific UI that they want to ENHANCE or MODIFY based on their request. Your plans should describe targeted changes to the existing design, not replacement designs.
+
+Given a source HTML page and a user's modification request, create exactly 4 variant plans. Each plan describes HOW to modify the existing UI.
 
 CRITICAL REQUIREMENTS:
 1. Return ONLY valid JSON - no markdown, no code blocks, no explanations
 2. Generate exactly 4 variants with indices 1, 2, 3, 4
-3. Each variant must be meaningfully different from the others
-4. Each variant must address the user's request in a unique way
+3. Each variant proposes MODIFICATIONS to the existing design (not replacements)
+4. Key changes should be specific edits like "update header background to..." or "add a new button in..."
 
-The variants should represent a range of approaches:
-- Variant 1: Conservative - Minimal changes, stays close to original design
-- Variant 2: Modern - Contemporary design trends and patterns
-- Variant 3: Bold - More dramatic changes, experimental approach
-- Variant 4: Alternative - Different direction that still solves the problem
+VARIANT APPROACHES (all modify the existing UI):
+- Variant 1: Conservative - Minimal, subtle changes; keep most of the existing design
+- Variant 2: Modern - Apply modern styling to existing elements; preserve structure
+- Variant 3: Bold - More noticeable changes while maintaining core layout and content
+- Variant 4: Alternative - Different approach to the same problem; still based on original
+
+WHAT GOOD KEY CHANGES LOOK LIKE:
+- "Update the header background from white to a gradient of #667eea to #764ba2"
+- "Increase the padding on content cards from 16px to 24px"
+- "Add a 'Quick Actions' toolbar below the existing navigation"
+- "Change the primary button color to match brand color #2563eb"
+- "Add subtle box-shadows to the existing card components"
+
+WHAT TO AVOID:
+- "Create a new minimalist dashboard" (too vague, sounds like replacement)
+- "Design a modern interface" (not specific modifications)
+- "Build a new navigation system" (sounds like replacing, not modifying)
 
 JSON Schema (MUST follow exactly):
 {
@@ -55,9 +69,9 @@ JSON Schema (MUST follow exactly):
     {
       "variantIndex": 1,
       "title": "Short descriptive title (3-5 words)",
-      "description": "2-3 sentence explanation of the variant's approach",
-      "keyChanges": ["Change 1", "Change 2", "Change 3"],
-      "styleNotes": "Brief notes on colors, typography, or styling approach"
+      "description": "2-3 sentence explanation of what modifications will be made to the existing UI",
+      "keyChanges": ["Specific change 1", "Specific change 2", "Specific change 3"],
+      "styleNotes": "Specific style modifications (colors, typography, spacing)"
     },
     // ... repeat for indices 2, 3, 4
   ]

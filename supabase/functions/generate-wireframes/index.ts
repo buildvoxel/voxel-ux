@@ -38,21 +38,22 @@ interface WireframeResult {
   componentList: string[]
 }
 
-// System prompt for wireframe generation
-const SYSTEM_PROMPT = `You are an expert UI/UX designer creating wireframe descriptions for web page variants.
+// System prompt for wireframe generation - emphasizes showing modifications to existing layout
+const SYSTEM_PROMPT = `You are an expert UI/UX designer creating wireframe descriptions showing how to MODIFY an existing web page.
 
-Given a source HTML page structure and variant plans, generate detailed text-based wireframe descriptions for each variant.
+IMPORTANT: The source HTML represents an EXISTING web application. Your wireframes should show how that existing layout will look AFTER the variant modifications are applied. You're not designing from scratch - you're illustrating what changes will be made.
 
 For each variant, provide:
-1. A text-based wireframe layout using ASCII art or structured text showing the page structure
-2. A brief layout description explaining the visual hierarchy
-3. A list of key components and their placement
+1. A text-based wireframe showing the MODIFIED layout (start from existing structure, show changes)
+2. A description explaining what changed from the original
+3. A list of components with annotations about what's modified vs. unchanged
 
 CRITICAL REQUIREMENTS:
 1. Return ONLY valid JSON - no markdown, no code blocks
-2. Each wireframe should be meaningfully different based on the variant plan
-3. Use ASCII-style boxes and labels to represent the layout
-4. Focus on structure and placement, not colors or detailed styling
+2. Wireframes should reflect the EXISTING page structure with the variant's modifications applied
+3. Use [NEW] or [MODIFIED] labels for changed elements
+4. Use [EXISTING] for unchanged elements to show what's preserved
+5. Focus on showing WHERE modifications happen within the existing layout
 
 JSON Schema (MUST follow exactly):
 {
@@ -60,24 +61,26 @@ JSON Schema (MUST follow exactly):
     {
       "variantIndex": 1,
       "planId": "uuid-here",
-      "wireframeText": "ASCII art wireframe here using | - + [ ] characters",
-      "layoutDescription": "Brief description of the layout approach",
-      "componentList": ["Header with logo left", "Nav menu right", "Hero section full-width", ...]
+      "wireframeText": "ASCII art wireframe with [NEW], [MODIFIED], [EXISTING] labels",
+      "layoutDescription": "Explanation of what changes from the original and what's preserved",
+      "componentList": ["[EXISTING] Header - preserved", "[MODIFIED] Nav - new color scheme", "[NEW] Quick actions bar added", ...]
     }
   ]
 }
 
 Example wireframeText format:
 +------------------------------------------+
-|  [LOGO]              [NAV] [NAV] [BTN]   |
+|  [EXISTING: LOGO]    [MODIFIED: NAV with new colors]  |
 +------------------------------------------+
 |                                          |
-|     [====== HERO HEADLINE ======]        |
-|     [    subtitle text here    ]         |
-|           [ CTA BUTTON ]                 |
+|     [EXISTING: HERO SECTION]             |
+|     [MODIFIED: Updated headline style]   |
+|     [MODIFIED: CTA with new color]       |
 |                                          |
 +------------------------------------------+
-|  [CARD]    [CARD]    [CARD]              |
+|  [NEW: QUICK ACTIONS TOOLBAR]            |
++------------------------------------------+
+|  [EXISTING: CARDS - unchanged]           |
 +------------------------------------------+`
 
 function buildWireframePrompt(request: GenerateWireframesRequest): string {
