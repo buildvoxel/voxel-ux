@@ -25,6 +25,8 @@ export interface VibeVariant {
   status: 'pending' | 'generating' | 'capturing' | 'complete' | 'failed';
   error_message: string | null;
   iteration_count: number;
+  edited_html: string | null;
+  edited_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -311,6 +313,43 @@ export async function deleteVariant(variantId: string): Promise<boolean> {
   }
 
   return true;
+}
+
+/**
+ * Save edited HTML for a variant
+ */
+export async function saveVariantEditedHtml(variantId: string, editedHtml: string): Promise<boolean> {
+  if (!isSupabaseConfigured()) {
+    return false;
+  }
+
+  const { error } = await supabase
+    .from('vibe_variants')
+    .update({
+      edited_html: editedHtml,
+      edited_at: new Date().toISOString(),
+    })
+    .eq('id', variantId);
+
+  if (error) {
+    console.error('Error saving variant edited HTML:', error);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Get variant HTML content - prefers edited_html over original if available
+ */
+export async function getVariantHtmlContent(variant: VibeVariant): Promise<string> {
+  // If there's edited HTML, return that
+  if (variant.edited_html) {
+    return variant.edited_html;
+  }
+
+  // Otherwise, fetch from the original URL
+  return fetchVariantHtml(variant.html_url);
 }
 
 // Streaming types

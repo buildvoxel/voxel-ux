@@ -105,6 +105,7 @@ import {
   generateAllVariants,
   generateAllVariantsStreaming,
   getVariants,
+  saveVariantEditedHtml,
 } from '@/services/variantCodeService';
 import {
   generateVisualWireframes,
@@ -1381,6 +1382,7 @@ export const VibePrototyping: React.FC = () => {
   const resizeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const variantEditDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Dynamic phase content based on user prompt
   const [phaseContent, setPhaseContent] = useState({
@@ -1405,6 +1407,52 @@ export const VibePrototyping: React.FC = () => {
   // Fetched HTML content for code view (variants store only URLs)
   const [fetchedVariantHtml, setFetchedVariantHtml] = useState<string | null>(null);
   const [isFetchingHtml, setIsFetchingHtml] = useState(false);
+  const [isSavingVariantEdit, setIsSavingVariantEdit] = useState(false);
+  const [hasUnsavedVariantChanges, setHasUnsavedVariantChanges] = useState(false);
+
+  // Debounced save for variant HTML edits (1 second delay)
+  const debouncedSaveVariantHtml = useCallback((variantId: string, html: string) => {
+    // Clear existing timer
+    if (variantEditDebounceRef.current) {
+      clearTimeout(variantEditDebounceRef.current);
+    }
+
+    setHasUnsavedVariantChanges(true);
+
+    // Set new timer
+    variantEditDebounceRef.current = setTimeout(async () => {
+      setIsSavingVariantEdit(true);
+      try {
+        const success = await saveVariantEditedHtml(variantId, html);
+        if (success) {
+          setHasUnsavedVariantChanges(false);
+          // Update the variant in the store with edited_html
+          const updatedVariants = variants.map(v =>
+            v.id === variantId
+              ? { ...v, edited_html: html, edited_at: new Date().toISOString() }
+              : v
+          );
+          setVariants(updatedVariants);
+          console.log('[VibePrototyping] Variant HTML saved successfully');
+        } else {
+          console.error('[VibePrototyping] Failed to save variant HTML');
+        }
+      } catch (error) {
+        console.error('[VibePrototyping] Error saving variant HTML:', error);
+      } finally {
+        setIsSavingVariantEdit(false);
+      }
+    }, 1000);
+  }, [variants, setVariants]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (variantEditDebounceRef.current) {
+        clearTimeout(variantEditDebounceRef.current);
+      }
+    };
+  }, []);
 
   // Debug mode - toggle with keyboard shortcut (Ctrl+Shift+D)
   const [debugMode, setDebugMode] = useState(false);
@@ -2191,15 +2239,31 @@ export const VibePrototyping: React.FC = () => {
   }, [screenId, editedName, updateScreen, showSuccess, showError]);
 
   // Fetch HTML content when switching to code mode for a focused variant
+  // Prefers edited_html (user's changes) over original html_url
   useEffect(() => {
     const fetchVariantHtml = async () => {
       if (editMode !== 'code' || !focusedVariantIndex) {
         setFetchedVariantHtml(null);
+        setHasUnsavedVariantChanges(false);
         return;
       }
 
       const variant = getVariantByIndex(focusedVariantIndex);
-      if (!variant?.html_url) {
+      if (!variant) {
+        setFetchedVariantHtml(null);
+        setHasUnsavedVariantChanges(false);
+        return;
+      }
+
+      // Prefer edited_html if available (user's saved changes)
+      if (variant.edited_html) {
+        setFetchedVariantHtml(variant.edited_html);
+        setHasUnsavedVariantChanges(false);
+        return;
+      }
+
+      // Otherwise fetch from original URL
+      if (!variant.html_url) {
         setFetchedVariantHtml(null);
         return;
       }
@@ -3505,11 +3569,14 @@ export const VibePrototyping: React.FC = () => {
                     overflow: 'hidden',
                   }}
                 >
-                  {/* Preview Mode (cursor) */}
+                  {/* Preview Mode (cursor) - prefers edited HTML over original URL */}
                   {editMode === 'cursor' && (
-                    focusedVariant.html_url ? (
+                    (focusedVariant.edited_html || focusedVariant.html_url) ? (
                       <iframe
-                        src={focusedVariant.html_url}
+                        {...(focusedVariant.edited_html
+                          ? { srcDoc: focusedVariant.edited_html }
+                          : { src: focusedVariant.html_url }
+                        )}
                         title={`Preview Variant ${focusedVariantIndex}`}
                         style={{
                           width: '100%',
@@ -3565,9 +3632,53 @@ export const VibePrototyping: React.FC = () => {
                             justifyContent: 'space-between',
                           }}
                         >
-                          <Typography variant="caption" sx={{ color: '#9cdcfe' }}>
-                            Variant {String.fromCharCode(64 + focusedVariantIndex)} - HTML
-                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="caption" sx={{ color: '#9cdcfe' }}>
+                              Variant {String.fromCharCode(64 + focusedVariantIndex)} - HTML
+                            </Typography>
+                            {/* Save status indicator */}
+                            {isSavingVariantEdit && (
+                              <Chip
+                                label="Saving..."
+                                size="small"
+                                sx={{
+                                  bgcolor: 'transparent',
+                                  color: '#ffd700',
+                                  fontSize: '10px',
+                                  height: 18,
+                                  '& .MuiChip-label': { px: 1 },
+                                }}
+                              />
+                            )}
+                            {!isSavingVariantEdit && hasUnsavedVariantChanges && (
+                              <Chip
+                                label="Unsaved"
+                                size="small"
+                                sx={{
+                                  bgcolor: 'transparent',
+                                  color: '#ff9800',
+                                  fontSize: '10px',
+                                  height: 18,
+                                  '& .MuiChip-label': { px: 1 },
+                                }}
+                              />
+                            )}
+                            {!isSavingVariantEdit && !hasUnsavedVariantChanges && focusedVariant?.edited_html && (
+                              <Chip
+                                icon={<Check size={10} />}
+                                label="Saved"
+                                size="small"
+                                sx={{
+                                  bgcolor: 'transparent',
+                                  color: '#4caf50',
+                                  fontSize: '10px',
+                                  height: 18,
+                                  '& .MuiChip-label': { px: 0.5 },
+                                  '& .MuiChip-icon': { color: '#4caf50', ml: 0.5 },
+                                }}
+                              />
+                            )}
+                          </Box>
                           <Box sx={{ display: 'flex', gap: 1 }}>
                             <Tooltip title="Open in new tab">
                               <IconButton
@@ -3612,8 +3723,10 @@ export const VibePrototyping: React.FC = () => {
                             html={fetchedVariantHtml}
                             onHtmlChange={(newHtml) => {
                               setFetchedVariantHtml(newHtml);
-                              // Note: Changes to generated variants are not persisted
-                              // This is read-only viewing with local editing capability
+                              // Persist changes to database (debounced)
+                              if (focusedVariant?.id) {
+                                debouncedSaveVariantHtml(focusedVariant.id, newHtml);
+                              }
                             }}
                             height="100%"
                           />
@@ -3635,11 +3748,14 @@ export const VibePrototyping: React.FC = () => {
                     )
                   )}
 
-                  {/* WYSIWYG Editor Mode - Same as preview for generated variants */}
+                  {/* WYSIWYG Editor Mode - prefers edited HTML over original URL */}
                   {editMode === 'wysiwyg' && (
-                    focusedVariant.html_url ? (
+                    (focusedVariant.edited_html || focusedVariant.html_url) ? (
                       <iframe
-                        src={focusedVariant.html_url}
+                        {...(focusedVariant.edited_html
+                          ? { srcDoc: focusedVariant.edited_html }
+                          : { src: focusedVariant.html_url }
+                        )}
                         title={`Preview Variant ${focusedVariantIndex}`}
                         style={{
                           width: '100%',
