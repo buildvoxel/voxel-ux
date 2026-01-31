@@ -581,7 +581,31 @@ Deno.serve(async (req) => {
             controller.enqueue(sse.encodeObject('chunk', { chunk, fullHtml }))
           }
 
-          // Save to database
+          // Save to storage and database
+          console.log('[streaming] Saving HTML to storage, length:', fullHtml.length)
+
+          // Upload HTML to storage
+          const htmlPath = `${userId}/${request.sessionId}/variant_${request.variantIndex}.html`
+          const { error: uploadError } = await supabase.storage
+            .from('vibe-files')
+            .upload(htmlPath, fullHtml, {
+              contentType: 'text/html',
+              upsert: true, // Overwrite if exists
+            })
+
+          if (uploadError) {
+            console.error('[streaming] Failed to upload HTML:', uploadError)
+            throw new Error(`Failed to save HTML: ${uploadError.message}`)
+          }
+
+          // Get public URL
+          const { data: urlData } = supabase.storage
+            .from('vibe-files')
+            .getPublicUrl(htmlPath)
+          const htmlUrl = urlData.publicUrl
+
+          console.log('[streaming] HTML uploaded, URL:', htmlUrl)
+
           // Get the variant record
           const { data: variant } = await supabase
             .from('vibe_variants')
@@ -592,25 +616,40 @@ Deno.serve(async (req) => {
 
           if (variant) {
             // Update existing variant
-            await supabase
+            const { error: updateError } = await supabase
               .from('vibe_variants')
               .update({
-                html: fullHtml,
+                html_path: htmlPath,
+                html_url: htmlUrl,
                 status: 'complete',
+                generation_model: request.model || 'claude-sonnet-4-20250514',
                 updated_at: new Date().toISOString(),
               })
               .eq('id', variant.id)
+
+            if (updateError) {
+              console.error('[streaming] Failed to update variant:', updateError)
+              throw new Error(`Failed to update variant: ${updateError.message}`)
+            }
           } else {
             // Create new variant
-            await supabase.from('vibe_variants').insert({
+            const { error: insertError } = await supabase.from('vibe_variants').insert({
               session_id: request.sessionId,
+              plan_id: request.planId,
               variant_index: request.variantIndex,
-              title: request.plan.title,
-              description: request.plan.description,
-              html: fullHtml,
+              html_path: htmlPath,
+              html_url: htmlUrl,
               status: 'complete',
+              generation_model: request.model || 'claude-sonnet-4-20250514',
             })
+
+            if (insertError) {
+              console.error('[streaming] Failed to insert variant:', insertError)
+              throw new Error(`Failed to create variant: ${insertError.message}`)
+            }
           }
+
+          console.log('[streaming] Variant saved successfully')
 
           // Send complete event
           controller.enqueue(sse.encodeObject('complete', {
