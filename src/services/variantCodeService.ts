@@ -453,20 +453,41 @@ export type StreamingEvent =
 
 type StreamingCallback = (event: StreamingEvent) => void;
 
+// Design tokens for vision-first generation
+export interface DesignTokens {
+  colors: {
+    primary: string[];
+    secondary: string[];
+    background: string[];
+    text: string[];
+    accent: string[];
+  };
+  typography: {
+    fontFamilies: string[];
+    fontSizes: string[];
+    fontWeights: string[];
+  };
+  layout: {
+    containerWidths: string[];
+    spacing: string[];
+  };
+  components: Array<{ type: string; count: number }>;
+}
+
 /**
- * Generate code for a single variant with streaming
- * Streams HTML chunks as the LLM generates them
+ * Generate code for a single variant with streaming (VISION-FIRST)
+ * Uses screenshot + design tokens + wireframe instead of source HTML
  */
 export async function generateVariantCodeStreaming(
   sessionId: string,
   plan: VariantPlan,
-  sourceHtml: string,
-  uiMetadata?: UIMetadata,
+  screenshotBase64: string, // REQUIRED: Screenshot is now primary input
+  designTokens?: DesignTokens, // Design system tokens for consistency
+  wireframeText?: string, // Layout description from wireframe phase
   productContext?: string,
   onChunk?: StreamingCallback,
   provider?: string,
-  model?: string,
-  screenshotBase64?: string
+  model?: string
 ): Promise<VibeVariant | null> {
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase not configured');
@@ -484,14 +505,15 @@ export async function generateVariantCodeStreaming(
     throw new Error('Supabase URL not configured');
   }
 
-  console.log('[VariantCodeService] Starting streaming generation:', {
+  console.log('[VariantCodeService] Starting VISION-FIRST streaming generation:', {
     sessionId,
     planId: plan.id,
     variantIndex: plan.variant_index,
     planTitle: plan.title,
-    sourceHtmlLength: sourceHtml.length,
-    hasScreenshot: !!screenshotBase64,
-    screenshotSize: screenshotBase64 ? `${Math.round(screenshotBase64.length / 1024)}KB` : 'none',
+    screenshotSize: `${Math.round(screenshotBase64.length / 1024)}KB`,
+    hasDesignTokens: !!designTokens,
+    hasWireframe: !!wireframeText,
+    hasProductContext: !!productContext,
     provider,
     model,
   });
@@ -499,7 +521,7 @@ export async function generateVariantCodeStreaming(
   // Build the streaming endpoint URL
   const streamUrl = `${supabaseUrl}/functions/v1/generate-variant-code-streaming`;
 
-  // Make the streaming request
+  // Make the streaming request (VISION-FIRST: no source HTML)
   const response = await fetch(streamUrl, {
     method: 'POST',
     headers: {
@@ -516,9 +538,10 @@ export async function generateVariantCodeStreaming(
         keyChanges: plan.key_changes,
         styleNotes: plan.style_notes,
       },
-      sourceHtml,
+      // Vision-first approach
       screenshotBase64,
-      uiMetadata,
+      designTokens,
+      wireframeText,
       productContext,
       provider,
       model,
@@ -625,20 +648,20 @@ export async function generateVariantCodeStreaming(
 }
 
 /**
- * Generate code for all variants with streaming
- * Each variant streams its HTML as it generates
+ * Generate code for all variants with streaming (VISION-FIRST)
+ * Uses screenshot + design tokens instead of source HTML
  */
 export async function generateAllVariantsStreaming(
   sessionId: string,
   plans: VariantPlan[],
-  sourceHtml: string,
-  uiMetadata?: UIMetadata,
+  screenshotBase64: string, // REQUIRED: Screenshot is now primary input
+  designTokens?: DesignTokens, // Design system tokens for consistency
+  wireframeTexts?: Record<number, string>, // Wireframe text per variant index
   productContext?: string,
   onProgress?: ProgressCallback,
   onChunk?: (variantIndex: number, chunk: string, fullHtml: string) => void,
   provider?: string,
-  model?: string,
-  screenshotBase64?: string
+  model?: string
 ): Promise<VibeVariant[]> {
   const variants: VibeVariant[] = [];
   const totalPlans = plans.length;
@@ -658,11 +681,15 @@ export async function generateAllVariantsStreaming(
     });
 
     try {
+      // Get wireframe text for this variant (if available)
+      const wireframeText = wireframeTexts?.[plan.variant_index];
+
       const variant = await generateVariantCodeStreaming(
         sessionId,
         plan,
-        sourceHtml,
-        uiMetadata,
+        screenshotBase64,
+        designTokens,
+        wireframeText,
         productContext,
         (event) => {
           if (event.type === 'chunk') {
@@ -679,8 +706,7 @@ export async function generateAllVariantsStreaming(
           }
         },
         provider,
-        model,
-        screenshotBase64
+        model
       );
 
       if (variant) {

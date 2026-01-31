@@ -88,7 +88,6 @@ import { useVibeStore, type ChatMessage } from '@/store/vibeStore';
 import { useContextStore } from '@/store/contextStore';
 import { useThemeStore } from '@/store/themeStore';
 import { getContextFiles, type ContextFile } from '@/services/contextFilesService';
-import { compactHtml } from '@/services/htmlCompactor';
 
 import {
   analyzeScreen,
@@ -103,7 +102,6 @@ import {
   approvePlan,
 } from '@/services/variantPlanService';
 import {
-  generateAllVariants,
   generateAllVariantsStreaming,
   getVariants,
   saveVariantEditedHtml,
@@ -2143,22 +2141,29 @@ export const VibePrototyping: React.FC = () => {
 
   // Handle Build High-Fidelity button - transitions from wireframe_ready to generating
   const handleBuildHighFidelity = useCallback(async () => {
-    if (!currentSession || !plan || !screen?.editedHtml) return;
+    if (!currentSession || !plan) return;
 
-    // Debug logging
+    // VISION-FIRST: Screenshot is required
+    if (!screenScreenshot) {
+      showError('Screenshot is required for generation. Please wait for the screen to load.');
+      return;
+    }
+
+    // Debug logging - VERSION 3: Vision-first approach
+    console.log('[VibePrototyping] ========== BUILD VERSION 3 (VISION-FIRST) ==========');
     console.log('[VibePrototyping] Starting high-fidelity generation...');
     console.log('[VibePrototyping] Session ID:', currentSession.id);
     console.log('[VibePrototyping] Plans count:', plan.plans?.length);
-    console.log('[VibePrototyping] Source HTML length:', screen.editedHtml?.length || 0);
-    console.log('[VibePrototyping] Has metadata:', !!sourceMetadata);
+    console.log('[VibePrototyping] Screenshot:', `${Math.round(screenScreenshot.length / 1024)}KB`);
+    console.log('[VibePrototyping] Has metadata (design tokens):', !!sourceMetadata);
+    console.log('[VibePrototyping] Wireframes available:', wireframes.length);
     console.log('[VibePrototyping] Streaming enabled:', useStreaming);
-    console.log('[VibePrototyping] Screenshot available:', !!screenScreenshot, screenScreenshot ? `${Math.round(screenScreenshot.length / 1024)}KB` : 'none');
     console.log('[VibePrototyping] Provider:', selectedProvider, 'Model:', selectedModel);
 
     try {
       addChatMessage('assistant', useStreaming
-        ? 'Starting high-fidelity prototype generation with live streaming...'
-        : 'Starting high-fidelity prototype generation...');
+        ? 'Starting vision-first prototype generation with live streaming...'
+        : 'Starting vision-first prototype generation...');
 
       // Use the store's approveWireframes to transition to generating
       const { approveWireframes } = useVibeStore.getState();
@@ -2171,25 +2176,51 @@ export const VibePrototyping: React.FC = () => {
       setVariantProgressMessages({});
       setElapsedTimes({});
 
-      // Compact HTML to reduce token count (2MB+ HTML causes rate limit issues)
-      const compactionResult = await compactHtml(screen.editedHtml, { method: 'combined-optimal' });
-      const compactedHtml = compactionResult.html;
-      console.log('[VibePrototyping] HTML compaction:', {
-        originalSize: compactionResult.originalSize,
-        compactedSize: compactionResult.compactedSize,
-        reductionPercent: compactionResult.reductionPercent,
-      });
+      // Build design tokens from UI metadata for consistency
+      const designTokens = sourceMetadata ? {
+        colors: sourceMetadata.colors,
+        typography: {
+          fontFamilies: sourceMetadata.typography?.fontFamilies || [],
+          fontSizes: sourceMetadata.typography?.fontSizes || [],
+          fontWeights: sourceMetadata.typography?.fontWeights || [],
+        },
+        layout: {
+          containerWidths: sourceMetadata.layout?.containerWidths || [],
+          spacing: sourceMetadata.layout?.spacing || [],
+        },
+        components: sourceMetadata.components?.map(c => ({ type: c.type, count: c.count })) || [],
+      } : undefined;
+
+      console.log('[VibePrototyping] Design tokens:', designTokens);
+
+      // Build wireframe text map from available wireframes
+      const wireframeTexts: Record<number, string> = {};
+      for (const wf of wireframes) {
+        // Use the plan description as wireframe context if no explicit wireframe text
+        const planForVariant = plan.plans.find(p => p.variant_index === wf.variantIndex);
+        wireframeTexts[wf.variantIndex] = planForVariant
+          ? `Layout: ${planForVariant.description}\nKey changes: ${planForVariant.key_changes.join(', ')}`
+          : '';
+      }
+
+      console.log('[VibePrototyping] Wireframe texts:', Object.keys(wireframeTexts).length);
+
+      // Get product context summary (if available)
+      const productContextSummary = contextFiles.length > 0
+        ? `Product context: ${contextFiles.slice(0, 3).map(f => f.fileName).join(', ')} (${contextFiles.length} files total)`
+        : undefined;
 
       let generatedVariants;
 
       if (useStreaming) {
-        // Use streaming generation with live preview
+        // VISION-FIRST streaming generation
         generatedVariants = await generateAllVariantsStreaming(
           currentSession.id,
           plan.plans,
-          compactedHtml,
-          sourceMetadata || undefined,
-          undefined,
+          screenScreenshot, // Screenshot is primary input now
+          designTokens,
+          wireframeTexts,
+          productContextSummary,
           (p) => {
             setProgress({
               stage: 'generating',
@@ -2232,33 +2263,12 @@ export const VibePrototyping: React.FC = () => {
             }
           },
           selectedProvider || undefined, // provider from dropdown
-          selectedModel || undefined, // model from dropdown
-          screenScreenshot || undefined // screenshot for LLM vision
+          selectedModel || undefined // model from dropdown
         );
       } else {
-        // Use non-streaming generation
-        generatedVariants = await generateAllVariants(
-          currentSession.id,
-          plan.plans,
-          compactedHtml,
-          sourceMetadata || undefined,
-          undefined,
-          (p) => {
-            setProgress({
-              stage: 'generating',
-              message: p.message,
-              percent: p.percent,
-              variantIndex: p.variantIndex,
-              variantTitle: p.title,
-            });
-
-            // Track completed variants locally to prevent progress reset
-            if (p.stage === 'complete' && p.variantIndex) {
-              setCompletedVariantIndices((prev) => new Set([...prev, p.variantIndex!]));
-              getVariants(currentSession.id).then(setVariants);
-            }
-          }
-        );
+        // Non-streaming not supported in vision-first approach
+        showError('Non-streaming generation not supported. Please enable streaming.');
+        return;
       }
 
       setVariants(generatedVariants);
@@ -2274,7 +2284,7 @@ export const VibePrototyping: React.FC = () => {
       console.error('[VibePrototyping] Error details:', errorMessage);
       showError(`Failed to generate prototypes: ${errorMessage}`);
     }
-  }, [currentSession, plan, screen, sourceMetadata, screenScreenshot, selectedProvider, selectedModel, addChatMessage, setVariants, setStatus, setProgress, debouncedSavePartialHtml]);
+  }, [currentSession, plan, sourceMetadata, screenScreenshot, wireframes, contextFiles, selectedProvider, selectedModel, addChatMessage, setVariants, setStatus, setProgress, debouncedSavePartialHtml, showError, showSuccess, useStreaming]);
 
   // Handle iteration on a variant
   const handleIterate = useCallback(async () => {
