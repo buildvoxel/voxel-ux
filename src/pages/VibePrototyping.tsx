@@ -106,6 +106,8 @@ import {
   generateAllVariantsStreaming,
   getVariants,
   saveVariantEditedHtml,
+  saveVariantPartialHtml,
+  getPartialHtmlForSession,
 } from '@/services/variantCodeService';
 import {
   generateVisualWireframes,
@@ -203,19 +205,25 @@ function AIPhase({
   content,
   isActive = false,
   isComplete = false,
+  isCollapsible = false,
+  defaultCollapsed = false,
 }: {
   label: string;
   content: string;
   isActive?: boolean;
   isComplete?: boolean;
+  isCollapsible?: boolean;
+  defaultCollapsed?: boolean;
 }) {
   const [displayedContent, setDisplayedContent] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
 
   useEffect(() => {
     if (isActive && content) {
       setIsStreaming(true);
       setDisplayedContent('');
+      setIsCollapsed(false); // Auto-expand when active
       let index = 0;
       const interval = setInterval(() => {
         if (index < content.length) {
@@ -232,33 +240,59 @@ function AIPhase({
     }
   }, [content, isActive, isComplete]);
 
+  const canCollapse = isCollapsible && isComplete && !isActive;
+
   return (
     <Box sx={{ mb: 2.5, animation: 'fadeIn 0.3s ease', '@keyframes fadeIn': { from: { opacity: 0 }, to: { opacity: 1 } } }}>
       <Typography
+        onClick={canCollapse ? () => setIsCollapsed(!isCollapsed) : undefined}
         sx={{
           color: '#26a69a',
           fontSize: 14,
           fontWeight: 600,
-          mb: 0.5,
+          mb: isCollapsed ? 0 : 0.5,
           display: 'flex',
           alignItems: 'center',
           gap: 1,
+          cursor: canCollapse ? 'pointer' : 'default',
+          userSelect: 'none',
+          transition: 'all 0.2s ease',
+          '&:hover': canCollapse ? { color: '#1a8a7f' } : {},
         }}
       >
+        {canCollapse && (
+          <CaretRight
+            size={14}
+            weight="bold"
+            style={{
+              transform: isCollapsed ? 'rotate(0deg)' : 'rotate(90deg)',
+              transition: 'transform 0.2s ease',
+            }}
+          />
+        )}
         {label}
         {isActive && !isComplete && (
           <CircularProgress size={12} sx={{ color: '#26a69a' }} />
         )}
         {isComplete && <Check size={14} weight="bold" />}
       </Typography>
-      <Typography
-        variant="body2"
-        color="text.secondary"
-        sx={{ lineHeight: 1.6, minHeight: 40 }}
+      <Box
+        sx={{
+          overflow: 'hidden',
+          maxHeight: isCollapsed ? 0 : 500,
+          opacity: isCollapsed ? 0 : 1,
+          transition: 'all 0.3s ease',
+        }}
       >
-        {displayedContent}
-        {isStreaming && <span style={{ opacity: 0.5 }}>|</span>}
-      </Typography>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ lineHeight: 1.6, minHeight: isCollapsed ? 0 : 40 }}
+        >
+          {displayedContent}
+          {isStreaming && <span style={{ opacity: 0.5 }}>|</span>}
+        </Typography>
+      </Box>
     </Box>
   );
 }
@@ -664,7 +698,10 @@ function VariantCard({
   isChecked = true,
   isBuilding = false,
   isComplete = false,
+  isQueued = false,
   progress = 0,
+  progressMessage,
+  elapsedTime,
   showCheckbox = false,
   onToggleCheck,
   onClick,
@@ -677,7 +714,10 @@ function VariantCard({
   isChecked?: boolean;
   isBuilding?: boolean;
   isComplete?: boolean;
+  isQueued?: boolean;
   progress?: number;
+  progressMessage?: string;
+  elapsedTime?: string;
   showCheckbox?: boolean;
   onToggleCheck?: () => void;
   onClick?: () => void;
@@ -751,9 +791,16 @@ function VariantCard({
             )}
             {isComplete && <Check size={16} color={config.colors.success} weight="bold" />}
             {isBuilding && <CircularProgress size={14} />}
+            {isQueued && (
+              <Chip
+                label="Queued"
+                size="small"
+                sx={{ height: 18, fontSize: 10, bgcolor: 'grey.200' }}
+              />
+            )}
           </Box>
         </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13, mb: isBuilding ? 1 : 0 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13, mb: (isBuilding || isQueued) ? 1 : 0 }}>
           {description}
         </Typography>
 
@@ -781,12 +828,38 @@ function VariantCard({
           </Box>
         )}
 
+        {/* Detailed building progress */}
         {isBuilding && (
-          <LinearProgress
-            variant="determinate"
-            value={progress}
-            sx={{ mt: 1, height: 3, borderRadius: 2 }}
-          />
+          <Box sx={{ mt: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+              <Typography variant="caption" sx={{ color: 'primary.main', fontWeight: 500, fontSize: 11 }}>
+                {progressMessage || 'Generating...'}
+              </Typography>
+              {elapsedTime && (
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 10 }}>
+                  {elapsedTime}
+                </Typography>
+              )}
+            </Box>
+            <LinearProgress
+              variant="determinate"
+              value={progress}
+              sx={{ height: 4, borderRadius: 2 }}
+            />
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: 10, mt: 0.25, display: 'block' }}>
+              {Math.round(progress)}% complete
+            </Typography>
+          </Box>
+        )}
+
+        {/* Queued state */}
+        {isQueued && !isBuilding && (
+          <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'grey.400' }} />
+            <Typography variant="caption" color="text.secondary">
+              Waiting in queue...
+            </Typography>
+          </Box>
         )}
       </CardContent>
     </Card>
@@ -1397,6 +1470,8 @@ export const VibePrototyping: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const variantEditDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const partialHtmlSaveRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const lastSavedLengthRef = useRef<Record<number, number>>({});
 
   // Dynamic phase content based on user prompt
   const [phaseContent, setPhaseContent] = useState({
@@ -1410,6 +1485,11 @@ export const VibePrototyping: React.FC = () => {
 
   // Track completed variants locally to prevent progress reset
   const [completedVariantIndices, setCompletedVariantIndices] = useState<Set<number>>(new Set());
+
+  // Track variant building state for detailed progress
+  const [variantStartTimes, setVariantStartTimes] = useState<Record<number, number>>({});
+  const [variantProgressMessages, setVariantProgressMessages] = useState<Record<number, string>>({});
+  const [elapsedTimes, setElapsedTimes] = useState<Record<number, string>>({});
 
   // Store generated visual wireframes
   const [wireframes, setWireframes] = useState<VisualWireframeResult[]>([]);
@@ -1459,12 +1539,46 @@ export const VibePrototyping: React.FC = () => {
     }, 1000);
   }, [variants, setVariants]);
 
-  // Cleanup debounce timer on unmount
+  // Debounced save for partial HTML during streaming (3 second delay, min 5KB change)
+  const debouncedSavePartialHtml = useCallback((
+    sessionId: string,
+    variantIndex: number,
+    html: string
+  ) => {
+    // Clear existing timer for this variant
+    if (partialHtmlSaveRef.current[variantIndex]) {
+      clearTimeout(partialHtmlSaveRef.current[variantIndex]);
+    }
+
+    // Only save if significant new content (at least 5KB since last save)
+    const lastLength = lastSavedLengthRef.current[variantIndex] || 0;
+    const minSaveThreshold = 5000; // 5KB minimum change
+    if (html.length - lastLength < minSaveThreshold && lastLength > 0) {
+      return;
+    }
+
+    // Set new timer
+    partialHtmlSaveRef.current[variantIndex] = setTimeout(async () => {
+      try {
+        await saveVariantPartialHtml(sessionId, variantIndex, html);
+        lastSavedLengthRef.current[variantIndex] = html.length;
+        console.log(`[VibePrototyping] Partial HTML saved for variant ${variantIndex} (${html.length} bytes)`);
+      } catch (error) {
+        console.error(`[VibePrototyping] Error saving partial HTML for variant ${variantIndex}:`, error);
+      }
+    }, 3000); // Save every 3 seconds
+  }, []);
+
+  // Cleanup debounce timers on unmount
   useEffect(() => {
     return () => {
       if (variantEditDebounceRef.current) {
         clearTimeout(variantEditDebounceRef.current);
       }
+      // Clear all partial HTML save timers
+      Object.values(partialHtmlSaveRef.current).forEach(timer => {
+        if (timer) clearTimeout(timer);
+      });
     };
   }, []);
 
@@ -1493,6 +1607,44 @@ export const VibePrototyping: React.FC = () => {
   const [streamingHtml, setStreamingHtml] = useState<Record<number, string>>({});
   // Enable streaming by default - could add UI toggle later
   const useStreaming = true;
+
+  // Update elapsed times every second during generation
+  useEffect(() => {
+    if (!isGenerating || Object.keys(variantStartTimes).length === 0) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const newElapsedTimes: Record<number, string> = {};
+
+      Object.entries(variantStartTimes).forEach(([index, startTime]) => {
+        const idx = parseInt(index);
+        if (!completedVariantIndices.has(idx)) {
+          const elapsed = Math.floor((now - startTime) / 1000);
+          const mins = Math.floor(elapsed / 60);
+          const secs = elapsed % 60;
+          newElapsedTimes[idx] = mins > 0
+            ? `${mins}m ${secs}s`
+            : `${secs}s`;
+        }
+      });
+
+      setElapsedTimes(newElapsedTimes);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isGenerating, variantStartTimes, completedVariantIndices]);
+
+  // Generate progress message based on percentage
+  const getProgressStage = useCallback((percent: number): string => {
+    if (percent < 10) return 'Initializing generation...';
+    if (percent < 25) return 'Building document structure...';
+    if (percent < 40) return 'Generating header & navigation...';
+    if (percent < 55) return 'Creating main content sections...';
+    if (percent < 70) return 'Applying styles & colors...';
+    if (percent < 85) return 'Adding interactive elements...';
+    if (percent < 95) return 'Finalizing layout...';
+    return 'Completing generation...';
+  }, []);
 
   // Iteration state
   const [iterationDialogOpen, setIterationDialogOpen] = useState(false);
@@ -1566,6 +1718,13 @@ export const VibePrototyping: React.FC = () => {
               const existingWireframes = await getVisualWireframesForSession(sessionId);
               if (existingWireframes.length > 0) {
                 setWireframes(existingWireframes);
+              }
+
+              // Load partial HTML for variants that were generating (interrupted by refresh)
+              const partialHtml = await getPartialHtmlForSession(sessionId);
+              if (Object.keys(partialHtml).length > 0) {
+                setStreamingHtml(partialHtml);
+                console.log('[VibePrototyping] Restored partial HTML for variants:', Object.keys(partialHtml));
               }
             }
           } else {
@@ -1962,6 +2121,9 @@ export const VibePrototyping: React.FC = () => {
       // Reset completed tracking and streaming state for new build
       setCompletedVariantIndices(new Set());
       setStreamingHtml({});
+      setVariantStartTimes({});
+      setVariantProgressMessages({});
+      setElapsedTimes({});
 
       let generatedVariants;
 
@@ -1982,6 +2144,21 @@ export const VibePrototyping: React.FC = () => {
               variantTitle: p.title,
             });
 
+            // Track start time when variant begins generating
+            if (p.stage === 'generating' && p.variantIndex) {
+              setVariantStartTimes((prev) => {
+                if (!prev[p.variantIndex!]) {
+                  return { ...prev, [p.variantIndex!]: Date.now() };
+                }
+                return prev;
+              });
+              // Update progress message based on overall percent
+              setVariantProgressMessages((prev) => ({
+                ...prev,
+                [p.variantIndex!]: getProgressStage(p.percent),
+              }));
+            }
+
             // Track completed variants locally to prevent progress reset
             if (p.stage === 'complete' && p.variantIndex) {
               setCompletedVariantIndices((prev) => new Set([...prev, p.variantIndex!]));
@@ -1994,6 +2171,10 @@ export const VibePrototyping: React.FC = () => {
               ...prev,
               [variantIndex]: fullHtml,
             }));
+            // Save partial HTML to database periodically
+            if (currentSession) {
+              debouncedSavePartialHtml(currentSession.id, variantIndex, fullHtml);
+            }
           }
         );
       } else {
@@ -2026,13 +2207,14 @@ export const VibePrototyping: React.FC = () => {
       setStatus('complete');
       setProgress(null);
       setStreamingHtml({}); // Clear streaming state
+      lastSavedLengthRef.current = {}; // Reset saved length tracking
 
       showSuccess('All variants generated successfully!');
     } catch (err) {
       console.error('Error generating variants:', err);
       showError('Failed to generate prototypes');
     }
-  }, [currentSession, plan, screen, sourceMetadata, addChatMessage, setVariants, setStatus, setProgress]);
+  }, [currentSession, plan, screen, sourceMetadata, addChatMessage, setVariants, setStatus, setProgress, debouncedSavePartialHtml]);
 
   // Handle iteration on a variant
   const handleIterate = useCallback(async () => {
@@ -2479,6 +2661,8 @@ export const VibePrototyping: React.FC = () => {
                 content={`Extracting UI patterns and design elements from "${currentPrompt?.slice(0, 30) || 'screen'}..."...`}
                 isActive={isAnalyzing}
                 isComplete={!isAnalyzing}
+                isCollapsible={true}
+                defaultCollapsed={!isAnalyzing && (isPlanning || isPlanReady || isWireframing || isWireframeReady || isGenerating || isComplete)}
               />
             )}
 
@@ -2489,6 +2673,8 @@ export const VibePrototyping: React.FC = () => {
                 content={phaseContent.understanding || 'AI is interpreting your request and identifying key goals...'}
                 isActive={isUnderstanding}
                 isComplete={!isUnderstanding && !isUnderstandingReady}
+                isCollapsible={true}
+                defaultCollapsed={!isUnderstanding && !isUnderstandingReady && (isWireframing || isWireframeReady || isGenerating || isComplete)}
               />
             )}
 
@@ -2618,6 +2804,8 @@ export const VibePrototyping: React.FC = () => {
                 content={phaseContent.planning || 'Creating 4 unique approaches to solve this design challenge...'}
                 isActive={isPlanning}
                 isComplete={!isPlanning}
+                isCollapsible={true}
+                defaultCollapsed={!isPlanning && !isPlanReady && (isGenerating || isComplete)}
               />
             )}
 
@@ -2628,6 +2816,8 @@ export const VibePrototyping: React.FC = () => {
                 content="Creating quick layout sketches for each paradigm to visualize the structure before building..."
                 isActive={isWireframing}
                 isComplete={!isWireframing && (isWireframeReady || isGenerating || isComplete)}
+                isCollapsible={true}
+                defaultCollapsed={!isWireframing && !isWireframeReady && isComplete}
               />
             )}
 
@@ -2638,6 +2828,8 @@ export const VibePrototyping: React.FC = () => {
                 content="Generating high-fidelity prototypes with full styling and interactivity for each variant..."
                 isActive={isGenerating}
                 isComplete={isComplete}
+                isCollapsible={true}
+                defaultCollapsed={false}
               />
             )}
 
@@ -2645,11 +2837,15 @@ export const VibePrototyping: React.FC = () => {
             {showPlanCards && (
               <Box sx={{ mt: 2 }}>
                 {plan!.plans.map((p, idx) => {
-                  const variantProgress = getVariantProgress(idx + 1);
-                  const variant = getVariantByIndex(idx + 1);
-                  const isBuilding = isGenerating && progress?.variantIndex === idx + 1;
+                  const variantIndex = idx + 1;
+                  const variantProgress = getVariantProgress(variantIndex);
+                  const variant = getVariantByIndex(variantIndex);
+                  const isThisBuilding = isGenerating && progress?.variantIndex === variantIndex;
+                  // Check if this variant is queued (not yet started but will be built)
+                  const isQueued = isGenerating && selectedVariants.includes(variantIndex) &&
+                    !variantStartTimes[variantIndex] && variant?.status !== 'complete';
                   // Find wireframe for this variant
-                  const wireframe = wireframes.find(w => w.variantIndex === idx + 1);
+                  const wireframe = wireframes.find(w => w.variantIndex === variantIndex);
 
                   return (
                     <VariantCard
@@ -2657,15 +2853,18 @@ export const VibePrototyping: React.FC = () => {
                       title={p.title || `Variant ${String.fromCharCode(65 + idx)}`}
                       description={p.description || 'Generating design approach...'}
                       wireframeUrl={wireframe?.wireframeUrl}
-                      variantIndex={idx + 1}
-                      isSelected={focusedVariantIndex === idx + 1}
-                      isChecked={selectedVariants.includes(idx + 1)}
+                      variantIndex={variantIndex}
+                      isSelected={focusedVariantIndex === variantIndex}
+                      isChecked={selectedVariants.includes(variantIndex)}
                       showCheckbox={isPlanReady}
-                      onToggleCheck={() => toggleVariantSelection(idx + 1)}
-                      isBuilding={isBuilding}
+                      onToggleCheck={() => toggleVariantSelection(variantIndex)}
+                      isBuilding={isThisBuilding}
+                      isQueued={isQueued}
                       isComplete={variant?.status === 'complete'}
                       progress={variantProgress}
-                      onClick={variant?.status === 'complete' ? () => handleVariantClick(idx + 1) : undefined}
+                      progressMessage={variantProgressMessages[variantIndex]}
+                      elapsedTime={elapsedTimes[variantIndex]}
+                      onClick={variant?.status === 'complete' ? () => handleVariantClick(variantIndex) : undefined}
                     />
                   );
                 })}

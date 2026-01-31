@@ -27,6 +27,8 @@ export interface VibeVariant {
   iteration_count: number;
   edited_html: string | null;
   edited_at: string | null;
+  partial_html: string | null;
+  partial_html_updated_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -337,6 +339,67 @@ export async function saveVariantEditedHtml(variantId: string, editedHtml: strin
   }
 
   return true;
+}
+
+/**
+ * Save partial HTML during streaming generation
+ * This allows resuming preview after page refresh
+ */
+export async function saveVariantPartialHtml(
+  sessionId: string,
+  variantIndex: number,
+  partialHtml: string
+): Promise<boolean> {
+  if (!isSupabaseConfigured()) {
+    return false;
+  }
+
+  const { error } = await supabase
+    .from('vibe_variants')
+    .update({
+      partial_html: partialHtml,
+      partial_html_updated_at: new Date().toISOString(),
+    })
+    .eq('session_id', sessionId)
+    .eq('variant_index', variantIndex)
+    .eq('status', 'generating');
+
+  if (error) {
+    console.error('Error saving variant partial HTML:', error);
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Get partial HTML for variants in generating state
+ * Used to restore streaming preview after page refresh
+ */
+export async function getPartialHtmlForSession(sessionId: string): Promise<Record<number, string>> {
+  if (!isSupabaseConfigured()) {
+    return {};
+  }
+
+  const { data, error } = await supabase
+    .from('vibe_variants')
+    .select('variant_index, partial_html')
+    .eq('session_id', sessionId)
+    .eq('status', 'generating')
+    .not('partial_html', 'is', null);
+
+  if (error) {
+    console.error('Error fetching partial HTML:', error);
+    return {};
+  }
+
+  const result: Record<number, string> = {};
+  for (const row of data || []) {
+    if (row.partial_html) {
+      result[row.variant_index] = row.partial_html;
+    }
+  }
+  return result;
 }
 
 /**

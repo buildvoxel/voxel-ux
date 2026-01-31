@@ -149,7 +149,8 @@ describe('vibeStore', () => {
 
       const state = useVibeStore.getState();
       expect(state.currentSession?.plan_approved).toBe(true);
-      expect(state.status).toBe('generating');
+      // Workflow now goes to wireframing first, then generating
+      expect(state.status).toBe('wireframing');
     });
 
     it('should get plan by index correctly', () => {
@@ -164,8 +165,8 @@ describe('vibeStore', () => {
 
   describe('variant management', () => {
     const mockVariants: VibeVariant[] = [
-      { id: 'var-1', session_id: 'session-1', plan_id: 'plan-1', variant_index: 1, html_path: '/path/1.html', css_path: null, screenshot_path: null, html_url: 'https://url/1.html', css_url: null, screenshot_url: null, generation_model: 'claude', generation_duration_ms: 5000, token_count: null, status: 'complete', error_message: null, iteration_count: 0, edited_html: null, edited_at: null, created_at: '', updated_at: '' },
-      { id: 'var-2', session_id: 'session-1', plan_id: 'plan-2', variant_index: 2, html_path: '/path/2.html', css_path: null, screenshot_path: null, html_url: 'https://url/2.html', css_url: null, screenshot_url: null, generation_model: 'claude', generation_duration_ms: 4500, token_count: null, status: 'complete', error_message: null, iteration_count: 0, edited_html: null, edited_at: null, created_at: '', updated_at: '' },
+      { id: 'var-1', session_id: 'session-1', plan_id: 'plan-1', variant_index: 1, html_path: '/path/1.html', css_path: null, screenshot_path: null, html_url: 'https://url/1.html', css_url: null, screenshot_url: null, generation_model: 'claude', generation_duration_ms: 5000, token_count: null, status: 'complete', error_message: null, iteration_count: 0, edited_html: null, edited_at: null, partial_html: null, partial_html_updated_at: null, created_at: '', updated_at: '' },
+      { id: 'var-2', session_id: 'session-1', plan_id: 'plan-2', variant_index: 2, html_path: '/path/2.html', css_path: null, screenshot_path: null, html_url: 'https://url/2.html', css_url: null, screenshot_url: null, generation_model: 'claude', generation_duration_ms: 4500, token_count: null, status: 'complete', error_message: null, iteration_count: 0, edited_html: null, edited_at: null, partial_html: null, partial_html_updated_at: null, created_at: '', updated_at: '' },
     ];
 
     it('should set variants correctly', () => {
@@ -198,6 +199,8 @@ describe('vibeStore', () => {
         iteration_count: 0,
         edited_html: null,
         edited_at: null,
+        partial_html: null,
+        partial_html_updated_at: null,
         created_at: '',
         updated_at: '',
       };
@@ -255,6 +258,8 @@ describe('vibeStore', () => {
         iteration_count: 0,
         edited_html: null,
         edited_at: null,
+        partial_html: null,
+        partial_html_updated_at: null,
         created_at: '',
         updated_at: '',
       }));
