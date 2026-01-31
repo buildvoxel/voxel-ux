@@ -3505,8 +3505,9 @@ export const VibePrototyping: React.FC = () => {
             </Box>
           )}
 
-          {/* Complete state with focus - inline expansion view */}
-          {isComplete && focusedVariantIndex && !editMode && (
+          {/* Complete or Generating state with focus - inline expansion view (preview mode) */}
+          {/* Allow exploring completed variants while others are still generating */}
+          {(isComplete || (isGenerating && focusedVariant?.status === 'complete')) && focusedVariantIndex && editMode === 'cursor' && (
             <InlineExpansionGrid
               wireframes={wireframes}
               focusedIndex={focusedVariantIndex}
@@ -3518,8 +3519,9 @@ export const VibePrototyping: React.FC = () => {
             />
           )}
 
-          {/* Focused variant with edit mode - single full preview with code/wysiwyg editor */}
-          {focusedVariantIndex && focusedVariant && editMode && (
+          {/* Focused variant with edit mode (code or wysiwyg) - single full preview with code/wysiwyg editor */}
+          {/* Also works during generation if the focused variant is complete */}
+          {focusedVariantIndex && focusedVariant && (focusedVariant.status === 'complete' || isComplete) && editMode !== 'cursor' && (
             <Box sx={{ flex: 1, p: 2, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               {/* Variant action bar */}
               <Box
