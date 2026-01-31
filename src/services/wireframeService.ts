@@ -55,7 +55,10 @@ export async function generateWireframes(
   plans: VariantPlan[],
   html: string,
   uiMetadata?: UIMetadata,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  screenshotBase64?: string,
+  provider?: string,
+  model?: string
 ): Promise<GeneratedWireframes> {
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase not configured');
@@ -119,7 +122,10 @@ export async function generateWireframes(
       sessionId,
       plans: plansPayload,
       compactedHtml,
+      screenshotBase64,
       uiMetadata,
+      provider,
+      model,
     },
     headers: {
       Authorization: `Bearer ${session.access_token}`,
@@ -171,7 +177,10 @@ export async function generateVisualWireframes(
   html: string,
   uiMetadata?: UIMetadata,
   selectedVariants?: number[],
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  screenshotBase64?: string,
+  provider?: string,
+  model?: string
 ): Promise<GeneratedVisualWireframes> {
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase not configured');
@@ -236,8 +245,11 @@ export async function generateVisualWireframes(
       sessionId,
       plans: plansPayload,
       compactedHtml,
+      screenshotBase64,
       uiMetadata,
       selectedVariants,
+      provider,
+      model,
     },
     headers: {
       Authorization: `Bearer ${session.access_token}`,

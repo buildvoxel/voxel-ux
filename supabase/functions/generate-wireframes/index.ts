@@ -20,6 +20,7 @@ interface GenerateWireframesRequest {
     styleNotes: string
   }>
   compactedHtml: string
+  screenshotBase64?: string  // Base64-encoded screenshot of current screen
   uiMetadata?: {
     colors: Record<string, string[]>
     typography: Record<string, string[]>
@@ -141,9 +142,29 @@ function parseWireframes(response: string, plans: GenerateWireframesRequest['pla
   })
 }
 
-// Generate with Anthropic
-async function generateWithAnthropic(apiKey: string, model: string, prompt: string): Promise<string> {
-  console.log('[generate-wireframes] Calling Anthropic API')
+// Generate with Anthropic (with optional vision support)
+async function generateWithAnthropic(apiKey: string, model: string, prompt: string, screenshotBase64?: string): Promise<string> {
+  console.log('[generate-wireframes] Calling Anthropic API', screenshotBase64 ? 'with screenshot' : 'text only')
+
+  // Build message content - text or text + image
+  const content: Array<{ type: string; text?: string; source?: { type: string; media_type: string; data: string } }> = []
+
+  if (screenshotBase64) {
+    content.push({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: 'image/jpeg',
+        data: screenshotBase64,
+      },
+    })
+    content.push({
+      type: 'text',
+      text: 'This is the current screen that needs wireframe modifications. Study it carefully to understand the existing layout and components.\n\n' + prompt,
+    })
+  } else {
+    content.push({ type: 'text', text: prompt })
+  }
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -156,7 +177,7 @@ async function generateWithAnthropic(apiKey: string, model: string, prompt: stri
       model: model || 'claude-sonnet-4-20250514',
       max_tokens: 8192,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content }],
     }),
   })
 
@@ -169,9 +190,27 @@ async function generateWithAnthropic(apiKey: string, model: string, prompt: stri
   return data.content[0]?.text || ''
 }
 
-// Generate with OpenAI
-async function generateWithOpenAI(apiKey: string, model: string, prompt: string): Promise<string> {
-  console.log('[generate-wireframes] Calling OpenAI API')
+// Generate with OpenAI (with optional vision support)
+async function generateWithOpenAI(apiKey: string, model: string, prompt: string, screenshotBase64?: string): Promise<string> {
+  console.log('[generate-wireframes] Calling OpenAI API', screenshotBase64 ? 'with screenshot' : 'text only')
+
+  // Build message content - text or text + image
+  const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = []
+
+  if (screenshotBase64) {
+    content.push({
+      type: 'image_url',
+      image_url: {
+        url: `data:image/jpeg;base64,${screenshotBase64}`,
+      },
+    })
+    content.push({
+      type: 'text',
+      text: 'This is the current screen that needs wireframe modifications. Study it carefully to understand the existing layout and components.\n\n' + prompt,
+    })
+  } else {
+    content.push({ type: 'text', text: prompt })
+  }
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -185,7 +224,7 @@ async function generateWithOpenAI(apiKey: string, model: string, prompt: string)
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: prompt },
+        { role: 'user', content },
       ],
     }),
   })
@@ -199,9 +238,26 @@ async function generateWithOpenAI(apiKey: string, model: string, prompt: string)
   return data.choices[0]?.message?.content || ''
 }
 
-// Generate with Google
-async function generateWithGoogle(apiKey: string, model: string, prompt: string): Promise<string> {
-  console.log('[generate-wireframes] Calling Google API')
+// Generate with Google (with optional vision support)
+async function generateWithGoogle(apiKey: string, model: string, prompt: string, screenshotBase64?: string): Promise<string> {
+  console.log('[generate-wireframes] Calling Google API', screenshotBase64 ? 'with screenshot' : 'text only')
+
+  // Build parts array - text or text + image
+  const parts: Array<{ text?: string; inline_data?: { mime_type: string; data: string } }> = []
+
+  if (screenshotBase64) {
+    parts.push({
+      inline_data: {
+        mime_type: 'image/jpeg',
+        data: screenshotBase64,
+      },
+    })
+    parts.push({
+      text: SYSTEM_PROMPT + '\n\nThis is the current screen that needs wireframe modifications. Study it carefully to understand the existing layout and components.\n\n' + prompt,
+    })
+  } else {
+    parts.push({ text: SYSTEM_PROMPT + '\n\n' + prompt })
+  }
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-1.5-pro'}:generateContent?key=${apiKey}`,
@@ -209,7 +265,7 @@ async function generateWithGoogle(apiKey: string, model: string, prompt: string)
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: SYSTEM_PROMPT + '\n\n' + prompt }] }],
+        contents: [{ parts }],
         generationConfig: {
           maxOutputTokens: 8192,
           responseMimeType: 'application/json',
@@ -302,18 +358,23 @@ Deno.serve(async (req) => {
     // Build prompt
     const prompt = buildWireframePrompt(body)
 
-    // Generate wireframes based on provider
+    // Log if screenshot is provided
+    if (body.screenshotBase64) {
+      console.log('[generate-wireframes] Screenshot provided, size:', Math.round(body.screenshotBase64.length / 1024), 'KB')
+    }
+
+    // Generate wireframes based on provider (with optional screenshot for vision)
     let rawResponse: string
 
     switch (keyConfig.provider) {
       case 'anthropic':
-        rawResponse = await generateWithAnthropic(apiKey, modelToUse, prompt)
+        rawResponse = await generateWithAnthropic(apiKey, modelToUse, prompt, body.screenshotBase64)
         break
       case 'openai':
-        rawResponse = await generateWithOpenAI(apiKey, modelToUse, prompt)
+        rawResponse = await generateWithOpenAI(apiKey, modelToUse, prompt, body.screenshotBase64)
         break
       case 'google':
-        rawResponse = await generateWithGoogle(apiKey, modelToUse, prompt)
+        rawResponse = await generateWithGoogle(apiKey, modelToUse, prompt, body.screenshotBase64)
         break
       default:
         throw new Error(`Unsupported provider: ${keyConfig.provider}`)

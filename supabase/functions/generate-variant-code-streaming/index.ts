@@ -21,6 +21,7 @@ interface GenerateCodeRequest {
     styleNotes: string
   }
   sourceHtml: string
+  screenshotBase64?: string  // Base64-encoded screenshot of current screen
   uiMetadata?: Record<string, unknown>
   productContext?: string
   provider?: 'anthropic' | 'openai' | 'google'
@@ -106,13 +107,34 @@ function createSSEEncoder() {
   }
 }
 
-// Stream with Anthropic
+// Stream with Anthropic (with optional vision support)
 async function* streamWithAnthropic(
   apiKey: string,
   model: string,
-  prompt: string
+  prompt: string,
+  screenshotBase64?: string
 ): AsyncGenerator<string> {
-  console.log('[streaming] Calling Anthropic streaming API')
+  console.log('[streaming] Calling Anthropic streaming API', screenshotBase64 ? 'with screenshot' : 'text only')
+
+  // Build message content - text or text + image
+  const content: Array<{ type: string; text?: string; source?: { type: string; media_type: string; data: string } }> = []
+
+  if (screenshotBase64) {
+    content.push({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: 'image/jpeg',
+        data: screenshotBase64,
+      },
+    })
+    content.push({
+      type: 'text',
+      text: 'This is the current screen that needs to be modified. The HTML code for this screen is provided below.\n\n' + prompt,
+    })
+  } else {
+    content.push({ type: 'text', text: prompt })
+  }
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -126,7 +148,7 @@ async function* streamWithAnthropic(
       max_tokens: 16384,
       stream: true,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content }],
     }),
   })
 
@@ -167,13 +189,32 @@ async function* streamWithAnthropic(
   }
 }
 
-// Stream with OpenAI
+// Stream with OpenAI (with optional vision support)
 async function* streamWithOpenAI(
   apiKey: string,
   model: string,
-  prompt: string
+  prompt: string,
+  screenshotBase64?: string
 ): AsyncGenerator<string> {
-  console.log('[streaming] Calling OpenAI streaming API')
+  console.log('[streaming] Calling OpenAI streaming API', screenshotBase64 ? 'with screenshot' : 'text only')
+
+  // Build message content - text or text + image
+  const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = []
+
+  if (screenshotBase64) {
+    content.push({
+      type: 'image_url',
+      image_url: {
+        url: `data:image/jpeg;base64,${screenshotBase64}`,
+      },
+    })
+    content.push({
+      type: 'text',
+      text: 'This is the current screen that needs to be modified. The HTML code for this screen is provided below.\n\n' + prompt,
+    })
+  } else {
+    content.push({ type: 'text', text: prompt })
+  }
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -187,7 +228,7 @@ async function* streamWithOpenAI(
       stream: true,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: prompt },
+        { role: 'user', content },
       ],
     }),
   })
@@ -230,13 +271,31 @@ async function* streamWithOpenAI(
   }
 }
 
-// Stream with Google (Gemini)
+// Stream with Google (Gemini) with optional vision support
 async function* streamWithGoogle(
   apiKey: string,
   model: string,
-  prompt: string
+  prompt: string,
+  screenshotBase64?: string
 ): AsyncGenerator<string> {
-  console.log('[streaming] Calling Google streaming API')
+  console.log('[streaming] Calling Google streaming API', screenshotBase64 ? 'with screenshot' : 'text only')
+
+  // Build parts array - text or text + image
+  const parts: Array<{ text?: string; inline_data?: { mime_type: string; data: string } }> = []
+
+  if (screenshotBase64) {
+    parts.push({
+      inline_data: {
+        mime_type: 'image/jpeg',
+        data: screenshotBase64,
+      },
+    })
+    parts.push({
+      text: SYSTEM_PROMPT + '\n\nThis is the current screen that needs to be modified. The HTML code for this screen is provided below.\n\n' + prompt,
+    })
+  } else {
+    parts.push({ text: SYSTEM_PROMPT + '\n\n' + prompt })
+  }
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-1.5-pro'}:streamGenerateContent?key=${apiKey}`,
@@ -244,7 +303,7 @@ async function* streamWithGoogle(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: SYSTEM_PROMPT + '\n\n' + prompt }] }],
+        contents: [{ parts }],
         generationConfig: { maxOutputTokens: 16384 },
       }),
     }
@@ -422,6 +481,11 @@ Deno.serve(async (req) => {
     // Build prompt
     const prompt = buildCodePrompt(body)
 
+    // Log if screenshot is provided
+    if (body.screenshotBase64) {
+      console.log('[streaming] Screenshot provided, size:', Math.round(body.screenshotBase64.length / 1024), 'KB')
+    }
+
     // Create SSE response stream
     const sse = createSSEEncoder()
     let fullHtml = ''
@@ -437,17 +501,17 @@ Deno.serve(async (req) => {
             message: `Starting generation for variant ${body.variantIndex}...`,
           }))
 
-          // Get appropriate stream generator
+          // Get appropriate stream generator (with optional screenshot for vision)
           let streamGenerator: AsyncGenerator<string>
           switch (keyConfig.provider) {
             case 'anthropic':
-              streamGenerator = streamWithAnthropic(apiKey, modelToUse, prompt)
+              streamGenerator = streamWithAnthropic(apiKey, modelToUse, prompt, body.screenshotBase64)
               break
             case 'openai':
-              streamGenerator = streamWithOpenAI(apiKey, modelToUse, prompt)
+              streamGenerator = streamWithOpenAI(apiKey, modelToUse, prompt, body.screenshotBase64)
               break
             case 'google':
-              streamGenerator = streamWithGoogle(apiKey, modelToUse, prompt)
+              streamGenerator = streamWithGoogle(apiKey, modelToUse, prompt, body.screenshotBase64)
               break
             default:
               throw new Error(`Unsupported provider: ${keyConfig.provider}`)

@@ -164,7 +164,10 @@ export async function generateVariantPlan(
   html: string,
   uiMetadata?: UIMetadata,
   productContext?: string,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  screenshotBase64?: string,
+  provider?: string,
+  model?: string
 ): Promise<GeneratedPlan> {
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase not configured');
@@ -213,8 +216,11 @@ export async function generateVariantPlan(
       sessionId,
       prompt,
       compactedHtml,
+      screenshotBase64,
       uiMetadata,
       productContext,
+      provider,
+      model,
     },
     headers: {
       Authorization: `Bearer ${session.access_token}`,

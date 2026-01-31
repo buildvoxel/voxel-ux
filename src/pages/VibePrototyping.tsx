@@ -138,6 +138,7 @@ import {
 } from '@/services/sharingService';
 import DualModeEditor from '@/components/DualModeEditor';
 import WYSIWYGEditor from '@/components/WYSIWYGEditor';
+import { captureHtmlScreenshot, compressScreenshot } from '@/services/screenshotService';
 
 // ============== Types ==============
 
@@ -1433,6 +1434,7 @@ export const VibePrototyping: React.FC = () => {
   // Local state
   const [isLoading, setIsLoading] = useState(true);
   const [screen, setScreen] = useState<ReturnType<typeof getScreenById> | null>(null);
+  const [screenScreenshot, setScreenScreenshot] = useState<string | null>(null); // Base64 screenshot for LLM vision
   const [promptValue, setPromptValue] = useState('');
   const [focusedVariantIndex, setFocusedVariantIndex] = useState<number | null>(null);
   const [editMode, setEditMode] = useState<EditMode>('cursor');
@@ -1695,6 +1697,40 @@ export const VibePrototyping: React.FC = () => {
           const cached = await getCachedMetadata(screenId);
           if (cached) {
             setSourceMetadata(cached as unknown as UIMetadata);
+          }
+
+          // Capture screenshot for LLM vision
+          // Try to use existing thumbnail URL first, otherwise capture from HTML
+          if (s.thumbnail && s.thumbnail.startsWith('http')) {
+            // Fetch thumbnail URL and convert to base64
+            try {
+              const response = await fetch(s.thumbnail);
+              const blob = await response.blob();
+              const reader = new FileReader();
+              reader.onloadend = async () => {
+                const base64 = (reader.result as string).split(',')[1];
+                const compressed = await compressScreenshot(base64, 400);
+                setScreenScreenshot(compressed);
+                console.log('[VibePrototyping] Loaded thumbnail, size:', Math.round(compressed.length / 1024), 'KB');
+              };
+              reader.readAsDataURL(blob);
+            } catch (err) {
+              console.warn('[VibePrototyping] Failed to load thumbnail, capturing from HTML:', err);
+              const result = await captureHtmlScreenshot(s.editedHtml, { maxWidth: 1280, maxHeight: 800, quality: 0.7 });
+              if (result) {
+                const compressed = await compressScreenshot(result.base64, 400);
+                setScreenScreenshot(compressed);
+                console.log('[VibePrototyping] Captured screenshot, size:', Math.round(compressed.length / 1024), 'KB');
+              }
+            }
+          } else {
+            // No thumbnail URL, capture from HTML
+            const result = await captureHtmlScreenshot(s.editedHtml, { maxWidth: 1280, maxHeight: 800, quality: 0.7 });
+            if (result) {
+              const compressed = await compressScreenshot(result.base64, 400);
+              setScreenScreenshot(compressed);
+              console.log('[VibePrototyping] Captured screenshot, size:', Math.round(compressed.length / 1024), 'KB');
+            }
           }
 
           if (sessionId) {
@@ -1960,7 +1996,10 @@ export const VibePrototyping: React.FC = () => {
             message: p.message,
             percent: 30 + p.percent * 0.4,
           });
-        }
+        },
+        screenScreenshot || undefined, // screenshot for LLM vision
+        selectedProvider || undefined, // provider from dropdown
+        selectedModel || undefined // model from dropdown
       );
 
       setPlan({
@@ -1982,7 +2021,7 @@ export const VibePrototyping: React.FC = () => {
       setError(errorMsg);
       showError('Failed to generate variant plan');
     }
-  }, [currentSession, screen, sourceMetadata, storeApproveUnderstanding]);
+  }, [currentSession, screen, sourceMetadata, screenScreenshot, selectedProvider, selectedModel, storeApproveUnderstanding]);
 
   // Handle clarification - user wants to elaborate on their request
   const [clarificationInput, setClarificationInput] = useState('');
@@ -2077,7 +2116,10 @@ export const VibePrototyping: React.FC = () => {
             message: p.message,
             percent: p.percent,
           });
-        }
+        },
+        screenScreenshot || undefined, // screenshot for LLM vision
+        selectedProvider || undefined, // provider from dropdown
+        selectedModel || undefined // model from dropdown
       );
 
       console.log('[VibePrototyping] Visual wireframes generated:', wireframeResult.wireframes?.length);
@@ -2096,7 +2138,7 @@ export const VibePrototyping: React.FC = () => {
       showError(errorMsg);
       setError(errorMsg);
     }
-  }, [currentSession, plan, screen, sourceMetadata, selectedVariants, addChatMessage, storeApprovePlan]);
+  }, [currentSession, plan, screen, sourceMetadata, screenScreenshot, selectedProvider, selectedModel, selectedVariants, addChatMessage, storeApprovePlan]);
 
   // Handle Build High-Fidelity button - transitions from wireframe_ready to generating
   const handleBuildHighFidelity = useCallback(async () => {
@@ -2178,7 +2220,8 @@ export const VibePrototyping: React.FC = () => {
             }
           },
           selectedProvider || undefined, // provider from dropdown
-          selectedModel || undefined // model from dropdown
+          selectedModel || undefined, // model from dropdown
+          screenScreenshot || undefined // screenshot for LLM vision
         );
       } else {
         // Use non-streaming generation
@@ -2217,7 +2260,7 @@ export const VibePrototyping: React.FC = () => {
       console.error('Error generating variants:', err);
       showError('Failed to generate prototypes');
     }
-  }, [currentSession, plan, screen, sourceMetadata, addChatMessage, setVariants, setStatus, setProgress, debouncedSavePartialHtml]);
+  }, [currentSession, plan, screen, sourceMetadata, screenScreenshot, selectedProvider, selectedModel, addChatMessage, setVariants, setStatus, setProgress, debouncedSavePartialHtml]);
 
   // Handle iteration on a variant
   const handleIterate = useCallback(async () => {
