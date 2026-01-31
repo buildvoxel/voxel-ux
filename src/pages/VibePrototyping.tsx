@@ -798,6 +798,7 @@ function CanvasVariantCard({
   isLoading = false,
   htmlUrl,
   wireframeUrl,
+  wireframeHtml,
   streamingHtml,
   progress = 0,
   onClick,
@@ -806,14 +807,15 @@ function CanvasVariantCard({
   isLoading?: boolean;
   htmlUrl?: string | null;
   wireframeUrl?: string | null;
+  wireframeHtml?: string | null;
   streamingHtml?: string | null;
   progress?: number;
   onClick?: () => void;
 }) {
   // Show streaming preview if available during loading
   const showStreamingPreview = isLoading && streamingHtml && streamingHtml.length > 100;
-  // Show wireframe if no high-fidelity yet but wireframe exists
-  const showWireframePreview = !htmlUrl && !isLoading && wireframeUrl;
+  // Show wireframe if no high-fidelity yet but wireframe exists (prefer HTML over URL)
+  const showWireframePreview = !htmlUrl && !isLoading && (wireframeHtml || wireframeUrl);
 
   return (
     <Card
@@ -972,7 +974,10 @@ function CanvasVariantCard({
               }}
             >
               <iframe
-                src={wireframeUrl!}
+                {...(wireframeHtml
+                  ? { srcDoc: wireframeHtml }
+                  : { src: wireframeUrl! }
+                )}
                 title={`${label} (wireframe)`}
                 style={{
                   width: '200%',
@@ -1018,7 +1023,7 @@ function InlineExpansionGrid({
   onIterateClick,
   getVariantByIndex,
 }: {
-  wireframes: Array<{ variantIndex: number; wireframeUrl: string }>;
+  wireframes: Array<{ variantIndex: number; wireframeUrl: string; wireframeHtml?: string }>;
   focusedIndex: number;
   onFocusChange: (index: number) => void;
   onBackToGrid: () => void;
@@ -1031,7 +1036,8 @@ function InlineExpansionGrid({
   const focusedVariant = getVariantByIndex(focusedIndex);
   const focusedWireframe = wireframes.find(w => w.variantIndex === focusedIndex);
   const focusedUrl = focusedVariant?.html_url || focusedWireframe?.wireframeUrl;
-  const isWireframe = !focusedVariant?.html_url && focusedWireframe?.wireframeUrl;
+  const focusedHtml = focusedWireframe?.wireframeHtml;
+  const isWireframe = !focusedVariant?.html_url && (focusedWireframe?.wireframeHtml || focusedWireframe?.wireframeUrl);
   const isComplete = focusedVariant?.status === 'complete';
 
   // Other variants (not focused)
@@ -1140,9 +1146,12 @@ function InlineExpansionGrid({
             boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
           }}
         >
-          {focusedUrl ? (
+          {(focusedUrl || focusedHtml) ? (
             <iframe
-              src={focusedUrl}
+              {...(isWireframe && focusedHtml
+                ? { srcDoc: focusedHtml }
+                : { src: focusedUrl }
+              )}
               title={labels[focusedIndex - 1]}
               style={{
                 width: '100%',
@@ -1185,7 +1194,8 @@ function InlineExpansionGrid({
           const variant = getVariantByIndex(idx);
           const wireframe = wireframes.find(w => w.variantIndex === idx);
           const previewUrl = variant?.html_url || wireframe?.wireframeUrl;
-          const isThumbWireframe = !variant?.html_url && wireframe?.wireframeUrl;
+          const previewHtml = wireframe?.wireframeHtml;
+          const isThumbWireframe = !variant?.html_url && (wireframe?.wireframeHtml || wireframe?.wireframeUrl);
 
           return (
             <Card
@@ -1207,10 +1217,13 @@ function InlineExpansionGrid({
               }}
             >
               <Box sx={{ position: 'relative', height: '100%' }}>
-                {previewUrl ? (
+                {(previewUrl || previewHtml) ? (
                   <>
                     <iframe
-                      src={previewUrl}
+                      {...(isThumbWireframe && previewHtml
+                        ? { srcDoc: previewHtml }
+                        : { src: previewUrl }
+                      )}
                       title={labels[idx - 1]}
                       style={{
                         width: '300%',
@@ -3437,6 +3450,7 @@ export const VibePrototyping: React.FC = () => {
                         isLoading={isGenerating && (!variant || variant.status !== 'complete')}
                         htmlUrl={variant?.html_url}
                         wireframeUrl={wireframe?.wireframeUrl}
+                        wireframeHtml={wireframe?.wireframeHtml}
                         streamingHtml={variantStreamingHtml}
                         progress={variantProgress}
                         onClick={canClick ? () => handleVariantClick(idx + 1) : undefined}
@@ -3472,6 +3486,7 @@ export const VibePrototyping: React.FC = () => {
                         label={label}
                         htmlUrl={variant?.html_url}
                         wireframeUrl={wireframe?.wireframeUrl}
+                        wireframeHtml={wireframe?.wireframeHtml}
                         onClick={() => handleVariantClick(idx + 1)}
                       />
                     </Grid>
