@@ -1870,8 +1870,8 @@ export const VibePrototyping: React.FC = () => {
         screen.editedHtml,
         metadata,
         undefined, // productContext
-        undefined, // provider
-        undefined, // model
+        selectedProvider || undefined, // provider - use selected from dropdown
+        selectedModel || undefined, // model - use selected from dropdown
         (p: { message: string; percent: number }) => {
           setProgress({
             stage: 'understanding',
@@ -2011,8 +2011,8 @@ export const VibePrototyping: React.FC = () => {
         screen.editedHtml,
         sourceMetadata || undefined,
         undefined, // productContext
-        undefined, // provider
-        undefined, // model
+        selectedProvider || undefined, // provider - use selected from dropdown
+        selectedModel || undefined, // model - use selected from dropdown
         (p: { message: string; percent: number }) => {
           setProgress({
             stage: 'understanding',
@@ -2176,7 +2176,9 @@ export const VibePrototyping: React.FC = () => {
             if (currentSession) {
               debouncedSavePartialHtml(currentSession.id, variantIndex, fullHtml);
             }
-          }
+          },
+          selectedProvider || undefined, // provider from dropdown
+          selectedModel || undefined // model from dropdown
         );
       } else {
         // Use non-streaming generation
