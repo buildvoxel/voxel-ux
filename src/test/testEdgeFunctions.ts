@@ -108,10 +108,18 @@ export async function testUnderstandRequest(sessionId: string): Promise<TestResu
   console.log(`[TEST] HTML size: ${SAMPLE_HTML.length} chars`);
 
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    console.log('[TEST] Session check - error:', sessionError);
+    console.log('[TEST] Session check - has session:', !!session);
+
     if (!session) {
-      throw new Error('Not authenticated');
+      throw new Error('Not authenticated - no session found. Please log in first.');
     }
+
+    console.log('[TEST] User ID:', session.user?.id);
+    console.log('[TEST] User email:', session.user?.email);
+    console.log('[TEST] Token expires at:', session.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'unknown');
+    console.log('[TEST] Token expired:', session.expires_at ? Date.now() > session.expires_at * 1000 : 'unknown');
 
     // First check if user has an API key configured
     const { data: apiKeyRefs, error: apiKeyError } = await supabase
@@ -130,27 +138,52 @@ export async function testUnderstandRequest(sessionId: string): Promise<TestResu
 
     console.log('[TEST] Access token (first 20 chars):', session.access_token?.substring(0, 20) + '...');
 
-    // Use supabase.functions.invoke - it handles auth automatically
-    const { data, error } = await supabase.functions.invoke('understand-request', {
-      body: {
+    // Try direct fetch to see the raw response
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const functionUrl = `${supabaseUrl}/functions/v1/understand-request`;
+    console.log('[TEST] Function URL:', functionUrl);
+
+    const rawResponse = await fetch(functionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
         sessionId,
         prompt: SAMPLE_PROMPT,
         compactedHtml: SAMPLE_HTML,
         uiMetadata: SAMPLE_UI_METADATA,
-      },
+      }),
     });
 
     const duration = Date.now() - startTime;
+    console.log('[TEST] Response status:', rawResponse.status);
+    console.log('[TEST] Response headers:', Object.fromEntries(rawResponse.headers.entries()));
 
-    if (error) {
-      console.error(`[TEST] ${name} FAILED:`, error);
-      console.error(`[TEST] Full error object:`, JSON.stringify(error, null, 2));
-      // Try to extract more details from the error
-      let errorDetail = error.message || 'Unknown error';
-      if (error.context) {
-        errorDetail += ` | Context: ${JSON.stringify(error.context)}`;
-      }
-      return { name, success: false, duration, error: errorDetail };
+    const responseText = await rawResponse.text();
+    console.log('[TEST] Response body (raw):', responseText);
+
+    if (!rawResponse.ok) {
+      return {
+        name,
+        success: false,
+        duration,
+        error: `HTTP ${rawResponse.status}: ${responseText}`
+      };
+    }
+
+    // Parse the response
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      return { name, success: false, duration, error: `Failed to parse response: ${responseText}` };
+    }
+
+    if (!data?.success) {
+      console.error(`[TEST] ${name} returned error:`, data?.error);
+      return { name, success: false, duration, error: data?.error || 'Unknown error' };
     }
 
     if (!data?.success) {
