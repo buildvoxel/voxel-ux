@@ -1,0 +1,12 @@
+# Supabase CLI configuration
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[functions.generate-variant-code-streaming]
+# Disable automatic JWT verification - we handle auth ourselves with getUser()
+verify_jwt = false
