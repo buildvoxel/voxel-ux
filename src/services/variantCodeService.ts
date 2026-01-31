@@ -416,19 +416,42 @@ export async function getVariantHtmlContent(variant: VibeVariant): Promise<strin
 }
 
 // Streaming types
-export interface StreamingProgress {
-  type: 'chunk' | 'complete' | 'error';
-  content?: string;       // HTML chunk for 'chunk' type
-  htmlUrl?: string;       // Final URL for 'complete' type
-  htmlPath?: string;
-  htmlLength?: number;
-  durationMs?: number;
-  model?: string;
-  provider?: string;
-  error?: string;         // Error message for 'error' type
+export interface StreamingChunk {
+  variantIndex: number;
+  chunk: string;
+  totalLength: number;
 }
 
-type StreamingCallback = (progress: StreamingProgress) => void;
+export interface StreamingComplete {
+  variantIndex: number;
+  htmlUrl: string;
+  htmlPath: string;
+  htmlLength: number;
+  durationMs: number;
+  model: string;
+  provider: string;
+  allVariantsComplete: boolean;
+}
+
+export interface StreamingError {
+  variantIndex: number;
+  error: string;
+}
+
+export interface StreamingProgress {
+  variantIndex: number;
+  chunksReceived: number;
+  htmlLength: number;
+}
+
+export type StreamingEvent =
+  | { type: 'chunk'; data: StreamingChunk }
+  | { type: 'progress'; data: StreamingProgress }
+  | { type: 'complete'; data: StreamingComplete }
+  | { type: 'error'; data: StreamingError }
+  | { type: 'status'; data: { stage: string; variantIndex: number; message: string } };
+
+type StreamingCallback = (event: StreamingEvent) => void;
 
 /**
  * Generate code for a single variant with streaming
@@ -518,6 +541,7 @@ export async function generateVariantCodeStreaming(
   let buffer = '';
   let fullHtml = '';
   let result: VibeVariant | null = null;
+  let currentEventType = '';
 
   try {
     while (true) {
@@ -529,16 +553,27 @@ export async function generateVariantCodeStreaming(
       buffer = lines.pop() || '';
 
       for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          try {
-            const event = JSON.parse(data) as StreamingProgress;
+        // Parse event type
+        if (line.startsWith('event: ')) {
+          currentEventType = line.slice(7).trim();
+          continue;
+        }
 
-            if (event.type === 'chunk' && event.content) {
-              fullHtml += event.content;
-              onChunk?.(event);
-            } else if (event.type === 'complete') {
-              onChunk?.(event);
+        // Parse data
+        if (line.startsWith('data: ')) {
+          const dataStr = line.slice(6);
+          try {
+            const data = JSON.parse(dataStr);
+
+            if (currentEventType === 'chunk') {
+              const chunkData = data as StreamingChunk;
+              fullHtml += chunkData.chunk;
+              onChunk?.({ type: 'chunk', data: chunkData });
+            } else if (currentEventType === 'progress') {
+              onChunk?.({ type: 'progress', data: data as StreamingProgress });
+            } else if (currentEventType === 'complete') {
+              const completeData = data as StreamingComplete;
+              onChunk?.({ type: 'complete', data: completeData });
               // Get the updated variant from DB
               const { data: variants } = await supabase
                 .from('vibe_variants')
@@ -547,10 +582,16 @@ export async function generateVariantCodeStreaming(
                 .eq('variant_index', plan.variant_index)
                 .single();
               result = variants as VibeVariant;
-            } else if (event.type === 'error') {
-              onChunk?.(event);
-              throw new Error(event.error || 'Streaming error');
+            } else if (currentEventType === 'error') {
+              const errorData = data as StreamingError;
+              onChunk?.({ type: 'error', data: errorData });
+              throw new Error(errorData.error || 'Streaming error');
+            } else if (currentEventType === 'status') {
+              onChunk?.({ type: 'status', data });
             }
+
+            // Reset event type after processing
+            currentEventType = '';
           } catch (parseError) {
             // Skip non-JSON lines
             if (parseError instanceof SyntaxError) continue;
@@ -603,11 +644,11 @@ export async function generateAllVariantsStreaming(
         sourceHtml,
         uiMetadata,
         productContext,
-        (progress) => {
-          if (progress.type === 'chunk' && progress.content) {
-            htmlAccumulators[plan.variant_index] += progress.content;
-            onChunk?.(plan.variant_index, progress.content, htmlAccumulators[plan.variant_index]);
-          } else if (progress.type === 'complete') {
+        (event) => {
+          if (event.type === 'chunk') {
+            htmlAccumulators[plan.variant_index] += event.data.chunk;
+            onChunk?.(plan.variant_index, event.data.chunk, htmlAccumulators[plan.variant_index]);
+          } else if (event.type === 'complete') {
             onProgress?.({
               stage: 'complete',
               message: `Variant ${plan.variant_index} complete!`,
