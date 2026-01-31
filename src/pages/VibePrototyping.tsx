@@ -75,6 +75,11 @@ import {
   ClockCounterClockwise,
   Shuffle,
   Timer,
+  Lightbulb,
+  ListChecks,
+  PencilLine,
+  Cube,
+  UsersThree,
 } from '@phosphor-icons/react';
 
 import { useSnackbar } from '@/components/SnackbarProvider';
@@ -135,12 +140,12 @@ import WYSIWYGEditor from '@/components/WYSIWYGEditor';
 // Pipeline steps for visual stepper
 type PipelineStep = 'understanding' | 'planning' | 'wireframing' | 'prototyping' | 'sharing';
 
-const PIPELINE_STEPS: { key: PipelineStep; label: string; description: string }[] = [
-  { key: 'understanding', label: 'Understanding', description: 'Analyzing your request' },
-  { key: 'planning', label: 'Planning', description: 'Designing 4 approaches' },
-  { key: 'wireframing', label: 'Wireframing', description: 'Creating visual sketches' },
-  { key: 'prototyping', label: 'Prototyping', description: 'Building HTML variants' },
-  { key: 'sharing', label: 'Sharing', description: 'Ready to collect feedback' },
+const PIPELINE_STEPS: { key: PipelineStep; label: string; description: string; icon: React.ReactNode }[] = [
+  { key: 'understanding', label: 'Understanding', description: 'Analyzing your request', icon: <Lightbulb size={16} /> },
+  { key: 'planning', label: 'Planning', description: 'Designing 4 approaches', icon: <ListChecks size={16} /> },
+  { key: 'wireframing', label: 'Wireframing', description: 'Creating visual sketches', icon: <PencilLine size={16} /> },
+  { key: 'prototyping', label: 'Prototyping', description: 'Building HTML variants', icon: <Cube size={16} /> },
+  { key: 'sharing', label: 'Sharing', description: 'Ready to collect feedback', icon: <UsersThree size={16} /> },
 ];
 
 interface AttachedFile {
@@ -426,7 +431,7 @@ function DebugPanel({
   );
 }
 
-// Visual Stepper Component
+// Visual Stepper Component - Compact icon-based version
 function PipelineStepper({
   status,
 }: {
@@ -464,9 +469,10 @@ function PipelineStepper({
       sx={{
         display: 'flex',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: 0.5,
         py: 1,
-        px: 2,
+        px: 1,
         bgcolor: 'rgba(0,0,0,0.02)',
         borderBottom: `1px solid ${config.colors.border}`,
       }}
@@ -477,58 +483,44 @@ function PipelineStepper({
 
         return (
           <React.Fragment key={step.key}>
-            <Tooltip title={`${step.label}: ${step.description}`} placement="top">
+            <Tooltip title={`${step.label}: ${step.description}`} placement="top" arrow>
               <Box
                 sx={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 0.5,
-                  px: 1,
-                  py: 0.5,
-                  borderRadius: 1,
-                  bgcolor: state === 'active' ? `${config.colors.primary}15` : 'transparent',
+                  justifyContent: 'center',
+                  bgcolor: state === 'completed'
+                    ? config.colors.success
+                    : state === 'active'
+                      ? config.colors.primary
+                      : 'grey.200',
+                  color: state === 'pending' ? 'grey.500' : 'white',
                   transition: 'all 0.2s ease',
+                  position: 'relative',
                 }}
               >
-                <Box
-                  sx={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    bgcolor: state === 'completed'
-                      ? config.colors.success
-                      : state === 'active'
-                        ? config.colors.primary
-                        : 'grey.300',
-                    color: state === 'pending' ? 'grey.500' : 'white',
-                    fontSize: '0.65rem',
-                    fontWeight: 600,
-                  }}
-                >
-                  {state === 'completed' ? <Check size={10} weight="bold" /> : index + 1}
-                </Box>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontWeight: state === 'active' ? 600 : 400,
-                    color: state === 'pending' ? 'text.disabled' : state === 'active' ? config.colors.primary : 'text.secondary',
-                    fontSize: '0.7rem',
-                  }}
-                >
-                  {step.label}
-                </Typography>
+                {state === 'completed' ? <Check size={14} weight="bold" /> : step.icon}
                 {state === 'active' && (
-                  <CircularProgress size={10} thickness={6} sx={{ color: config.colors.primary, ml: 0.5 }} />
+                  <CircularProgress
+                    size={32}
+                    thickness={2}
+                    sx={{
+                      color: config.colors.primary,
+                      position: 'absolute',
+                      top: -2,
+                      left: -2,
+                    }}
+                  />
                 )}
               </Box>
             </Tooltip>
             {!isLast && (
               <Box
                 sx={{
-                  width: 20,
+                  width: 16,
                   height: 2,
                   bgcolor: state === 'completed' ? config.colors.success : 'grey.300',
                   borderRadius: 1,

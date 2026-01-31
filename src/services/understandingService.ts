@@ -93,23 +93,26 @@ export async function generateUnderstanding(
   });
 
   if (error) {
-    console.error('[UnderstandingService] Edge function error:', error);
+    // Try to extract the actual error from the response data (edge function error body)
+    const actualError = data?.error || error.message || 'Failed to generate understanding';
+    console.error('[UnderstandingService] Edge function error:', error, 'Data:', data);
     onProgress?.({
       stage: 'failed',
-      message: `Failed: ${error.message}`,
+      message: `Failed: ${actualError}`,
       percent: 100,
     });
-    throw new Error(error.message || 'Failed to generate understanding');
+    throw new Error(actualError);
   }
 
-  if (!data.success) {
-    console.error('[UnderstandingService] Understanding failed:', data.error);
+  if (!data?.success) {
+    const errorMessage = data?.error || 'Understanding generation failed';
+    console.error('[UnderstandingService] Understanding failed:', errorMessage);
     onProgress?.({
       stage: 'failed',
-      message: `Failed: ${data.error}`,
+      message: `Failed: ${errorMessage}`,
       percent: 100,
     });
-    throw new Error(data.error || 'Understanding generation failed');
+    throw new Error(errorMessage);
   }
 
   // Progress: Complete
