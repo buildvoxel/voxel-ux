@@ -1684,18 +1684,6 @@ export const VibePrototyping: React.FC = () => {
     return () => clearInterval(interval);
   }, [status, variantStartTimes, completedVariantIndices]);
 
-  // Generate progress message based on percentage
-  const getProgressStage = useCallback((percent: number): string => {
-    if (percent < 10) return 'Initializing generation...';
-    if (percent < 25) return 'Building document structure...';
-    if (percent < 40) return 'Generating header & navigation...';
-    if (percent < 55) return 'Creating main content sections...';
-    if (percent < 70) return 'Applying styles & colors...';
-    if (percent < 85) return 'Adding interactive elements...';
-    if (percent < 95) return 'Finalizing layout...';
-    return 'Completing generation...';
-  }, []);
-
   // Iteration state
   const [iterationDialogOpen, setIterationDialogOpen] = useState(false);
   const [iterationPrompt, setIterationPrompt] = useState('');
@@ -2281,11 +2269,6 @@ export const VibePrototyping: React.FC = () => {
       }
 
       console.log('[VibePrototyping] Wireframe texts:', Object.keys(wireframeTexts).length);
-
-      // Get product context summary (if available)
-      const productContextSummary = contextFiles.length > 0
-        ? `Product context: ${contextFiles.slice(0, 3).map(f => f.fileName).join(', ')} (${contextFiles.length} files total)`
-        : undefined;
 
       let generatedVariants;
 
