@@ -798,6 +798,17 @@ export function Components() {
                 <List size={18} />
               </ToggleButton>
             </ToggleButtonGroup>
+            {components.length > 0 && (
+              <Button
+                size="small"
+                variant={isSelectionMode ? 'contained' : 'outlined'}
+                color={isSelectionMode ? 'primary' : 'inherit'}
+                startIcon={<SelectionAll size={18} />}
+                onClick={toggleSelectionMode}
+              >
+                {isSelectionMode ? 'Exit Selection' : 'Select'}
+              </Button>
+            )}
             <Button
               variant="contained"
               startIcon={
@@ -838,19 +849,6 @@ export function Components() {
         <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
           {filteredComponents.length} of {components.length} components
         </Typography>
-
-        {/* Selection mode toggle */}
-        {components.length > 0 && (
-          <Button
-            size="small"
-            variant={isSelectionMode ? 'contained' : 'outlined'}
-            startIcon={<SelectionAll size={16} />}
-            onClick={toggleSelectionMode}
-            sx={{ ml: 'auto' }}
-          >
-            {isSelectionMode ? 'Exit Selection' : 'Select'}
-          </Button>
-        )}
 
         {allTags.length > 0 && (
           <>
