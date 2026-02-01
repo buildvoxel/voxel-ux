@@ -96,14 +96,20 @@ function getBestProvider(): { provider: string; model: string } | null {
 // ============================================================================
 
 function buildEditOperationsPrompt(plan: VariantPlan, elementSummary: string): string {
+  // Safely handle potentially undefined fields
+  const keyChanges = Array.isArray(plan.keyChanges) ? plan.keyChanges : [];
+  const keyChangesText = keyChanges.length > 0
+    ? keyChanges.map((c, i) => `${i + 1}. ${c}`).join('\n')
+    : '(No specific changes listed)';
+
   return `You are a UI/UX expert. Generate edit operations to transform a web page to implement a design variant.
 
 ## Variant to Implement
-**Title:** ${plan.title}
-**Description:** ${plan.description}
+**Title:** ${plan.title || 'Untitled Variant'}
+**Description:** ${plan.description || 'No description provided'}
 
 **Key Changes Required:**
-${plan.keyChanges.map((c, i) => `${i + 1}. ${c}`).join('\n')}
+${keyChangesText}
 
 **Style Notes:** ${plan.styleNotes || 'Match existing styles'}
 
@@ -409,23 +415,39 @@ Deno.serve(async (req) => {
 
     for (const plan of plans) {
       console.log(`[generate-variant-edits-v2] Generating operations for variant ${plan.variantIndex}...`);
+      console.log(`[generate-variant-edits-v2] Plan details:`, JSON.stringify({
+        id: plan.id,
+        variantIndex: plan.variantIndex,
+        title: plan.title,
+        hasKeyChanges: Array.isArray(plan.keyChanges),
+        keyChangesCount: Array.isArray(plan.keyChanges) ? plan.keyChanges.length : 0,
+      }));
 
       const prompt = buildEditOperationsPrompt(plan, elementSummary);
+      console.log(`[generate-variant-edits-v2] Prompt length: ${prompt.length} chars`);
 
       let editsResult: { operations: EditOperation[]; summary: string };
 
-      switch (activeProvider) {
-        case 'anthropic':
-          editsResult = await callAnthropic(apiKey, activeModel, prompt, screenshotBase64);
-          break;
-        case 'openai':
-          editsResult = await callOpenAI(apiKey, activeModel, prompt, screenshotBase64);
-          break;
-        case 'google':
-          editsResult = await callGoogle(apiKey, activeModel, prompt, screenshotBase64);
-          break;
-        default:
-          throw new Error(`Unknown provider: ${activeProvider}`);
+      try {
+        switch (activeProvider) {
+          case 'anthropic':
+            console.log('[generate-variant-edits-v2] Calling Anthropic API...');
+            editsResult = await callAnthropic(apiKey, activeModel, prompt, screenshotBase64);
+            break;
+          case 'openai':
+            console.log('[generate-variant-edits-v2] Calling OpenAI API...');
+            editsResult = await callOpenAI(apiKey, activeModel, prompt, screenshotBase64);
+            break;
+          case 'google':
+            console.log('[generate-variant-edits-v2] Calling Google API...');
+            editsResult = await callGoogle(apiKey, activeModel, prompt, screenshotBase64);
+            break;
+          default:
+            throw new Error(`Unknown provider: ${activeProvider}`);
+        }
+      } catch (llmError) {
+        console.error(`[generate-variant-edits-v2] LLM call failed for variant ${plan.variantIndex}:`, llmError);
+        throw new Error(`LLM API call failed: ${llmError.message || String(llmError)}`);
       }
 
       console.log(`[generate-variant-edits-v2] Variant ${plan.variantIndex}: ${editsResult.operations?.length || 0} operations`);
