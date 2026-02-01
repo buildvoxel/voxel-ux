@@ -17,6 +17,7 @@ export default function SharePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [shareData, setShareData] = useState<ShareData | null>(null);
+  const [htmlContent, setHtmlContent] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadShare() {
@@ -36,6 +37,23 @@ export default function SharePage() {
         }
 
         setShareData(data);
+
+        // If html_url is a URL, fetch the content to avoid sandbox restrictions
+        if (data.variant.html_url && data.variant.html_url.startsWith('http')) {
+          try {
+            const response = await fetch(data.variant.html_url);
+            if (response.ok) {
+              const html = await response.text();
+              setHtmlContent(html);
+            }
+          } catch (fetchErr) {
+            console.error('Error fetching HTML content:', fetchErr);
+            // Fall back to using the URL directly
+          }
+        } else if (data.variant.html_url) {
+          // It's already HTML content
+          setHtmlContent(data.variant.html_url);
+        }
 
         // Record the view for analytics
         await recordShareView(data.share.id, data.variant.index);
@@ -232,41 +250,38 @@ export default function SharePage() {
               <Typography color="text.secondary">No wireframe available</Typography>
             </Box>
           )
+        ) : htmlContent ? (
+          // Render fetched HTML content via srcdoc to avoid sandbox restrictions
+          <iframe
+            srcDoc={htmlContent}
+            title={`${session.name} - Variant ${variantLetter}`}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+            }}
+          />
         ) : variant.html_url ? (
-          // Check if html_url is a URL or raw HTML content
-          variant.html_url.startsWith('http') ? (
-            <iframe
-              src={variant.html_url}
-              title={`${session.name} - Variant ${variantLetter}`}
-              style={{
-                width: '100%',
-                height: '100%',
-                border: 'none',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-              }}
-            />
-          ) : (
-            // Raw HTML content - use srcdoc
-            <iframe
-              srcDoc={variant.html_url}
-              title={`${session.name} - Variant ${variantLetter}`}
-              style={{
-                width: '100%',
-                height: '100%',
-                border: 'none',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-              }}
-              sandbox="allow-scripts allow-same-origin"
-            />
-          )
+          // Fallback to URL if fetch failed
+          <iframe
+            src={variant.html_url}
+            title={`${session.name} - Variant ${variantLetter}`}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+            }}
+          />
         ) : (
           <Box
             sx={{
