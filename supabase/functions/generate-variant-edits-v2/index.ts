@@ -8,8 +8,8 @@
  * - Is more reliable than find/replace strings
  */
 
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+// Use npm imports for better compatibility
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -55,7 +55,7 @@ interface VariantEdits {
 interface RequestBody {
   sessionId: string;
   plans: VariantPlan[];
-  elementSummary: string; // Compact tree representation
+  elementSummary: string;
   screenshotBase64?: string;
   provider?: string;
   model?: string;
@@ -66,27 +66,36 @@ interface RequestBody {
 // ============================================================================
 
 function getApiKey(provider: string): string | null {
-  switch (provider) {
-    case 'anthropic':
-      return Deno.env.get('ANTHROPIC_API_KEY') || null;
-    case 'openai':
-      return Deno.env.get('OPENAI_API_KEY') || null;
-    case 'google':
-      return Deno.env.get('GOOGLE_API_KEY') || null;
-    default:
-      return null;
+  try {
+    switch (provider) {
+      case 'anthropic':
+        return Deno.env.get('ANTHROPIC_API_KEY') || null;
+      case 'openai':
+        return Deno.env.get('OPENAI_API_KEY') || null;
+      case 'google':
+        return Deno.env.get('GOOGLE_API_KEY') || null;
+      default:
+        return null;
+    }
+  } catch (e) {
+    console.error('[getApiKey] Error accessing env:', e);
+    return null;
   }
 }
 
 function getBestProvider(): { provider: string; model: string } | null {
-  if (Deno.env.get('ANTHROPIC_API_KEY')) {
-    return { provider: 'anthropic', model: 'claude-sonnet-4-20250514' };
-  }
-  if (Deno.env.get('OPENAI_API_KEY')) {
-    return { provider: 'openai', model: 'gpt-4o' };
-  }
-  if (Deno.env.get('GOOGLE_API_KEY')) {
-    return { provider: 'google', model: 'gemini-1.5-pro' };
+  try {
+    if (Deno.env.get('ANTHROPIC_API_KEY')) {
+      return { provider: 'anthropic', model: 'claude-sonnet-4-20250514' };
+    }
+    if (Deno.env.get('OPENAI_API_KEY')) {
+      return { provider: 'openai', model: 'gpt-4o' };
+    }
+    if (Deno.env.get('GOOGLE_API_KEY')) {
+      return { provider: 'google', model: 'gemini-1.5-pro' };
+    }
+  } catch (e) {
+    console.error('[getBestProvider] Error accessing env:', e);
   }
   return null;
 }
@@ -97,21 +106,25 @@ function getBestProvider(): { provider: string; model: string } | null {
 
 function buildEditOperationsPrompt(plan: VariantPlan, elementSummary: string): string {
   // Safely handle potentially undefined fields
-  const keyChanges = Array.isArray(plan.keyChanges) ? plan.keyChanges : [];
+  const keyChanges = Array.isArray(plan?.keyChanges) ? plan.keyChanges : [];
   const keyChangesText = keyChanges.length > 0
     ? keyChanges.map((c, i) => `${i + 1}. ${c}`).join('\n')
     : '(No specific changes listed)';
 
+  const title = plan?.title || 'Untitled Variant';
+  const description = plan?.description || 'No description provided';
+  const styleNotes = plan?.styleNotes || 'Match existing styles';
+
   return `You are a UI/UX expert. Generate edit operations to transform a web page to implement a design variant.
 
 ## Variant to Implement
-**Title:** ${plan.title || 'Untitled Variant'}
-**Description:** ${plan.description || 'No description provided'}
+**Title:** ${title}
+**Description:** ${description}
 
 **Key Changes Required:**
 ${keyChangesText}
 
-**Style Notes:** ${plan.styleNotes || 'Match existing styles'}
+**Style Notes:** ${styleNotes}
 
 ## Element Summary
 This is a compact representation of the current page structure:
@@ -179,9 +192,12 @@ async function callAnthropic(
   prompt: string,
   screenshotBase64?: string
 ): Promise<{ operations: EditOperation[]; summary: string }> {
+  console.log('[callAnthropic] Starting API call...');
+
   const messages: Array<{ role: string; content: unknown }> = [];
 
   if (screenshotBase64) {
+    const imageData = screenshotBase64.replace(/^data:image\/\w+;base64,/, '');
     messages.push({
       role: 'user',
       content: [
@@ -190,7 +206,7 @@ async function callAnthropic(
           source: {
             type: 'base64',
             media_type: 'image/png',
-            data: screenshotBase64.replace(/^data:image\/\w+;base64,/, ''),
+            data: imageData,
           },
         },
         {
@@ -218,20 +234,32 @@ async function callAnthropic(
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Anthropic API error: ${response.status} - ${error}`);
+    const errorText = await response.text();
+    console.error('[callAnthropic] API error:', response.status, errorText);
+    throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
-  const content = data.content[0]?.text || '';
+  console.log('[callAnthropic] Response received');
+
+  const content = data.content?.[0]?.text || '';
+  if (!content) {
+    throw new Error('Empty response from Anthropic');
+  }
 
   // Parse JSON from response
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
+    console.error('[callAnthropic] No JSON found in response:', content.substring(0, 500));
     throw new Error('No valid JSON found in response');
   }
 
-  return JSON.parse(jsonMatch[0]);
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch (parseError) {
+    console.error('[callAnthropic] JSON parse error:', parseError);
+    throw new Error('Failed to parse JSON from response');
+  }
 }
 
 async function callOpenAI(
@@ -240,19 +268,20 @@ async function callOpenAI(
   prompt: string,
   screenshotBase64?: string
 ): Promise<{ operations: EditOperation[]; summary: string }> {
+  console.log('[callOpenAI] Starting API call...');
+
   const messages: Array<{ role: string; content: unknown }> = [];
 
   if (screenshotBase64) {
+    const imageUrl = screenshotBase64.startsWith('data:')
+      ? screenshotBase64
+      : `data:image/png;base64,${screenshotBase64}`;
     messages.push({
       role: 'user',
       content: [
         {
           type: 'image_url',
-          image_url: {
-            url: screenshotBase64.startsWith('data:')
-              ? screenshotBase64
-              : `data:image/png;base64,${screenshotBase64}`,
-          },
+          image_url: { url: imageUrl },
         },
         {
           type: 'text',
@@ -279,14 +308,25 @@ async function callOpenAI(
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`OpenAI API error: ${response.status} - ${error}`);
+    const errorText = await response.text();
+    console.error('[callOpenAI] API error:', response.status, errorText);
+    throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
-  const content = data.choices[0]?.message?.content || '';
+  console.log('[callOpenAI] Response received');
 
-  return JSON.parse(content);
+  const content = data.choices?.[0]?.message?.content || '';
+  if (!content) {
+    throw new Error('Empty response from OpenAI');
+  }
+
+  try {
+    return JSON.parse(content);
+  } catch (parseError) {
+    console.error('[callOpenAI] JSON parse error:', parseError);
+    throw new Error('Failed to parse JSON from response');
+  }
 }
 
 async function callGoogle(
@@ -295,13 +335,16 @@ async function callGoogle(
   prompt: string,
   screenshotBase64?: string
 ): Promise<{ operations: EditOperation[]; summary: string }> {
+  console.log('[callGoogle] Starting API call...');
+
   const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [];
 
   if (screenshotBase64) {
+    const imageData = screenshotBase64.replace(/^data:image\/\w+;base64,/, '');
     parts.push({
       inlineData: {
         mimeType: 'image/png',
-        data: screenshotBase64.replace(/^data:image\/\w+;base64,/, ''),
+        data: imageData,
       },
     });
   }
@@ -324,19 +367,31 @@ async function callGoogle(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Google API error: ${response.status} - ${error}`);
+    const errorText = await response.text();
+    console.error('[callGoogle] API error:', response.status, errorText);
+    throw new Error(`Google API error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
+  console.log('[callGoogle] Response received');
+
   const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  if (!content) {
+    throw new Error('Empty response from Google');
+  }
 
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
+    console.error('[callGoogle] No JSON found in response:', content.substring(0, 500));
     throw new Error('No valid JSON found in response');
   }
 
-  return JSON.parse(jsonMatch[0]);
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch (parseError) {
+    console.error('[callGoogle] JSON parse error:', parseError);
+    throw new Error('Failed to parse JSON from response');
+  }
 }
 
 // ============================================================================
@@ -344,54 +399,89 @@ async function callGoogle(
 // ============================================================================
 
 Deno.serve(async (req) => {
-  console.log('[generate-variant-edits-v2] Request received:', req.method);
+  console.log('[generate-variant-edits-v2] ===== REQUEST START =====');
+  console.log('[generate-variant-edits-v2] Method:', req.method);
 
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
+    console.log('[generate-variant-edits-v2] Handling OPTIONS preflight');
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
+    // Step 1: Parse request body
+    console.log('[generate-variant-edits-v2] Step 1: Parsing request body...');
     let body: RequestBody;
     try {
-      body = await req.json();
+      const rawBody = await req.text();
+      console.log('[generate-variant-edits-v2] Raw body length:', rawBody.length);
+      body = JSON.parse(rawBody);
     } catch (parseError) {
-      console.error('[generate-variant-edits-v2] Failed to parse request body:', parseError);
+      console.error('[generate-variant-edits-v2] Failed to parse body:', parseError);
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid JSON in request body' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    // Step 2: Extract and validate fields
+    console.log('[generate-variant-edits-v2] Step 2: Validating fields...');
     const { sessionId, plans, elementSummary, screenshotBase64, provider, model } = body;
 
     // Validate required fields
-    if (!sessionId || !plans || !elementSummary) {
-      console.error('[generate-variant-edits-v2] Missing required fields:', {
-        hasSessionId: !!sessionId,
-        hasPlans: !!plans,
-        hasElementSummary: !!elementSummary
-      });
+    if (!sessionId) {
+      console.error('[generate-variant-edits-v2] Missing sessionId');
       return new Response(
-        JSON.stringify({ success: false, error: 'Missing required fields: sessionId, plans, or elementSummary' }),
+        JSON.stringify({ success: false, error: 'Missing sessionId' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('[generate-variant-edits-v2] Starting:', {
+    if (!elementSummary) {
+      console.error('[generate-variant-edits-v2] Missing elementSummary');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Missing elementSummary' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate plans is an array
+    if (!Array.isArray(plans)) {
+      console.error('[generate-variant-edits-v2] plans is not an array:', typeof plans);
+      return new Response(
+        JSON.stringify({ success: false, error: 'plans must be an array' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (plans.length === 0) {
+      console.error('[generate-variant-edits-v2] plans array is empty');
+      return new Response(
+        JSON.stringify({ success: false, error: 'plans array is empty' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('[generate-variant-edits-v2] Validated:', {
       sessionId,
-      plansCount: plans?.length || 0,
-      summaryLength: elementSummary?.length || 0,
+      plansCount: plans.length,
+      summaryLength: elementSummary.length,
       hasScreenshot: !!screenshotBase64,
     });
 
-    // Determine provider
+    // Step 3: Determine provider
+    console.log('[generate-variant-edits-v2] Step 3: Determining provider...');
     let activeProvider = provider;
     let activeModel = model;
 
     if (!activeProvider || !activeModel) {
       const best = getBestProvider();
       if (!best) {
-        throw new Error('No API keys configured');
+        console.error('[generate-variant-edits-v2] No API keys configured');
+        return new Response(
+          JSON.stringify({ success: false, error: 'No API keys configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
       activeProvider = best.provider;
       activeModel = best.model;
@@ -399,29 +489,47 @@ Deno.serve(async (req) => {
 
     const apiKey = getApiKey(activeProvider);
     if (!apiKey) {
-      throw new Error(`No API key for provider: ${activeProvider}`);
+      console.error('[generate-variant-edits-v2] No API key for provider:', activeProvider);
+      return new Response(
+        JSON.stringify({ success: false, error: `No API key for provider: ${activeProvider}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     console.log('[generate-variant-edits-v2] Using provider:', activeProvider, activeModel);
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Step 4: Initialize Supabase client
+    console.log('[generate-variant-edits-v2] Step 4: Initializing Supabase...');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    // Generate operations for each plan
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('[generate-variant-edits-v2] Missing Supabase env vars');
+      // Continue without saving to DB - still generate the edits
+    }
+
+    const supabase = supabaseUrl && supabaseKey
+      ? createClient(supabaseUrl, supabaseKey)
+      : null;
+
+    // Step 5: Generate operations for each plan
+    console.log('[generate-variant-edits-v2] Step 5: Generating operations...');
     const results: VariantEdits[] = [];
     const startTime = Date.now();
 
-    for (const plan of plans) {
-      console.log(`[generate-variant-edits-v2] Generating operations for variant ${plan.variantIndex}...`);
-      console.log(`[generate-variant-edits-v2] Plan details:`, JSON.stringify({
-        id: plan.id,
-        variantIndex: plan.variantIndex,
-        title: plan.title,
-        hasKeyChanges: Array.isArray(plan.keyChanges),
-        keyChangesCount: Array.isArray(plan.keyChanges) ? plan.keyChanges.length : 0,
-      }));
+    for (let i = 0; i < plans.length; i++) {
+      const plan = plans[i];
+      console.log(`[generate-variant-edits-v2] Processing plan ${i + 1}/${plans.length}:`, {
+        id: plan?.id,
+        variantIndex: plan?.variantIndex,
+        title: plan?.title,
+      });
+
+      // Validate plan has required fields
+      if (!plan?.id || plan?.variantIndex === undefined) {
+        console.warn(`[generate-variant-edits-v2] Skipping invalid plan at index ${i}`);
+        continue;
+      }
 
       const prompt = buildEditOperationsPrompt(plan, elementSummary);
       console.log(`[generate-variant-edits-v2] Prompt length: ${prompt.length} chars`);
@@ -431,46 +539,64 @@ Deno.serve(async (req) => {
       try {
         switch (activeProvider) {
           case 'anthropic':
-            console.log('[generate-variant-edits-v2] Calling Anthropic API...');
             editsResult = await callAnthropic(apiKey, activeModel, prompt, screenshotBase64);
             break;
           case 'openai':
-            console.log('[generate-variant-edits-v2] Calling OpenAI API...');
             editsResult = await callOpenAI(apiKey, activeModel, prompt, screenshotBase64);
             break;
           case 'google':
-            console.log('[generate-variant-edits-v2] Calling Google API...');
             editsResult = await callGoogle(apiKey, activeModel, prompt, screenshotBase64);
             break;
           default:
             throw new Error(`Unknown provider: ${activeProvider}`);
         }
       } catch (llmError) {
-        console.error(`[generate-variant-edits-v2] LLM call failed for variant ${plan.variantIndex}:`, llmError);
-        throw new Error(`LLM API call failed: ${llmError.message || String(llmError)}`);
+        console.error(`[generate-variant-edits-v2] LLM error for variant ${plan.variantIndex}:`, llmError);
+        // Return error with details
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `LLM API call failed: ${llmError instanceof Error ? llmError.message : String(llmError)}`,
+            provider: activeProvider,
+            model: activeModel,
+            variantIndex: plan.variantIndex,
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
       console.log(`[generate-variant-edits-v2] Variant ${plan.variantIndex}: ${editsResult.operations?.length || 0} operations`);
 
+      const operations = Array.isArray(editsResult.operations) ? editsResult.operations : [];
+      const summary = editsResult.summary || '';
+
       results.push({
         variantIndex: plan.variantIndex,
         planId: plan.id,
-        operations: editsResult.operations || [],
-        summary: editsResult.summary || '',
+        operations,
+        summary,
       });
 
-      // Store operations in database
-      await supabase
-        .from('vibe_variant_plans')
-        .update({
-          edit_operations: editsResult.operations,
-          edit_summary: editsResult.summary,
-        })
-        .eq('id', plan.id);
+      // Store operations in database (if Supabase is available)
+      if (supabase) {
+        try {
+          await supabase
+            .from('vibe_variant_plans')
+            .update({
+              edit_operations: operations,
+              edit_summary: summary,
+            })
+            .eq('id', plan.id);
+          console.log(`[generate-variant-edits-v2] Saved operations for plan ${plan.id}`);
+        } catch (dbError) {
+          console.warn(`[generate-variant-edits-v2] Failed to save to DB:`, dbError);
+          // Continue even if DB save fails
+        }
+      }
     }
 
     const durationMs = Date.now() - startTime;
-    console.log(`[generate-variant-edits-v2] Complete in ${durationMs}ms`);
+    console.log(`[generate-variant-edits-v2] ===== COMPLETE in ${durationMs}ms =====`);
 
     return new Response(
       JSON.stringify({
@@ -484,14 +610,17 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
+
   } catch (error) {
-    console.error('[generate-variant-edits-v2] Error:', error);
-    console.error('[generate-variant-edits-v2] Stack:', error.stack);
+    console.error('[generate-variant-edits-v2] Unhandled error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || String(error),
-        stack: error.stack,
+        error: errorMessage,
+        stack: errorStack,
       }),
       {
         status: 500,

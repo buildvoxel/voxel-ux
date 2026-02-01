@@ -112,25 +112,41 @@ export async function generateVariantEditsV2(
     percent: 30,
   });
 
-  // Call V2 Edge Function
-  const { data, error } = await supabase.functions.invoke('generate-variant-edits-v2', {
-    body: {
+  // Call V2 Edge Function using direct fetch for better error visibility
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const functionUrl = `${supabaseUrl}/functions/v1/generate-variant-edits-v2`;
+
+  console.log('[VariantEditsService V2] Calling:', functionUrl);
+
+  const response = await fetch(functionUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({
       sessionId,
       plans: plansPayload,
       elementSummary,
       screenshotBase64,
       provider,
       model,
-    },
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-    },
+    }),
   });
 
-  if (error) {
-    console.error('[VariantEditsService V2] Edge function error:', error);
-    console.error('[VariantEditsService V2] Error context:', { data });
-    throw new Error(error.message || 'Failed to generate variant edits');
+  let data;
+  try {
+    data = await response.json();
+  } catch (e) {
+    console.error('[VariantEditsService V2] Failed to parse response:', e);
+    const text = await response.text().catch(() => 'Unable to read response');
+    console.error('[VariantEditsService V2] Raw response:', text);
+    throw new Error(`Edge function returned invalid JSON: ${response.status}`);
+  }
+
+  if (!response.ok) {
+    console.error('[VariantEditsService V2] Edge function error:', response.status, data);
+    throw new Error(data?.error || `Edge function failed: ${response.status}`);
   }
 
   if (!data?.success) {
