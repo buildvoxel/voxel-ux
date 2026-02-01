@@ -427,35 +427,6 @@ function formatDuration(ms: number): string {
   return `${mins}m ${secs}s`;
 }
 
-// Step indicator component
-function StepIndicator({ step, isActive }: { step: string; isActive: boolean }) {
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 0.5,
-        color: isActive ? 'primary.main' : 'text.disabled',
-        fontSize: '0.75rem',
-      }}
-    >
-      {isActive ? (
-        <CircularProgress size={12} thickness={6} />
-      ) : (
-        <Box
-          sx={{
-            width: 12,
-            height: 12,
-            borderRadius: '50%',
-            backgroundColor: 'action.disabled',
-          }}
-        />
-      )}
-      <span>{step}</span>
-    </Box>
-  );
-}
-
 // Extraction progress display with parallel processing support
 function ExtractionProgressDisplay() {
   const { extractionProgress, components } = useComponentsStore();

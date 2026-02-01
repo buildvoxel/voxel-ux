@@ -252,7 +252,7 @@ export const useComponentsStore = create<ComponentsState>()(
           }
 
           return {
-            extractedCount: components.length,
+            extractedCount: deduped.length,
             totalScreens: screensWithHtml.length,
             failedScreens: result.errors.length,
             errors: result.errors,
