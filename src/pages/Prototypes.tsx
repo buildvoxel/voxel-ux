@@ -557,12 +557,12 @@ export function Prototypes() {
                 isSelectionMode={isSelectionMode}
                 isSelected={selectedIds.includes(prototype.id)}
                 onSelect={() => handleToggleSelect(prototype.id)}
-                onClick={() => navigate(`/prototypes/${prototype.screenId || prototype.id}`)}
+                onClick={() => navigate(`/prototypes/${prototype.screenId}/${prototype.id}`)}
                 onMenuClick={(e) => handleMenuOpen(e, prototype)}
                 primaryAction={{
                   icon: <Flask size={24} color="white" weight="fill" />,
                   label: 'Open Prototype',
-                  onClick: () => navigate(`/prototypes/${prototype.screenId || prototype.id}`),
+                  onClick: () => navigate(`/prototypes/${prototype.screenId}/${prototype.id}`),
                 }}
               />
             </Grid>
@@ -616,7 +616,7 @@ export function Prototypes() {
           {filteredPrototypes.map((prototype, index) => (
             <Box
               key={prototype.id}
-              onClick={() => !isSelectionMode && navigate(`/prototypes/${prototype.screenId || prototype.id}`)}
+              onClick={() => !isSelectionMode && navigate(`/prototypes/${prototype.screenId}/${prototype.id}`)}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
@@ -787,7 +787,7 @@ export function Prototypes() {
         <MenuItem
           onClick={() => {
             handleMenuClose();
-            navigate(`/prototypes/${selectedPrototype?.screenId || selectedPrototype?.id}`);
+            navigate(`/prototypes/${selectedPrototype?.screenId}/${selectedPrototype?.id}`);
           }}
           sx={{ transition: 'all 0.15s ease' }}
         >
