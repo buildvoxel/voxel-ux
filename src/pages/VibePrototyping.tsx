@@ -867,6 +867,75 @@ function VariantCard({
   );
 }
 
+// Reusable iframe component that fetches HTML and uses srcDoc to bypass CSP restrictions
+function FetchedHtmlIframe({
+  url,
+  fallbackHtml,
+  title,
+  style,
+}: {
+  url?: string | null;
+  fallbackHtml?: string | null;
+  title: string;
+  style?: React.CSSProperties;
+}) {
+  const [html, setHtml] = useState<string | null>(null);
+  const [isFetching, setIsFetching] = useState(false);
+
+  useEffect(() => {
+    if (url) {
+      setHtml(null);
+      setIsFetching(true);
+      fetch(url)
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.text();
+        })
+        .then(content => {
+          setHtml(content);
+          setIsFetching(false);
+        })
+        .catch(() => {
+          setIsFetching(false);
+        });
+    } else {
+      setHtml(null);
+      setIsFetching(false);
+    }
+  }, [url]);
+
+  const effectiveHtml = html || fallbackHtml;
+
+  if (effectiveHtml) {
+    return (
+      <iframe
+        srcDoc={effectiveHtml}
+        title={title}
+        style={style}
+      />
+    );
+  }
+
+  if (isFetching) {
+    return (
+      <Box
+        sx={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          bgcolor: '#fafafa',
+        }}
+      >
+        <CircularProgress size={24} />
+      </Box>
+    );
+  }
+
+  return null;
+}
+
 // Canvas variant preview card (in 2x2 grid)
 function CanvasVariantCard({
   label,
@@ -1010,8 +1079,8 @@ function CanvasVariantCard({
                 position: 'relative',
               }}
             >
-              <iframe
-                src={htmlUrl}
+              <FetchedHtmlIframe
+                url={htmlUrl}
                 title={label}
                 style={{
                   width: '200%',
@@ -1040,7 +1109,7 @@ function CanvasVariantCard({
             </Box>
           ) : showWireframePreview ? (
             // Wireframe preview (sketch style)
-            // Prioritize wireframeUrl (full HTML in storage) over wireframeHtml (body content only)
+            // Fetch URL content to bypass CSP restrictions
             <Box
               sx={{
                 width: '100%',
@@ -1049,11 +1118,9 @@ function CanvasVariantCard({
                 position: 'relative',
               }}
             >
-              <iframe
-                {...(wireframeUrl
-                  ? { src: wireframeUrl }
-                  : { srcDoc: wireframeHtml! }
-                )}
+              <FetchedHtmlIframe
+                url={wireframeUrl}
+                fallbackHtml={wireframeHtml}
                 title={`${label} (wireframe)`}
                 style={{
                   width: '200%',
@@ -1116,9 +1183,9 @@ function InlineExpansionGrid({
   const isWireframe = !focusedVariant?.html_url && (focusedWireframe?.wireframeHtml || focusedWireframe?.wireframeUrl);
   const isComplete = focusedVariant?.status === 'complete';
 
-  // Fallback: fetch HTML content if URL loading fails
+  // Fetch HTML content to use srcDoc (bypasses Supabase CSP restrictions)
   const [fetchedHtml, setFetchedHtml] = useState<string | null>(null);
-  const [urlLoadFailed, setUrlLoadFailed] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
 
   // Debug logging
   console.log('[InlineExpansionGrid] Render:', {
@@ -1127,51 +1194,46 @@ function InlineExpansionGrid({
     focusedWireframe: focusedWireframe ? { wireframeUrl: focusedWireframe.wireframeUrl, hasHtml: !!focusedWireframe.wireframeHtml } : null,
     focusedUrl,
     hasFocusedHtml: !!focusedHtml,
-    focusedHtmlPreview: focusedHtml ? focusedHtml.substring(0, 100) : null,
     isWireframe,
     isComplete,
-    urlLoadFailed,
     hasFetchedHtml: !!fetchedHtml,
+    isFetching,
   });
 
-  // Fetch HTML content from URL for fallback rendering
+  // Always fetch HTML content to use srcDoc (bypasses Supabase CSP restrictions)
   useEffect(() => {
     if (focusedUrl) {
-      setUrlLoadFailed(false);
       setFetchedHtml(null);
+      setIsFetching(true);
 
-      // First check if URL is accessible
+      // Fetch content to use as srcDoc (avoids Supabase Storage CSP issues)
       fetch(focusedUrl)
         .then(res => {
-          const contentType = res.headers.get('content-type');
           console.log('[InlineExpansionGrid] URL fetch result:', {
             url: focusedUrl,
             ok: res.ok,
             status: res.status,
-            contentType,
+            contentType: res.headers.get('content-type'),
           });
-
-          // If content type is not HTML, fetch and use as srcDoc
-          if (contentType && !contentType.includes('text/html')) {
-            console.warn('[InlineExpansionGrid] Content type not text/html, using srcDoc fallback');
-            setUrlLoadFailed(true);
-          }
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return res.text();
         })
         .then(html => {
           setFetchedHtml(html);
+          setIsFetching(false);
           console.log('[InlineExpansionGrid] Fetched HTML length:', html.length);
         })
         .catch(err => {
           console.error('[InlineExpansionGrid] URL fetch failed:', err);
-          setUrlLoadFailed(true);
+          setIsFetching(false);
         });
+    } else {
+      setIsFetching(false);
     }
   }, [focusedUrl]);
 
-  // Determine what to use for iframe
-  // Priority: Use srcDoc if URL loading failed or content type is wrong
-  const useUrlDirectly = focusedUrl && !urlLoadFailed;
+  // Always use srcDoc to bypass Supabase Storage's CSP headers that block scripts
+  // Priority: fetched HTML > wireframe HTML body > null
   const effectiveHtml = fetchedHtml || focusedHtml;
 
   // Other variants (not focused)
@@ -1280,13 +1342,10 @@ function InlineExpansionGrid({
             boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
           }}
         >
-          {(useUrlDirectly || effectiveHtml) ? (
+          {effectiveHtml ? (
             <iframe
-              key={useUrlDirectly ? focusedUrl : `html-${focusedIndex}-${effectiveHtml?.length || 0}`}
-              {...(useUrlDirectly
-                ? { src: focusedUrl }
-                : { srcDoc: effectiveHtml! }
-              )}
+              key={`html-${focusedIndex}-${effectiveHtml.length}`}
+              srcDoc={effectiveHtml}
               title={labels[focusedIndex - 1]}
               style={{
                 width: '100%',
@@ -1294,6 +1353,20 @@ function InlineExpansionGrid({
                 border: 'none',
               }}
             />
+          ) : isFetching ? (
+            // Show loading while fetching HTML
+            <Box
+              sx={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: '#fafafa',
+              }}
+            >
+              <CircularProgress size={32} />
+            </Box>
           ) : (
             <Box
               sx={{
@@ -1354,11 +1427,9 @@ function InlineExpansionGrid({
               <Box sx={{ position: 'relative', height: '100%' }}>
                 {(previewUrl || previewHtml) ? (
                   <>
-                    <iframe
-                      {...(previewUrl
-                        ? { src: previewUrl }
-                        : { srcDoc: previewHtml! }
-                      )}
+                    <FetchedHtmlIframe
+                      url={previewUrl}
+                      fallbackHtml={previewHtml}
                       title={labels[idx - 1]}
                       style={{
                         width: '300%',
