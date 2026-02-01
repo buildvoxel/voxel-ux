@@ -10,10 +10,20 @@ import Tooltip from '@mui/material/Tooltip';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import CircularProgress from '@mui/material/CircularProgress';
-import { MagnifyingGlass, GridFour, List, ArrowsClockwise, X } from '@phosphor-icons/react';
+import LinearProgress from '@mui/material/LinearProgress';
+import Alert from '@mui/material/Alert';
+import {
+  MagnifyingGlass,
+  GridFour,
+  List,
+  Sparkle,
+  X,
+  Lightning,
+} from '@phosphor-icons/react';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import CodeOutlinedIcon from '@mui/icons-material/CodeOutlined';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import {
   Button,
   Card,
@@ -30,16 +40,39 @@ import {
 } from '@/components/ui';
 import { EmptyState, PageHeader } from '@/components';
 import { useSnackbar } from '@/components/SnackbarProvider';
-import { useComponentsStore, getCategories, getAllTags, type ExtractedComponent } from '@/store/componentsStore';
+import {
+  useComponentsStore,
+  getCategories,
+  getAllTags,
+  type ExtractedComponent,
+} from '@/store/componentsStore';
 import { useScreensStore } from '@/store/screensStore';
 import { useThemeStore } from '@/store/themeStore';
 
 // Component preview renderer
-function ComponentPreview({ component }: { component: ExtractedComponent }) {
+function ComponentPreview({
+  component,
+  variantName,
+}: {
+  component: ExtractedComponent;
+  variantName?: string | null;
+}) {
+  // Get the appropriate HTML/CSS based on variant selection
+  let html = component.html;
+  let css = component.css;
+
+  if (variantName && component.variants) {
+    const variant = component.variants.find((v) => v.name === variantName);
+    if (variant) {
+      html = variant.html;
+      css = variant.css;
+    }
+  }
+
   const combinedCode = `
-    <style>${component.css}</style>
+    <style>${css}</style>
     <div style="padding: 20px; display: flex; align-items: center; justify-content: center; min-height: 100%;">
-      ${component.html}
+      ${html}
     </div>
   `;
 
@@ -131,6 +164,8 @@ function ComponentCard({
     showSuccess('HTML + CSS copied');
   };
 
+  const variantCount = component.variants?.length || 0;
+
   return (
     <Card
       sx={{
@@ -147,19 +182,71 @@ function ComponentCard({
           borderBottom: '1px solid',
           borderColor: 'divider',
           overflow: 'hidden',
+          position: 'relative',
         }}
       >
         <ComponentPreview component={component} />
+        {component.generatedBy === 'llm' && (
+          <Tooltip title="AI-generated component">
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                backgroundColor: 'primary.main',
+                borderRadius: '50%',
+                width: 24,
+                height: 24,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <AutoAwesomeIcon sx={{ fontSize: 14, color: 'white' }} />
+            </Box>
+          </Tooltip>
+        )}
       </Box>
       <CardContent sx={{ py: 1.5 }}>
         <Typography variant="subtitle2" fontWeight={600} noWrap>
           {component.name}
         </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{
+            textTransform: 'capitalize',
+            display: 'block',
+            mb: 0.5,
+          }}
+        >
           {component.category}
         </Typography>
+        {component.description && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              lineHeight: 1.3,
+            }}
+          >
+            {component.description}
+          </Typography>
+        )}
         <Box sx={{ mt: 1, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-          {component.tags.slice(0, 3).map((tag) => (
+          {variantCount > 0 && (
+            <Chip
+              label={`${variantCount} variant${variantCount > 1 ? 's' : ''}`}
+              size="small"
+              color="primary"
+              variant="outlined"
+            />
+          )}
+          {component.tags.slice(0, 2).map((tag) => (
             <Chip key={tag} label={tag} size="small" variant="outlined" />
           ))}
         </Box>
@@ -185,7 +272,7 @@ function ComponentCard({
   );
 }
 
-// Detail modal
+// Detail modal with variant selector
 function ComponentDetailModal({
   component,
   open,
@@ -197,29 +284,97 @@ function ComponentDetailModal({
 }) {
   const { showSuccess } = useSnackbar();
   const [tabValue, setTabValue] = useState(0);
+  const { selectedVariant, selectVariant } = useComponentsStore();
+
+  // Reset variant when component changes
+  useEffect(() => {
+    if (component) {
+      selectVariant(null);
+    }
+  }, [component?.id]);
 
   if (!component) return null;
 
+  // Get current HTML/CSS based on variant selection
+  let currentHtml = component.html;
+  let currentCss = component.css;
+
+  if (selectedVariant && component.variants) {
+    const variant = component.variants.find((v) => v.name === selectedVariant);
+    if (variant) {
+      currentHtml = variant.html;
+      currentCss = variant.css;
+    }
+  }
+
   const copyAll = () => {
-    const combined = `/* CSS */\n${component.css}\n\n<!-- HTML -->\n${component.html}`;
+    const combined = `/* CSS */\n${currentCss}\n\n<!-- HTML -->\n${currentHtml}`;
     navigator.clipboard.writeText(combined);
     showSuccess('Component code copied to clipboard');
   };
+
+  const hasVariants = component.variants && component.variants.length > 0;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography variant="h6">{component.name}</Typography>
-          <Chip label={component.category} size="small" sx={{ textTransform: 'capitalize' }} />
+          <Chip
+            label={component.category}
+            size="small"
+            sx={{ textTransform: 'capitalize' }}
+          />
+          {component.generatedBy === 'llm' && (
+            <Chip
+              icon={<AutoAwesomeIcon sx={{ fontSize: 14 }} />}
+              label="AI Generated"
+              size="small"
+              color="primary"
+            />
+          )}
         </Box>
       </DialogTitle>
       <DialogContent>
-        <Box sx={{ mb: 2 }}>
+        {component.description && (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {component.description}
+          </Typography>
+        )}
+
+        <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
           {component.tags.map((tag) => (
-            <Chip key={tag} label={tag} size="small" color="primary" sx={{ mr: 0.5, mb: 0.5 }} />
+            <Chip
+              key={tag}
+              label={tag}
+              size="small"
+              color="primary"
+              variant="outlined"
+            />
           ))}
         </Box>
+
+        {/* Variant selector */}
+        {hasVariants && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+              Variants
+            </Typography>
+            <ToggleButtonGroup
+              value={selectedVariant || 'default'}
+              exclusive
+              onChange={(_, value) => selectVariant(value === 'default' ? null : value)}
+              size="small"
+            >
+              <ToggleButton value="default">Default</ToggleButton>
+              {component.variants!.map((variant) => (
+                <ToggleButton key={variant.name} value={variant.name}>
+                  {variant.name}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </Box>
+        )}
 
         <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ mb: 2 }}>
           <Tab icon={<VisibilityOutlinedIcon />} label="Preview" iconPosition="start" />
@@ -238,11 +393,20 @@ function ComponentDetailModal({
               backgroundColor: 'grey.100',
             }}
           >
-            <ComponentPreview component={component} />
+            <ComponentPreview component={component} variantName={selectedVariant} />
           </Box>
         )}
-        {tabValue === 1 && <CodeBlock code={component.html} language="html" />}
-        {tabValue === 2 && <CodeBlock code={component.css} language="css" />}
+        {tabValue === 1 && <CodeBlock code={currentHtml} language="html" />}
+        {tabValue === 2 && <CodeBlock code={currentCss} language="css" />}
+
+        {/* Props info */}
+        {component.props && component.props.length > 0 && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="caption" color="text.secondary">
+              Customizable properties: {component.props.join(', ')}
+            </Typography>
+          </Box>
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Close</Button>
@@ -251,6 +415,47 @@ function ComponentDetailModal({
         </Button>
       </DialogActions>
     </Dialog>
+  );
+}
+
+// Extraction progress display
+function ExtractionProgressDisplay() {
+  const { extractionProgress } = useComponentsStore();
+
+  if (!extractionProgress) return null;
+
+  const progress =
+    ((extractionProgress.screenIndex + 1) / extractionProgress.totalScreens) * 100;
+
+  return (
+    <Box
+      sx={{
+        mb: 3,
+        p: 2,
+        borderRadius: 2,
+        backgroundColor: 'primary.50',
+        border: '1px solid',
+        borderColor: 'primary.200',
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+        <Sparkle size={20} weight="fill" />
+        <Typography variant="subtitle2">
+          AI Component Extraction in Progress
+        </Typography>
+      </Box>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        {extractionProgress.message}
+      </Typography>
+      <LinearProgress
+        variant="determinate"
+        value={progress}
+        sx={{ height: 6, borderRadius: 3 }}
+      />
+      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+        Screen {extractionProgress.screenIndex + 1} of {extractionProgress.totalScreens}
+      </Typography>
+    </Box>
   );
 }
 
@@ -266,12 +471,13 @@ export function Components() {
     clearFilters,
     selectedComponent,
     selectComponent,
-    extractFromScreens,
+    extractWithLLM,
     isExtracting,
+    extractionProgress,
   } = useComponentsStore();
 
   const { screens, initializeScreens } = useScreensStore();
-  const { showSuccess } = useSnackbar();
+  const { showSuccess, showError } = useSnackbar();
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
@@ -282,17 +488,18 @@ export function Components() {
     }
   }, []);
 
-  // Auto-extract components when screens are available and no components exist
-  useEffect(() => {
-    if (screens.length > 0 && components.length === 0 && !isExtracting) {
-      extractFromScreens(screens);
+  // Handle LLM extraction
+  const handleExtract = async () => {
+    try {
+      await extractWithLLM(screens);
+      showSuccess(
+        `Extracted ${components.length} components using AI from ${screens.filter((s) => s.editedHtml).length} screens`
+      );
+    } catch (error) {
+      showError(
+        error instanceof Error ? error.message : 'Failed to extract components'
+      );
     }
-  }, [screens.length]);
-
-  // Manual refresh
-  const handleRefresh = async () => {
-    await extractFromScreens(screens);
-    showSuccess(`Extracted components from ${screens.filter(s => s.editedHtml).length} screens`);
   };
 
   const categories = useMemo(() => getCategories(components), [components]);
@@ -303,11 +510,10 @@ export function Components() {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const matchesName = comp.name.toLowerCase().includes(query);
-        const matchesTags = comp.tags.some((tag) =>
-          tag.toLowerCase().includes(query)
-        );
+        const matchesDescription = comp.description?.toLowerCase().includes(query);
+        const matchesTags = comp.tags.some((tag) => tag.toLowerCase().includes(query));
         const matchesCategory = comp.category.toLowerCase().includes(query);
-        if (!matchesName && !matchesTags && !matchesCategory) {
+        if (!matchesName && !matchesDescription && !matchesTags && !matchesCategory) {
           return false;
         }
       }
@@ -329,6 +535,7 @@ export function Components() {
 
   const hasFilters = searchQuery || selectedCategory || selectedTags.length > 0;
   const { config } = useThemeStore();
+  const screensWithHtml = screens.filter((s) => s.editedHtml);
 
   return (
     <Box>
@@ -397,9 +604,15 @@ export function Components() {
             </ToggleButtonGroup>
             <Button
               variant="contained"
-              startIcon={isExtracting ? <CircularProgress size={18} color="inherit" /> : <ArrowsClockwise size={18} />}
-              onClick={handleRefresh}
-              disabled={isExtracting || screens.length === 0}
+              startIcon={
+                isExtracting ? (
+                  <CircularProgress size={18} color="inherit" />
+                ) : (
+                  <Lightning size={18} weight="fill" />
+                )
+              }
+              onClick={handleExtract}
+              disabled={isExtracting || screensWithHtml.length === 0}
               sx={{
                 transition: 'all 0.2s ease',
                 '&:hover': {
@@ -408,11 +621,21 @@ export function Components() {
                 },
               }}
             >
-              {isExtracting ? 'Extracting...' : 'Extract Components'}
+              {isExtracting ? 'Extracting...' : 'Extract with AI'}
             </Button>
           </>
         }
       />
+
+      {/* Extraction progress */}
+      {isExtracting && extractionProgress && <ExtractionProgressDisplay />}
+
+      {/* No screens warning */}
+      {screensWithHtml.length === 0 && !isExtracting && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Upload some screens first to extract components. Go to the Screens page to upload HTML files.
+        </Alert>
+      )}
 
       {/* Tag filters - inline below header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
@@ -436,12 +659,7 @@ export function Components() {
           </>
         )}
         {hasFilters && (
-          <Button
-            size="small"
-            startIcon={<X size={14} />}
-            onClick={clearFilters}
-            sx={{ ml: 1 }}
-          >
+          <Button size="small" startIcon={<X size={14} />} onClick={clearFilters} sx={{ ml: 1 }}>
             Clear
           </Button>
         )}
@@ -450,8 +668,16 @@ export function Components() {
       {/* Components Grid */}
       {filteredComponents.length === 0 ? (
         <EmptyState
-          title={hasFilters ? 'No components match your filters' : 'No components extracted yet'}
-          description={hasFilters ? 'Try adjusting your filters' : 'Components will appear here when extracted from screens'}
+          title={
+            hasFilters
+              ? 'No components match your filters'
+              : 'No components extracted yet'
+          }
+          description={
+            hasFilters
+              ? 'Try adjusting your filters'
+              : 'Click "Extract with AI" to analyze your screens and generate reusable components'
+          }
           action={hasFilters ? { label: 'Clear Filters', onClick: clearFilters } : undefined}
         />
       ) : (

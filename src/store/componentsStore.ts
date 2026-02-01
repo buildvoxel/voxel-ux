@@ -1,16 +1,19 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import {
-  extractComponentsFromScreens,
-  type ExtractedComponent as ServiceComponent,
+  extractComponentsFromMultipleScreens,
+  type ExtractedComponentLLM,
   type ComponentCategory,
+  type ComponentVariant,
+  type ExtractionProgress,
   CATEGORY_INFO,
-} from '@/services/componentExtractorService';
+} from '@/services/componentExtractionService';
 
 export interface ExtractedComponent {
   id: string;
   name: string;
   category: string;
+  description: string;
   sourceScreen: string;
   sourceScreenIds: string[];
   extractedAt: string;
@@ -18,16 +21,23 @@ export interface ExtractedComponent {
   html: string;
   css: string;
   occurrences: number;
+  variants?: ComponentVariant[];
+  props?: string[];
+  generatedBy: 'dom-parser' | 'llm';
 }
 
 interface ComponentsState {
   components: ExtractedComponent[];
   selectedComponent: ExtractedComponent | null;
+  selectedVariant: string | null; // variant name for detail view
   searchQuery: string;
   selectedCategory: string | null;
   selectedTags: string[];
   isExtracting: boolean;
+  extractionProgress: ExtractionProgress | null;
   lastExtractionTime: string | null;
+  lastExtractionProvider: string | null;
+  lastExtractionModel: string | null;
 
   // Actions
   setSearchQuery: (query: string) => void;
@@ -35,28 +45,39 @@ interface ComponentsState {
   toggleTag: (tag: string) => void;
   clearFilters: () => void;
   selectComponent: (component: ExtractedComponent | null) => void;
-  extractFromScreens: (screens: Array<{ id: string; editedHtml?: string; name: string }>) => Promise<void>;
+  selectVariant: (variantName: string | null) => void;
+  extractWithLLM: (
+    screens: Array<{ id: string; name: string; editedHtml?: string }>,
+    options?: {
+      provider?: 'anthropic' | 'openai' | 'google';
+      model?: string;
+    }
+  ) => Promise<void>;
   clearComponents: () => void;
 }
 
-// Convert service component to store component
-function convertComponent(comp: ServiceComponent): ExtractedComponent {
+// Convert LLM extracted component to store component
+function convertLLMComponent(comp: ExtractedComponentLLM): ExtractedComponent {
   return {
     id: comp.id,
     name: comp.name,
     category: comp.category,
+    description: comp.description,
     sourceScreen: comp.sourceScreenIds[0] || 'unknown',
     sourceScreenIds: comp.sourceScreenIds,
-    extractedAt: new Date().toISOString(),
+    extractedAt: comp.extractedAt,
     tags: generateTags(comp),
     html: comp.html,
-    css: comp.styles,
+    css: comp.css,
     occurrences: comp.occurrences,
+    variants: comp.variants,
+    props: comp.props,
+    generatedBy: 'llm',
   };
 }
 
 // Generate tags from component metadata
-function generateTags(comp: ServiceComponent): string[] {
+function generateTags(comp: ExtractedComponentLLM): string[] {
   const tags: string[] = [];
 
   // Add category as tag
@@ -66,29 +87,28 @@ function generateTags(comp: ServiceComponent): string[] {
   }
 
   // Add occurrence-based tags
-  if (comp.occurrences > 5) {
+  if (comp.occurrences > 3) {
     tags.push('frequently-used');
   }
   if (comp.occurrences === 1) {
     tags.push('unique');
   }
 
-  // Add attribute-based tags
-  if (comp.attributes.class) {
-    const classes = comp.attributes.class.split(' ').slice(0, 3);
-    classes.forEach(cls => {
-      if (cls.length > 2 && cls.length < 20) {
-        tags.push(cls);
-      }
+  // Add variant-based tags
+  if (comp.variants && comp.variants.length > 0) {
+    tags.push('has-variants');
+    comp.variants.forEach((v) => {
+      if (v.name.toLowerCase().includes('hover')) tags.push('interactive');
+      if (v.name.toLowerCase().includes('disabled')) tags.push('has-disabled');
     });
   }
 
-  // Add type-based tags for inputs
-  if (comp.attributes.type) {
-    tags.push(comp.attributes.type);
+  // Add props-based tags
+  if (comp.props && comp.props.length > 0) {
+    tags.push('customizable');
   }
 
-  // Limit to 5 tags
+  // Limit to 5 unique tags
   return [...new Set(tags)].slice(0, 5);
 }
 
@@ -97,11 +117,15 @@ export const useComponentsStore = create<ComponentsState>()(
     (set) => ({
       components: [],
       selectedComponent: null,
+      selectedVariant: null,
       searchQuery: '',
       selectedCategory: null,
       selectedTags: [],
       isExtracting: false,
+      extractionProgress: null,
       lastExtractionTime: null,
+      lastExtractionProvider: null,
+      lastExtractionModel: null,
 
       setSearchQuery: (query) => set({ searchQuery: query }),
 
@@ -121,10 +145,13 @@ export const useComponentsStore = create<ComponentsState>()(
           selectedTags: [],
         }),
 
-      selectComponent: (component) => set({ selectedComponent: component }),
+      selectComponent: (component) =>
+        set({ selectedComponent: component, selectedVariant: null }),
 
-      extractFromScreens: async (screens) => {
-        set({ isExtracting: true });
+      selectVariant: (variantName) => set({ selectedVariant: variantName }),
+
+      extractWithLLM: async (screens, options) => {
+        set({ isExtracting: true, extractionProgress: null });
 
         try {
           // Filter screens with HTML content
@@ -140,25 +167,45 @@ export const useComponentsStore = create<ComponentsState>()(
             set({
               components: [],
               isExtracting: false,
+              extractionProgress: null,
               lastExtractionTime: new Date().toISOString(),
             });
             return;
           }
 
-          // Extract components
-          const extracted = extractComponentsFromScreens(screensWithHtml);
+          // Extract components with progress tracking
+          const result = await extractComponentsFromMultipleScreens(
+            screensWithHtml,
+            {
+              provider: options?.provider,
+              model: options?.model,
+              onProgress: (progress) => {
+                set({ extractionProgress: progress });
+              },
+            }
+          );
 
           // Convert to store format
-          const components = extracted.map(convertComponent);
+          const components = result.components.map(convertLLMComponent);
 
           set({
             components,
             isExtracting: false,
+            extractionProgress: null,
             lastExtractionTime: new Date().toISOString(),
           });
+
+          // Log any errors
+          if (result.errors.length > 0) {
+            console.warn('[ComponentsStore] Some screens failed:', result.errors);
+          }
         } catch (error) {
-          console.error('Error extracting components:', error);
-          set({ isExtracting: false });
+          console.error('[ComponentsStore] Error extracting components:', error);
+          set({
+            isExtracting: false,
+            extractionProgress: null,
+          });
+          throw error;
         }
       },
 
@@ -166,6 +213,8 @@ export const useComponentsStore = create<ComponentsState>()(
         set({
           components: [],
           lastExtractionTime: null,
+          lastExtractionProvider: null,
+          lastExtractionModel: null,
         }),
     }),
     {
@@ -174,6 +223,8 @@ export const useComponentsStore = create<ComponentsState>()(
       partialize: (state) => ({
         components: state.components,
         lastExtractionTime: state.lastExtractionTime,
+        lastExtractionProvider: state.lastExtractionProvider,
+        lastExtractionModel: state.lastExtractionModel,
       }),
     }
   )
@@ -188,3 +239,7 @@ export const getCategories = (components: ExtractedComponent[]): string[] => {
 export const getAllTags = (components: ExtractedComponent[]): string[] => {
   return [...new Set(components.flatMap((c) => c.tags))].sort();
 };
+
+// Re-export types and constants
+export type { ExtractedComponentLLM, ComponentCategory, ComponentVariant };
+export { CATEGORY_INFO };
