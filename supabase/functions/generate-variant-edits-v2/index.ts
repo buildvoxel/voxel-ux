@@ -439,10 +439,12 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     console.error('[generate-variant-edits-v2] Error:', error);
+    console.error('[generate-variant-edits-v2] Stack:', error.stack);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: error.message || String(error),
+        stack: error.stack,
       }),
       {
         status: 500,

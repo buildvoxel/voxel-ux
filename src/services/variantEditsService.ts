@@ -81,7 +81,8 @@ export async function generateVariantEditsV2(
   });
 
   // Extract element summary (compact representation)
-  const elementSummary = extractMinimalSummary(originalHtml, 3000);
+  // Limit to 1500 tokens (~6000 chars) to leave room for screenshot + prompt
+  const elementSummary = extractMinimalSummary(originalHtml, 1500);
 
   console.log('[VariantEditsService V2] Element summary extracted:', {
     originalLength: originalHtml.length,
@@ -128,12 +129,14 @@ export async function generateVariantEditsV2(
 
   if (error) {
     console.error('[VariantEditsService V2] Edge function error:', error);
+    console.error('[VariantEditsService V2] Error context:', { data });
     throw new Error(error.message || 'Failed to generate variant edits');
   }
 
-  if (!data.success) {
-    console.error('[VariantEditsService V2] Generation failed:', data.error);
-    throw new Error(data.error || 'Variant edits generation failed');
+  if (!data?.success) {
+    console.error('[VariantEditsService V2] Generation failed:', data?.error);
+    console.error('[VariantEditsService V2] Full response:', data);
+    throw new Error(data?.error || 'Variant edits generation failed');
   }
 
   console.log('[VariantEditsService V2] Generated operations for', data.variantEdits?.length, 'variants');
