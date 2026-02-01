@@ -3045,31 +3045,10 @@ export const VibePrototyping: React.FC = () => {
                   />
                 </Box>
 
-                {/* Action buttons */}
-                <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'flex-end' }}>
-                  {clarificationInput.trim() && (
-                    <Button
-                      variant="outlined"
-                      onClick={handleClarify}
-                      disabled={isClarifying}
-                      size="small"
-                    >
-                      {isClarifying ? <CircularProgress size={16} /> : 'Update'}
-                    </Button>
-                  )}
-                  <Button
-                    variant="contained"
-                    onClick={handleApproveUnderstanding}
-                    disabled={isClarifying}
-                    size="small"
-                    sx={{
-                      background: config.gradients?.primary || config.colors.primary,
-                    }}
-                  >
-                    <Check size={16} style={{ marginRight: 4 }} />
-                    Proceed
-                  </Button>
-                </Box>
+                {/* Action hint - actual buttons are in fixed action bar */}
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', textAlign: 'right' }}>
+                  Use the action bar below to proceed →
+                </Typography>
               </Box>
             )}
 
@@ -3087,30 +3066,14 @@ export const VibePrototyping: React.FC = () => {
 
             {/* Wireframing phase */}
             {(isWireframing || isWireframeReady || isGenerating || isComplete) && (
-              <Box>
-                <AIPhase
-                  label="Wireframing"
-                  content="Creating quick layout sketches for each paradigm to visualize the structure before building..."
-                  isActive={isWireframing}
-                  isComplete={!isWireframing && (isWireframeReady || isGenerating || isComplete)}
-                  isCollapsible={true}
-                  defaultCollapsed={!isWireframing && !isWireframeReady && isComplete}
-                />
-                {/* Show back to wireframes inline when in generating or complete state */}
-                {(isGenerating || isComplete) && (
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: -1.5, mb: 1 }}>
-                    <Button
-                      variant="text"
-                      size="small"
-                      onClick={handleBackToWireframes}
-                      startIcon={<ArrowLeft size={14} />}
-                      sx={{ fontSize: '0.75rem', color: 'text.secondary' }}
-                    >
-                      Back to Wireframes
-                    </Button>
-                  </Box>
-                )}
-              </Box>
+              <AIPhase
+                label="Wireframing"
+                content="Creating quick layout sketches for each paradigm to visualize the structure before building..."
+                isActive={isWireframing}
+                isComplete={!isWireframing && (isWireframeReady || isGenerating || isComplete)}
+                isCollapsible={true}
+                defaultCollapsed={!isWireframing && !isWireframeReady && isComplete}
+              />
             )}
 
             {/* Building phase */}
@@ -3161,24 +3124,11 @@ export const VibePrototyping: React.FC = () => {
                   );
                 })}
 
-                {/* Action button based on phase */}
+                {/* Action hint based on phase - actual buttons are in fixed action bar */}
                 {isPlanReady && (
-                  <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      {selectedVariants.length}/4 selected
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      onClick={handleCreateWireframes}
-                      disabled={selectedVariants.length === 0}
-                      size="small"
-                      sx={{
-                        background: config.gradients?.primary || config.colors.primary,
-                      }}
-                    >
-                      Create Wireframes
-                    </Button>
-                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block', textAlign: 'right' }}>
+                    Select variants above, then use the action bar below →
+                  </Typography>
                 )}
 
                 {isWireframing && (
@@ -3191,51 +3141,110 @@ export const VibePrototyping: React.FC = () => {
                 )}
 
                 {isWireframeReady && (
-                  <Box sx={{ mt: 2, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                    <Button
-                      variant="outlined"
-                      onClick={() => handleRepromptWireframes()}
-                      size="small"
-                      startIcon={<ArrowClockwise size={16} />}
-                    >
-                      Regenerate
-                    </Button>
-                    <Button
-                      variant="contained"
-                      onClick={handleBuildHighFidelity}
-                      size="small"
-                      sx={{
-                        background: config.gradients?.primary || config.colors.primary,
-                      }}
-                    >
-                      Build High-Fidelity
-                    </Button>
-                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block', textAlign: 'right' }}>
+                    Review wireframes above, then use the action bar below →
+                  </Typography>
                 )}
               </Box>
             )}
 
             {/* Summary phase when complete */}
             {isComplete && (
-              <>
-                <AIPhase
-                  label="Summary"
-                  content={phaseContent.summary || 'All 4 variants are ready! Click on any variant to explore it in full screen.'}
-                  isComplete
-                />
-                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={handleBackToWireframes}
-                    startIcon={<ArrowLeft size={16} />}
-                  >
-                    Back to Wireframes
-                  </Button>
-                </Box>
-              </>
+              <AIPhase
+                label="Summary"
+                content={phaseContent.summary || 'All 4 variants are ready! Click on any variant to explore it in full screen.'}
+                isComplete
+              />
             )}
           </Box>
+
+          {/* Fixed Action Bar - Shows primary CTA based on current state */}
+          {(isUnderstandingReady || isPlanReady || isWireframeReady || isComplete) && (
+            <Box
+              sx={{
+                p: 1.5,
+                borderTop: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: 1,
+                flexShrink: 0,
+              }}
+            >
+              {isUnderstandingReady && (
+                <>
+                  {clarificationInput.trim() && (
+                    <Button
+                      variant="outlined"
+                      onClick={handleClarify}
+                      disabled={isClarifying}
+                      size="small"
+                    >
+                      {isClarifying ? <CircularProgress size={14} /> : 'Update'}
+                    </Button>
+                  )}
+                  <Button
+                    variant="contained"
+                    onClick={handleApproveUnderstanding}
+                    disabled={isClarifying}
+                    size="small"
+                    startIcon={<Check size={14} />}
+                    sx={{ background: config.gradients?.primary || config.colors.primary }}
+                  >
+                    Proceed to Planning
+                  </Button>
+                </>
+              )}
+              {isPlanReady && (
+                <>
+                  <Typography variant="caption" color="text.secondary">
+                    {selectedVariants.length}/4 selected
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    onClick={handleCreateWireframes}
+                    disabled={selectedVariants.length === 0}
+                    size="small"
+                    sx={{ background: config.gradients?.primary || config.colors.primary }}
+                  >
+                    Create Wireframes
+                  </Button>
+                </>
+              )}
+              {isWireframeReady && (
+                <>
+                  <Button
+                    variant="outlined"
+                    onClick={() => handleRepromptWireframes()}
+                    size="small"
+                    startIcon={<ArrowClockwise size={14} />}
+                  >
+                    Regenerate
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={handleBuildHighFidelity}
+                    size="small"
+                    sx={{ background: config.gradients?.primary || config.colors.primary }}
+                  >
+                    Build High-Fidelity
+                  </Button>
+                </>
+              )}
+              {isComplete && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleBackToWireframes}
+                  startIcon={<ArrowLeft size={14} />}
+                >
+                  Back to Wireframes
+                </Button>
+              )}
+            </Box>
+          )}
 
           {/* Prompt Input at bottom */}
           <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', flexShrink: 0 }}>
