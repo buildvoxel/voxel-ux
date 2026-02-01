@@ -49,7 +49,6 @@ import {
   PencilSimple,
   ArrowCounterClockwise,
   ArrowClockwise,
-  ArrowLeft,
   ArrowsClockwise,
   Lightning,
   Paperclip,
