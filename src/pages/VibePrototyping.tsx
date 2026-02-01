@@ -2150,9 +2150,12 @@ export const VibePrototyping: React.FC = () => {
   }, [screen, screenId, promptValue, sourceMetadata, contexts, generatePhaseContent]);
 
   // Handle Create Wireframes button - transitions from plan_ready to wireframing
-  const handleCreateWireframes = useCallback(async () => {
-    if (!currentSession || !plan || !screen?.editedHtml) return;
+  const [isCreatingWireframes, setIsCreatingWireframes] = useState(false);
 
+  const handleCreateWireframes = useCallback(async () => {
+    if (!currentSession || !plan || !screen?.editedHtml || isCreatingWireframes) return;
+
+    setIsCreatingWireframes(true);
     console.log('[VibePrototyping] Starting visual wireframe generation...');
     console.log('[VibePrototyping] Session ID:', currentSession.id);
     console.log('[VibePrototyping] Plans count:', plan.plans?.length);
@@ -2203,8 +2206,10 @@ export const VibePrototyping: React.FC = () => {
       const errorMsg = err instanceof Error ? err.message : 'Failed to create wireframes';
       showError(errorMsg);
       setError(errorMsg);
+    } finally {
+      setIsCreatingWireframes(false);
     }
-  }, [currentSession, plan, screen, sourceMetadata, screenScreenshot, selectedProvider, selectedModel, selectedVariants, addChatMessage, storeApprovePlan]);
+  }, [currentSession, plan, screen, sourceMetadata, screenScreenshot, selectedProvider, selectedModel, selectedVariants, addChatMessage, storeApprovePlan, isCreatingWireframes]);
 
   // Handle Build High-Fidelity button - transitions from wireframe_ready to generating
   const handleBuildHighFidelity = useCallback(async () => {
@@ -3161,11 +3166,11 @@ export const VibePrototyping: React.FC = () => {
                   <Button
                     variant="contained"
                     onClick={handleCreateWireframes}
-                    disabled={selectedVariants.length === 0}
+                    disabled={selectedVariants.length === 0 || isCreatingWireframes}
                     size="small"
                     sx={{ background: config.gradients?.primary || config.colors.primary }}
                   >
-                    Create Wireframes
+                    {isCreatingWireframes ? 'Creating...' : 'Create Wireframes'}
                   </Button>
                 </>
               )}
