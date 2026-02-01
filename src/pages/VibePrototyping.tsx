@@ -105,7 +105,6 @@ import {
   approvePlan,
 } from '@/services/variantPlanService';
 import {
-  generateAllVariantsStreaming,
   getVariants,
   saveVariantEditedHtml,
   saveVariantPartialHtml,
@@ -1655,9 +1654,8 @@ export const VibePrototyping: React.FC = () => {
   // Streaming HTML for live preview during generation
   const [streamingHtml, setStreamingHtml] = useState<Record<number, string>>({});
 
-  // Generation method: 'edits' (faster, more consistent) or 'full' (complete regeneration)
-  const [generationMethod, setGenerationMethod] = useState<'edits' | 'full'>('edits');
-  const useStreaming = true;
+  // V2 edit-based generation is always used for UI consistency
+  // This preserves the original design system while applying targeted changes
 
   // Update elapsed times every second during generation
   useEffect(() => {
@@ -1685,18 +1683,6 @@ export const VibePrototyping: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [status, variantStartTimes, completedVariantIndices]);
-
-  // Generate progress message based on percentage
-  const getProgressStage = useCallback((percent: number): string => {
-    if (percent < 10) return 'Initializing generation...';
-    if (percent < 25) return 'Building document structure...';
-    if (percent < 40) return 'Generating header & navigation...';
-    if (percent < 55) return 'Creating main content sections...';
-    if (percent < 70) return 'Applying styles & colors...';
-    if (percent < 85) return 'Adding interactive elements...';
-    if (percent < 95) return 'Finalizing layout...';
-    return 'Completing generation...';
-  }, []);
 
   // Iteration state
   const [iterationDialogOpen, setIterationDialogOpen] = useState(false);
@@ -2238,13 +2224,11 @@ export const VibePrototyping: React.FC = () => {
     console.log('[VibePrototyping] Screenshot:', `${Math.round(screenScreenshot.length / 1024)}KB`);
     console.log('[VibePrototyping] Has metadata (design tokens):', !!sourceMetadata);
     console.log('[VibePrototyping] Wireframes available:', wireframes.length);
-    console.log('[VibePrototyping] Streaming enabled:', useStreaming);
+    console.log('[VibePrototyping] Generation method: V2 edit-based (UI-preserving)');
     console.log('[VibePrototyping] Provider:', selectedProvider, 'Model:', selectedModel);
 
     try {
-      addChatMessage('assistant', useStreaming
-        ? 'Starting vision-first prototype generation with live streaming...'
-        : 'Starting vision-first prototype generation...');
+      addChatMessage('assistant', 'Starting UI-preserving prototype generation...');
 
       // Use the store's approveWireframes to transition to generating
       const { approveWireframes } = useVibeStore.getState();
@@ -2286,113 +2270,55 @@ export const VibePrototyping: React.FC = () => {
 
       console.log('[VibePrototyping] Wireframe texts:', Object.keys(wireframeTexts).length);
 
-      // Get product context summary (if available)
-      const productContextSummary = contextFiles.length > 0
-        ? `Product context: ${contextFiles.slice(0, 3).map(f => f.fileName).join(', ')} (${contextFiles.length} files total)`
-        : undefined;
-
       let generatedVariants;
 
-      if (generationMethod === 'edits' && screen?.editedHtml) {
-        // EDIT-BASED generation: Apply edits to original HTML (faster, more consistent)
-        console.log('[VibePrototyping] Using edit-based generation');
-        addChatMessage('assistant', 'Using efficient edit-based generation. I\'ll apply targeted changes to your original screen rather than rebuilding from scratch.');
-
-        await generateVariantsFromEdits(
-          currentSession.id,
-          plan.plans,
-          screen.editedHtml,
-          (p) => {
-            setProgress({
-              stage: 'generating',
-              message: p.message,
-              percent: p.percent,
-              variantIndex: p.variantIndex,
-            });
-
-            if (p.variantIndex) {
-              setVariantStartTimes((prev) => {
-                if (!prev[p.variantIndex!]) {
-                  return { ...prev, [p.variantIndex!]: Date.now() };
-                }
-                return prev;
-              });
-            }
-          },
-          (variantIndex, html) => {
-            // Variant completed - update preview
-            setStreamingHtml((prev) => ({
-              ...prev,
-              [variantIndex]: html,
-            }));
-            setCompletedVariantIndices((prev) => new Set([...prev, variantIndex]));
-          },
-          screenScreenshot,
-          selectedProvider || undefined,
-          selectedModel || undefined
-        );
-
-        // Fetch final variants from database
-        generatedVariants = await getVariants(currentSession.id);
-      } else if (useStreaming) {
-        // FULL streaming generation (fallback or when edits not available)
-        console.log('[VibePrototyping] Using full streaming generation');
-        generatedVariants = await generateAllVariantsStreaming(
-          currentSession.id,
-          plan.plans,
-          screenScreenshot, // Screenshot is primary input now
-          designTokens,
-          wireframeTexts,
-          productContextSummary,
-          (p) => {
-            setProgress({
-              stage: 'generating',
-              message: p.message,
-              percent: p.percent,
-              variantIndex: p.variantIndex,
-              variantTitle: p.title,
-            });
-
-            // Track start time when variant begins generating
-            if (p.stage === 'generating' && p.variantIndex) {
-              setVariantStartTimes((prev) => {
-                if (!prev[p.variantIndex!]) {
-                  return { ...prev, [p.variantIndex!]: Date.now() };
-                }
-                return prev;
-              });
-              // Update progress message based on overall percent
-              setVariantProgressMessages((prev) => ({
-                ...prev,
-                [p.variantIndex!]: getProgressStage(p.percent),
-              }));
-            }
-
-            // Track completed variants locally to prevent progress reset
-            if (p.stage === 'complete' && p.variantIndex) {
-              setCompletedVariantIndices((prev) => new Set([...prev, p.variantIndex!]));
-              getVariants(currentSession.id).then(setVariants);
-            }
-          },
-          (variantIndex, _chunk, fullHtml) => {
-            // Update streaming HTML for live preview
-            setStreamingHtml((prev) => ({
-              ...prev,
-              [variantIndex]: fullHtml,
-            }));
-            // Save partial HTML to database periodically
-            if (currentSession) {
-              debouncedSavePartialHtml(currentSession.id, variantIndex, fullHtml);
-            }
-          },
-          selectedProvider || undefined, // provider from dropdown
-          selectedModel || undefined // model from dropdown
-        );
-      } else {
-        // Non-streaming not supported
-        showError('Non-streaming generation not supported. Please enable streaming.');
+      // V2 EDIT-BASED generation: Always use this approach for UI consistency
+      // This preserves the original HTML structure and only modifies specific elements
+      if (!screen?.editedHtml) {
+        showError('Screen HTML not available. Please ensure the screen has been captured properly.');
+        console.error('[VibePrototyping] Missing editedHtml for screen:', screen?.id);
         return;
       }
+
+      console.log('[VibePrototyping] Using V2 edit-based generation for UI consistency');
+      addChatMessage('assistant', 'Generating variants using targeted edits to preserve your original design system. This ensures UI consistency across all prototypes.');
+
+      await generateVariantsFromEdits(
+        currentSession.id,
+        plan.plans,
+        screen.editedHtml,
+        (p) => {
+          setProgress({
+            stage: 'generating',
+            message: p.message,
+            percent: p.percent,
+            variantIndex: p.variantIndex,
+          });
+
+          if (p.variantIndex) {
+            setVariantStartTimes((prev) => {
+              if (!prev[p.variantIndex!]) {
+                return { ...prev, [p.variantIndex!]: Date.now() };
+              }
+              return prev;
+            });
+          }
+        },
+        (variantIndex, html) => {
+          // Variant completed - update preview
+          setStreamingHtml((prev) => ({
+            ...prev,
+            [variantIndex]: html,
+          }));
+          setCompletedVariantIndices((prev) => new Set([...prev, variantIndex]));
+        },
+        screenScreenshot,
+        selectedProvider || undefined,
+        selectedModel || undefined
+      );
+
+      // Fetch final variants from database
+      generatedVariants = await getVariants(currentSession.id);
 
       setVariants(generatedVariants);
       setStatus('complete');
@@ -2420,7 +2346,7 @@ export const VibePrototyping: React.FC = () => {
         showError(`Failed to generate prototypes: ${errorMessage}`);
       }
     }
-  }, [currentSession, plan, sourceMetadata, screenScreenshot, wireframes, contextFiles, selectedProvider, selectedModel, addChatMessage, setVariants, setStatus, setProgress, debouncedSavePartialHtml, showError, showSuccess, useStreaming, generationMethod, screen]);
+  }, [currentSession, plan, sourceMetadata, screenScreenshot, wireframes, contextFiles, selectedProvider, selectedModel, addChatMessage, setVariants, setStatus, setProgress, debouncedSavePartialHtml, showError, showSuccess, screen]);
 
   // Handle iteration on a variant
   const handleIterate = useCallback(async () => {
@@ -3892,31 +3818,26 @@ export const VibePrototyping: React.FC = () => {
 
             {/* Right: Generation method + Preview size + Share button */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {/* Generation Method Toggle */}
-              <Tooltip title="Generation method: Edits = faster, applies targeted changes. Full = regenerates entire HTML">
-                <ToggleButtonGroup
-                  value={generationMethod}
-                  exclusive
-                  onChange={(_, value) => value && setGenerationMethod(value)}
-                  size="small"
+              {/* Generation Method Indicator - V2 only for UI consistency */}
+              <Tooltip title="Edit-based generation: Applies targeted changes to preserve your original design system">
+                <Box
                   sx={{
-                    '& .MuiToggleButton-root': {
-                      py: 0.5,
-                      px: 1.5,
-                      fontSize: '0.75rem',
-                      textTransform: 'none',
-                    },
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    px: 1.5,
+                    py: 0.5,
+                    bgcolor: 'action.hover',
+                    borderRadius: 1,
+                    fontSize: '0.75rem',
+                    color: 'text.secondary',
                   }}
                 >
-                  <ToggleButton value="edits">
-                    <Lightning size={14} style={{ marginRight: 4 }} />
-                    Edits
-                  </ToggleButton>
-                  <ToggleButton value="full">
-                    <ArrowsClockwise size={14} style={{ marginRight: 4 }} />
-                    Full
-                  </ToggleButton>
-                </ToggleButtonGroup>
+                  <Lightning size={14} />
+                  <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                    UI-Preserving Edits
+                  </Typography>
+                </Box>
               </Tooltip>
 
               <Divider orientation="vertical" flexItem />

@@ -36,6 +36,8 @@ export interface GenerateEditsProgress {
   message: string;
   percent: number;
   variantIndex?: number;
+  operationsApplied?: number;
+  operationsFailed?: number;
 }
 
 export interface GenerateVariantsResult {
@@ -237,25 +239,37 @@ export async function generateVariantsFromEditsV2(
         applyResult = applyEditOperations(originalHtml, variantEdit.operations);
       } catch (applyError) {
         console.error(`[VariantEditsService V2] Failed to apply operations for variant ${variantEdit.variantIndex}:`, applyError);
-        // Fall back to original HTML if operations fail
-        applyResult = {
-          html: originalHtml,
-          results: [],
-          totalOperations: variantEdit.operations.length,
-          successfulOperations: 0,
-          failedOperations: variantEdit.operations.length,
-        };
+        // Surface the error rather than silently falling back
+        throw new Error(`Failed to apply edit operations for Variant ${String.fromCharCode(64 + variantEdit.variantIndex)}: ${applyError instanceof Error ? applyError.message : 'Unknown error'}`);
       }
 
-      console.log(`[VariantEditsService V2] Variant ${variantEdit.variantIndex}: Applied ${applyResult.successfulOperations}/${applyResult.totalOperations} operations`);
+      const successRate = applyResult.totalOperations > 0
+        ? Math.round((applyResult.successfulOperations / applyResult.totalOperations) * 100)
+        : 0;
+
+      console.log(`[VariantEditsService V2] Variant ${variantEdit.variantIndex}: Applied ${applyResult.successfulOperations}/${applyResult.totalOperations} operations (${successRate}% success)`);
 
       if (applyResult.failedOperations > 0) {
         console.warn(`[VariantEditsService V2] Variant ${variantEdit.variantIndex}: ${applyResult.failedOperations} operations failed`);
         // Log failed operations for debugging
-        applyResult.results
-          .filter(r => !r.success)
-          .forEach(r => console.warn('  Failed:', r.operation.type, r.operation.selector, r.error));
+        const failedOps = applyResult.results.filter(r => !r.success);
+        failedOps.forEach(r => console.warn('  Failed:', r.operation.type, r.operation.selector, r.error));
+
+        // If all operations failed, this is a critical error
+        if (applyResult.successfulOperations === 0 && variantEdit.operations.length > 0) {
+          console.error(`[VariantEditsService V2] All operations failed for variant ${variantEdit.variantIndex}. Selectors may not match the HTML structure.`);
+        }
       }
+
+      // Update progress with operation results
+      onProgress?.({
+        stage: 'applying',
+        message: `Applied ${applyResult.successfulOperations}/${applyResult.totalOperations} edits (${successRate}% success)`,
+        percent: progressBase + 3,
+        variantIndex: variantEdit.variantIndex,
+        operationsApplied: applyResult.successfulOperations,
+        operationsFailed: applyResult.failedOperations,
+      });
 
       // Notify caller of completed variant
       onVariantComplete?.(variantEdit.variantIndex, applyResult.html);
