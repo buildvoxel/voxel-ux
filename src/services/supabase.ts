@@ -11,7 +11,28 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase: SupabaseClient = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      // Use localStorage instead of Web Locks to avoid AbortError issues
+      persistSession: true,
+      storageKey: 'voxel-auth',
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  }
+);
+
+// Create a separate client for public/anonymous operations (no auth)
+export const supabasePublic: SupabaseClient = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  }
 );
 
 /**

@@ -3,7 +3,7 @@
  * Manages share links for vibe prototypes
  */
 
-import { supabase, isSupabaseConfigured } from './supabase';
+import { supabase, supabasePublic, isSupabaseConfigured } from './supabase';
 
 // Types
 export type ShareType = 'specific' | 'random';
@@ -132,7 +132,8 @@ export async function getShareData(token: string): Promise<ShareData | null> {
 
   console.log('[SharingService] Fetching share data for token:', token);
 
-  const { data, error } = await supabase.rpc('get_share_data', {
+  // Use public client for anonymous access (no auth required)
+  const { data, error } = await supabasePublic.rpc('get_share_data', {
     p_share_token: token,
   });
 
@@ -202,7 +203,8 @@ export async function recordShareView(
   // For now, just use a placeholder
   const ipHash = 'anonymous';
 
-  await supabase.from('vibe_share_views').insert({
+  // Use public client for anonymous access (no auth required)
+  await supabasePublic.from('vibe_share_views').insert({
     share_id: shareId,
     variant_index: variantIndex,
     viewer_ip_hash: ipHash,

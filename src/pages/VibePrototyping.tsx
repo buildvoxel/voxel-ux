@@ -214,6 +214,7 @@ function AIPhase({
   isComplete = false,
   isCollapsible = false,
   defaultCollapsed = false,
+  onClick,
 }: {
   label: string;
   content: string;
@@ -221,6 +222,7 @@ function AIPhase({
   isComplete?: boolean;
   isCollapsible?: boolean;
   defaultCollapsed?: boolean;
+  onClick?: () => void;
 }) {
   const [displayedContent, setDisplayedContent] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -248,11 +250,21 @@ function AIPhase({
   }, [content, isActive, isComplete]);
 
   const canCollapse = isCollapsible && isComplete && !isActive;
+  const isClickable = canCollapse || (onClick && isComplete);
+
+  const handleClick = () => {
+    if (onClick && isComplete) {
+      onClick();
+    }
+    if (canCollapse) {
+      setIsCollapsed(!isCollapsed);
+    }
+  };
 
   return (
     <Box sx={{ mb: 2.5, animation: 'fadeIn 0.3s ease', '@keyframes fadeIn': { from: { opacity: 0 }, to: { opacity: 1 } } }}>
       <Typography
-        onClick={canCollapse ? () => setIsCollapsed(!isCollapsed) : undefined}
+        onClick={isClickable ? handleClick : undefined}
         sx={{
           color: '#26a69a',
           fontSize: 14,
@@ -261,10 +273,10 @@ function AIPhase({
           display: 'flex',
           alignItems: 'center',
           gap: 1,
-          cursor: canCollapse ? 'pointer' : 'default',
+          cursor: isClickable ? 'pointer' : 'default',
           userSelect: 'none',
           transition: 'all 0.2s ease',
-          '&:hover': canCollapse ? { color: '#1a8a7f' } : {},
+          '&:hover': isClickable ? { color: '#1a8a7f' } : {},
         }}
       >
         {canCollapse && (
@@ -3080,27 +3092,29 @@ export const VibePrototyping: React.FC = () => {
               />
             )}
 
-            {/* Wireframing phase */}
+            {/* Wireframing phase - clickable to switch to wireframe view when complete */}
             {(isWireframing || isWireframeReady || isGenerating || isComplete) && (
               <AIPhase
-                label="Wireframing"
+                label={isComplete ? "Wireframing (click to view)" : "Wireframing"}
                 content="Creating quick layout sketches for each paradigm to visualize the structure before building..."
                 isActive={isWireframing}
                 isComplete={!isWireframing && (isWireframeReady || isGenerating || isComplete)}
                 isCollapsible={true}
                 defaultCollapsed={!isWireframing && !isWireframeReady && isComplete}
+                onClick={isComplete ? handleViewWireframes : undefined}
               />
             )}
 
-            {/* Building phase */}
+            {/* Building phase - clickable to switch to prototype view when complete */}
             {(isGenerating || isComplete) && (
               <AIPhase
-                label="Building"
+                label={isComplete ? "Building (click to view)" : "Building"}
                 content="Generating high-fidelity prototypes with full styling and interactivity for each variant..."
                 isActive={isGenerating}
                 isComplete={isComplete}
                 isCollapsible={true}
                 defaultCollapsed={false}
+                onClick={isComplete ? handleViewPrototypes : undefined}
               />
             )}
 
@@ -3249,23 +3263,7 @@ export const VibePrototyping: React.FC = () => {
                   </Button>
                 </>
               )}
-              {isComplete && (
-                <ToggleButtonGroup
-                  value={viewMode}
-                  exclusive
-                  onChange={(_, value) => value && setViewMode(value)}
-                  size="small"
-                >
-                  <ToggleButton value="wireframes" sx={{ px: 2 }}>
-                    <PencilLine size={16} style={{ marginRight: 4 }} />
-                    Wireframes
-                  </ToggleButton>
-                  <ToggleButton value="prototypes" sx={{ px: 2 }}>
-                    <Cube size={16} style={{ marginRight: 4 }} />
-                    Prototypes
-                  </ToggleButton>
-                </ToggleButtonGroup>
-              )}
+              {/* View toggle removed - use chat section steps or pipeline stepper icons instead */}
             </Box>
           )}
 
