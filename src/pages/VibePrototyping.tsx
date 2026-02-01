@@ -2517,13 +2517,13 @@ export const VibePrototyping: React.FC = () => {
       const result = await generateVisualWireframes(
         currentSession.id,
         plansToRegenerate,
-        screen?.editedHtml || screen?.html || '',
+        screen?.editedHtml || '',
         sourceMetadata || undefined,
         selectedVariants,
         undefined, // onProgress
         screenScreenshot,
-        selectedProvider,
-        selectedModel
+        selectedProvider || undefined,
+        selectedModel || undefined
       );
 
       // Update wireframes state
