@@ -61,44 +61,7 @@ interface RequestBody {
   model?: string;
 }
 
-// ============================================================================
-// API Key Management
-// ============================================================================
-
-function getApiKey(provider: string): string | null {
-  try {
-    switch (provider) {
-      case 'anthropic':
-        return Deno.env.get('ANTHROPIC_API_KEY') || null;
-      case 'openai':
-        return Deno.env.get('OPENAI_API_KEY') || null;
-      case 'google':
-        return Deno.env.get('GOOGLE_API_KEY') || null;
-      default:
-        return null;
-    }
-  } catch (e) {
-    console.error('[getApiKey] Error accessing env:', e);
-    return null;
-  }
-}
-
-function getBestProvider(): { provider: string; model: string } | null {
-  try {
-    if (Deno.env.get('ANTHROPIC_API_KEY')) {
-      return { provider: 'anthropic', model: 'claude-sonnet-4-20250514' };
-    }
-    if (Deno.env.get('OPENAI_API_KEY')) {
-      return { provider: 'openai', model: 'gpt-4o' };
-    }
-    if (Deno.env.get('GOOGLE_API_KEY')) {
-      return { provider: 'google', model: 'gemini-1.5-pro' };
-    }
-  } catch (e) {
-    console.error('[getBestProvider] Error accessing env:', e);
-  }
-  return null;
-}
+// API keys are now retrieved from user's vault via get_api_key RPC
 
 // ============================================================================
 // Prompt Building
@@ -420,8 +383,39 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Step 1: Parse request body
-    console.log('[generate-variant-edits-v2] Step 1: Parsing request body...');
+    // Step 1: Environment variables
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
+    // Step 2: Verify authorization
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Missing or invalid authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const jwt = authHeader.replace('Bearer ', '');
+
+    // Create Supabase client
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify user
+    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ success: false, error: `Unauthorized: ${userError?.message || 'Invalid token'}` }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    console.log('[generate-variant-edits-v2] User authenticated:', user.id);
+
+    // Step 3: Parse request body
+    console.log('[generate-variant-edits-v2] Step 3: Parsing request body...');
     let body: RequestBody;
     try {
       const rawBody = await req.text();
@@ -435,8 +429,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 2: Extract and validate fields
-    console.log('[generate-variant-edits-v2] Step 2: Validating fields...');
+    // Step 4: Extract and validate fields
+    console.log('[generate-variant-edits-v2] Step 4: Validating fields...');
     const { sessionId, plans, elementSummary, screenshotBase64, provider, model } = body;
 
     // Validate required fields
@@ -480,51 +474,55 @@ Deno.serve(async (req) => {
       hasScreenshot: !!screenshotBase64,
     });
 
-    // Step 3: Determine provider
-    console.log('[generate-variant-edits-v2] Step 3: Determining provider...');
-    let activeProvider = provider;
-    let activeModel = model;
+    // Step 5: Get user's API key from vault
+    console.log('[generate-variant-edits-v2] Step 5: Getting API key from vault...');
+    const requestedProvider = provider || 'anthropic';
 
-    if (!activeProvider || !activeModel) {
-      const best = getBestProvider();
-      if (!best) {
-        console.error('[generate-variant-edits-v2] No API keys configured');
-        return new Response(
-          JSON.stringify({ success: false, error: 'No API keys configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      activeProvider = best.provider;
-      activeModel = best.model;
+    // Query user's API key configuration
+    let keyQuery = supabase
+      .from('user_api_key_refs')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true);
+
+    if (requestedProvider) {
+      keyQuery = keyQuery.eq('provider', requestedProvider);
     }
 
-    const apiKey = getApiKey(activeProvider);
-    if (!apiKey) {
-      console.error('[generate-variant-edits-v2] No API key for provider:', activeProvider);
+    const { data: keyConfigs, error: keyError } = await keyQuery.limit(1);
+    const keyConfig = keyConfigs?.[0];
+
+    if (keyError || !keyConfig) {
+      console.error('[generate-variant-edits-v2] No API key configured for user');
       return new Response(
-        JSON.stringify({ success: false, error: `No API key for provider: ${activeProvider}` }),
+        JSON.stringify({
+          success: false,
+          error: 'No API key configured. Please add your API key in Settings.',
+          errorCode: 'API_KEY_MISSING',
+          provider: requestedProvider,
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const activeProvider = keyConfig.provider;
+    const activeModel = model || keyConfig.model || 'claude-sonnet-4-20250514';
+    console.log('[generate-variant-edits-v2] Using provider:', activeProvider, 'model:', activeModel);
+
+    // Get decrypted API key from vault
+    const { data: apiKey, error: decryptError } = await supabase
+      .rpc('get_api_key', { p_user_id: user.id, p_provider: activeProvider });
+
+    if (decryptError || !apiKey) {
+      console.error('[generate-variant-edits-v2] Failed to retrieve API key:', decryptError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to retrieve API key' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('[generate-variant-edits-v2] Using provider:', activeProvider, activeModel);
-
-    // Step 4: Initialize Supabase client
-    console.log('[generate-variant-edits-v2] Step 4: Initializing Supabase...');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('[generate-variant-edits-v2] Missing Supabase env vars');
-      // Continue without saving to DB - still generate the edits
-    }
-
-    const supabase = supabaseUrl && supabaseKey
-      ? createClient(supabaseUrl, supabaseKey)
-      : null;
-
-    // Step 5: Generate operations for each plan
-    console.log('[generate-variant-edits-v2] Step 5: Generating operations...');
+    // Step 6: Generate operations for each plan
+    console.log('[generate-variant-edits-v2] Step 6: Generating operations...');
     const results: VariantEdits[] = [];
     const startTime = Date.now();
 
