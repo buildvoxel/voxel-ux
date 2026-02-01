@@ -52,7 +52,12 @@ interface ComponentsState {
       provider?: 'anthropic' | 'openai' | 'google';
       model?: string;
     }
-  ) => Promise<void>;
+  ) => Promise<{
+    extractedCount: number;
+    totalScreens: number;
+    failedScreens: number;
+    errors: Array<{ screenId: string; error: string }>;
+  } | undefined>;
   clearComponents: () => void;
 }
 
@@ -170,7 +175,12 @@ export const useComponentsStore = create<ComponentsState>()(
               extractionProgress: null,
               lastExtractionTime: new Date().toISOString(),
             });
-            return;
+            return {
+              extractedCount: 0,
+              totalScreens: 0,
+              failedScreens: 0,
+              errors: [],
+            };
           }
 
           // Extract components with progress tracking
@@ -195,10 +205,17 @@ export const useComponentsStore = create<ComponentsState>()(
             lastExtractionTime: new Date().toISOString(),
           });
 
-          // Log any errors
+          // Log any errors and return result for caller to handle
           if (result.errors.length > 0) {
             console.warn('[ComponentsStore] Some screens failed:', result.errors);
           }
+
+          return {
+            extractedCount: components.length,
+            totalScreens: screensWithHtml.length,
+            failedScreens: result.errors.length,
+            errors: result.errors,
+          };
         } catch (error) {
           console.error('[ComponentsStore] Error extracting components:', error);
           set({

@@ -491,10 +491,30 @@ export function Components() {
   // Handle LLM extraction
   const handleExtract = async () => {
     try {
-      await extractWithLLM(screens);
-      showSuccess(
-        `Extracted ${components.length} components using AI from ${screens.filter((s) => s.editedHtml).length} screens`
-      );
+      const result = await extractWithLLM(screens);
+
+      if (!result) {
+        showError('Extraction failed - no result returned');
+        return;
+      }
+
+      if (result.failedScreens === result.totalScreens && result.totalScreens > 0) {
+        // All screens failed
+        const errorMsg = result.errors[0]?.error || 'Unknown error';
+        showError(
+          `Failed to extract components: ${errorMsg}. Check your API key configuration in Settings.`
+        );
+      } else if (result.failedScreens > 0) {
+        // Some screens failed
+        showSuccess(
+          `Extracted ${result.extractedCount} components from ${result.totalScreens - result.failedScreens}/${result.totalScreens} screens (${result.failedScreens} failed)`
+        );
+      } else {
+        // All succeeded
+        showSuccess(
+          `Extracted ${result.extractedCount} components from ${result.totalScreens} screens`
+        );
+      }
     } catch (error) {
       showError(
         error instanceof Error ? error.message : 'Failed to extract components'
