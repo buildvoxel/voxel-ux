@@ -91,6 +91,7 @@ import { useContextStore } from '@/store/contextStore';
 import { useThemeStore } from '@/store/themeStore';
 import { getContextFiles, type ContextFile } from '@/services/contextFilesService';
 
+import { supabase } from '@/services/supabase';
 import {
   analyzeScreen,
   getCachedMetadata,
@@ -663,7 +664,8 @@ function PipelineStepper({
                 }}
               >
                 {state === 'completed' ? <Check size={14} weight="bold" /> : step.icon}
-                {state === 'active' && (
+                {/* Don't show spinner for 'sharing' step - it's user-initiated, not a processing step */}
+                {state === 'active' && step.key !== 'sharing' && (
                   <CircularProgress
                     size={32}
                     thickness={2}
@@ -1761,10 +1763,20 @@ export const VibePrototyping: React.FC = () => {
                 setPlan({ plans, model: '', provider: '' }, true); // skipStatusUpdate
               }
 
-              // Load variants without changing status
+              // Load variants and sync status if variants are complete
               const existingVariants = await getVariants(sessionId);
               if (existingVariants.length > 0) {
-                setVariants(existingVariants, true); // skipStatusUpdate
+                setVariants(existingVariants, true); // skipStatusUpdate initially
+
+                // If all variants are complete but status isn't 'complete', sync it
+                const allComplete = existingVariants.length === 4 &&
+                  existingVariants.every(v => v.status === 'complete');
+                if (allComplete && session.status !== 'complete') {
+                  console.log('[VibePrototyping] Syncing status to complete (variants are ready)');
+                  setStatus('complete');
+                  // Also update the database
+                  supabase.from('vibe_sessions').update({ status: 'complete' }).eq('id', sessionId);
+                }
               }
 
               // Load wireframes if they exist
