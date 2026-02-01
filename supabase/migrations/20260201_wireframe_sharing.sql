@@ -10,7 +10,9 @@ ALTER TABLE vibe_shares ADD COLUMN IF NOT EXISTS plan_id UUID REFERENCES vibe_va
 -- Create index for efficient wireframe share lookups
 CREATE INDEX IF NOT EXISTS idx_vibe_shares_wireframes ON vibe_shares(session_id, share_wireframes) WHERE share_wireframes = true;
 
--- Update the get_share_data function to support wireframes
+-- Drop and recreate get_share_data function with new return type
+DROP FUNCTION IF EXISTS get_share_data(TEXT);
+
 CREATE OR REPLACE FUNCTION get_share_data(p_share_token TEXT)
 RETURNS TABLE (
   share_id UUID,
