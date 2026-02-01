@@ -133,7 +133,7 @@ export async function getShareData(token: string): Promise<ShareData | null> {
   console.log('[SharingService] Fetching share data for token:', token);
 
   const { data, error } = await supabase.rpc('get_share_data', {
-    p_token: token,
+    p_share_token: token,
   });
 
   if (error) {
@@ -141,12 +141,49 @@ export async function getShareData(token: string): Promise<ShareData | null> {
     return null;
   }
 
-  if (data?.error) {
-    console.error('[SharingService] Share error:', data.error);
+  // The RPC returns an array of rows - we need the first one
+  if (!data || (Array.isArray(data) && data.length === 0)) {
+    console.error('[SharingService] No share data found');
     return null;
   }
 
-  return data as ShareData;
+  // Transform flat row(s) into ShareData structure
+  const rows = Array.isArray(data) ? data : [data];
+  const firstRow = rows[0];
+
+  // Build ShareData from the flat response
+  const shareData: ShareData = {
+    share: {
+      id: firstRow.share_id,
+      type: firstRow.share_type as ShareType,
+      created_at: new Date().toISOString(), // Not returned by function, use current
+      shareWireframes: firstRow.share_wireframes,
+    },
+    session: {
+      id: firstRow.session_id,
+      name: firstRow.screen_name || 'Shared Prototype',
+      prompt: '', // Not returned by function
+    },
+    variant: {
+      index: firstRow.variant_index,
+      html_url: firstRow.html_url,
+      wireframe_url: firstRow.wireframe_url,
+      title: firstRow.title || `Variant ${String.fromCharCode(64 + firstRow.variant_index)}`,
+      description: firstRow.description || '',
+    },
+  };
+
+  // If sharing wireframes and multiple rows returned, include all variants
+  if (firstRow.share_wireframes && rows.length > 1) {
+    shareData.variants = rows.map(row => ({
+      index: row.variant_index,
+      wireframe_url: row.wireframe_url,
+      title: row.title || `Variant ${String.fromCharCode(64 + row.variant_index)}`,
+      description: row.description || '',
+    }));
+  }
+
+  return shareData;
 }
 
 /**

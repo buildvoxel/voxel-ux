@@ -82,6 +82,7 @@ import {
   PencilLine,
   Cube,
   UsersThree,
+  Plus,
 } from '@phosphor-icons/react';
 
 import { useSnackbar } from '@/components/SnackbarProvider';
@@ -4589,16 +4590,25 @@ export const VibePrototyping: React.FC = () => {
               {isCreatingShare ? 'Creating...' : 'Create Share Link'}
             </Button>
           ) : (
-            <Button
-              variant="contained"
-              onClick={handleCopyShareLink}
-              startIcon={<Copy size={18} />}
-              sx={{
-                background: config.gradients?.primary || config.colors.primary,
-              }}
-            >
-              Copy Link
-            </Button>
+            <>
+              <Button
+                variant="outlined"
+                onClick={() => setCreatedShare(null)}
+                startIcon={<Plus size={18} />}
+              >
+                Create Another
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleCopyShareLink}
+                startIcon={<Copy size={18} />}
+                sx={{
+                  background: config.gradients?.primary || config.colors.primary,
+                }}
+              >
+                Copy Link
+              </Button>
+            </>
           )}
         </DialogActions>
       </Dialog>

@@ -193,7 +193,46 @@ export default function SharePage() {
 
       {/* Main Preview */}
       <Box sx={{ flex: 1, position: 'relative' }}>
-        {variant.html_url ? (
+        {/* For wireframes, show the wireframe image; for prototypes, show iframe */}
+        {share.shareWireframes ? (
+          variant.wireframe_url ? (
+            <Box
+              sx={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: '#f5f5f5',
+                p: 4,
+              }}
+            >
+              <img
+                src={variant.wireframe_url}
+                alt={`Wireframe - Variant ${variantLetter}`}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  objectFit: 'contain',
+                  borderRadius: 8,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                }}
+              />
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Typography color="text.secondary">No wireframe available</Typography>
+            </Box>
+          )
+        ) : variant.html_url ? (
           <iframe
             src={variant.html_url}
             title={`${session.name} - Variant ${variantLetter}`}
