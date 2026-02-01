@@ -102,7 +102,7 @@ export async function extractComponentsFromScreen(
       throw new Error('Not authenticated');
     }
 
-    // Call the edge function
+    // Call the edge function with explicit auth header
     console.log('[ComponentExtraction] Calling extract-components edge function');
     const response = await supabase.functions.invoke('extract-components', {
       body: {
@@ -111,6 +111,9 @@ export async function extractComponentsFromScreen(
         screenshotBase64: screenshot,
         provider: options?.provider,
         model: options?.model,
+      },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
       },
     });
 
