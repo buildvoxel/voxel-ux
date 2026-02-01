@@ -7,6 +7,9 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Tooltip from '@mui/material/Tooltip';
 import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
+import Switch from '@mui/material/Switch';
+import Collapse from '@mui/material/Collapse';
+import Divider from '@mui/material/Divider';
 import FlagIcon from '@mui/icons-material/Flag';
 import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import ListAltIcon from '@mui/icons-material/ListAlt';
@@ -25,10 +28,21 @@ import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined';
 import AudiotrackOutlinedIcon from '@mui/icons-material/AudiotrackOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { Button, Card, CardContent, Chip } from '@/components/ui';
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { PageHeader } from '@/components/PageHeader';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useContextStore } from '@/store/contextStore';
+import {
+  extractGuidelinesDemo,
+  createGuidelinesSet,
+  type ExtractionProgress,
+} from '@/services/uxGuidelinesService';
+import type { UXGuidelineCategory } from '@/types/models';
 import {
   getContextFiles,
   uploadContextFile,
@@ -382,6 +396,27 @@ function CategoryCard({ config, files, onUpload, onDeleteFile, onOpenFile, uploa
   );
 }
 
+// Category labels for UX guidelines
+const guidelineCategoryLabels: Record<UXGuidelineCategory, string> = {
+  navigation: 'Navigation',
+  interaction: 'Interaction',
+  feedback: 'Feedback',
+  layout: 'Layout',
+  content: 'Content',
+  accessibility: 'Accessibility',
+  flow: 'User Flows',
+};
+
+const guidelineCategoryColors: Record<UXGuidelineCategory, string> = {
+  navigation: '#1890ff',
+  interaction: '#52c41a',
+  feedback: '#faad14',
+  layout: '#722ed1',
+  content: '#13c2c2',
+  accessibility: '#eb2f96',
+  flow: '#f5222d',
+};
+
 export function Context() {
   const { showSuccess, showError } = useSnackbar();
   const [files, setFiles] = useState<Record<ContextCategoryType, ContextFile[]>>({
@@ -394,6 +429,19 @@ export function Context() {
   const [uploading, setUploading] = useState<ContextCategoryType | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState<ContextFile | null>(null);
+
+  // UX Guidelines state
+  const {
+    uxGuidelinesSet,
+    uxGuidelinesEnabled,
+    setUXGuidelines,
+    clearUXGuidelines,
+    toggleUXGuidelinesEnabled,
+    deleteUXGuideline,
+  } = useContextStore();
+  const [extracting, setExtracting] = useState(false);
+  const [extractionProgress, setExtractionProgress] = useState<ExtractionProgress | null>(null);
+  const [guidelinesExpanded, setGuidelinesExpanded] = useState(true);
 
   // Load files on mount
   useEffect(() => {
@@ -485,6 +533,42 @@ export function Context() {
     }
   };
 
+  // Get video files for UX guidelines extraction
+  const videoFiles = Object.values(files)
+    .flat()
+    .filter((f) => f.fileType === 'video');
+
+  // Extract UX guidelines from a video (demo mode for now)
+  const handleExtractGuidelines = async (video?: ContextFile) => {
+    try {
+      setExtracting(true);
+      setExtractionProgress({ stage: 'preparing', message: 'Preparing...', percent: 0 });
+
+      // For demo: use demo extraction (no actual transcription yet)
+      const result = await extractGuidelinesDemo(
+        video?.title || 'Product Demo',
+        (progress) => setExtractionProgress(progress)
+      );
+
+      // Create and store guidelines set
+      const guidelinesSet = createGuidelinesSet(
+        video?.title || 'Product UX Guidelines',
+        result,
+        video?.id,
+        video?.title
+      );
+
+      setUXGuidelines(guidelinesSet);
+      showSuccess(`Extracted ${result.guidelines.length} UX guidelines`);
+    } catch (error) {
+      console.error('Failed to extract guidelines:', error);
+      showError(error instanceof Error ? error.message : 'Failed to extract guidelines');
+    } finally {
+      setExtracting(false);
+      setExtractionProgress(null);
+    }
+  };
+
   const totalFiles = Object.values(files).reduce((sum, arr) => sum + arr.length, 0);
 
   return (
@@ -545,6 +629,217 @@ export function Context() {
           ))}
         </Grid>
       )}
+
+      {/* UX Guidelines Section */}
+      <Box sx={{ mt: 4 }}>
+        <Divider sx={{ mb: 3 }} />
+        <Card
+          sx={{
+            border: '1px solid',
+            borderColor: 'divider',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+            },
+          }}
+        >
+          <CardContent>
+            {/* Header */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                mb: 2,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 2,
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                  }}
+                >
+                  <AutoAwesomeIcon />
+                </Box>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    UX Guidelines
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Extract patterns from product videos to guide AI prototyping
+                  </Typography>
+                </Box>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                {uxGuidelinesSet && (
+                  <>
+                    <Tooltip title={uxGuidelinesEnabled ? 'Disable guidelines' : 'Enable guidelines'}>
+                      <Switch
+                        checked={uxGuidelinesEnabled}
+                        onChange={toggleUXGuidelinesEnabled}
+                        color="primary"
+                      />
+                    </Tooltip>
+                    <IconButton
+                      onClick={() => setGuidelinesExpanded(!guidelinesExpanded)}
+                      size="small"
+                    >
+                      {guidelinesExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    </IconButton>
+                  </>
+                )}
+              </Box>
+            </Box>
+
+            {/* Extract Button or Guidelines Display */}
+            {!uxGuidelinesSet ? (
+              <Box sx={{ textAlign: 'center', py: 3 }}>
+                {extracting ? (
+                  <Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={extractionProgress?.percent || 0}
+                      sx={{ mb: 2, borderRadius: 1 }}
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                      {extractionProgress?.message || 'Extracting...'}
+                    </Typography>
+                  </Box>
+                ) : (
+                  <>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      {videoFiles.length > 0
+                        ? `${videoFiles.length} video file(s) available for analysis`
+                        : 'Upload a product demo video to extract UX guidelines'}
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      startIcon={<PlayArrowIcon />}
+                      onClick={() => handleExtractGuidelines(videoFiles[0])}
+                      sx={{
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%)',
+                        },
+                      }}
+                    >
+                      Extract UX Guidelines {videoFiles.length > 0 ? 'from Video' : '(Demo)'}
+                    </Button>
+                  </>
+                )}
+              </Box>
+            ) : (
+              <Collapse in={guidelinesExpanded}>
+                <Box sx={{ mt: 2 }}>
+                  {/* Guidelines Info */}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      mb: 2,
+                      p: 1.5,
+                      borderRadius: 1,
+                      backgroundColor: uxGuidelinesEnabled ? 'rgba(102, 126, 234, 0.08)' : 'rgba(0,0,0,0.03)',
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                        {uxGuidelinesSet.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {uxGuidelinesSet.guidelines.length} guidelines •{' '}
+                        {uxGuidelinesEnabled ? 'Active in prototyping' : 'Disabled'}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => handleExtractGuidelines()}
+                        disabled={extracting}
+                      >
+                        Re-extract
+                      </Button>
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={clearUXGuidelines}
+                      >
+                        Clear
+                      </Button>
+                    </Box>
+                  </Box>
+
+                  {/* Guidelines List */}
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    {uxGuidelinesSet.guidelines.map((guideline) => (
+                      <Box
+                        key={guideline.id}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 1.5,
+                          p: 1.5,
+                          borderRadius: 1,
+                          backgroundColor: 'rgba(0,0,0,0.02)',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            backgroundColor: 'rgba(0,0,0,0.04)',
+                          },
+                        }}
+                      >
+                        <Chip
+                          label={guidelineCategoryLabels[guideline.category]}
+                          size="small"
+                          sx={{
+                            backgroundColor: `${guidelineCategoryColors[guideline.category]}15`,
+                            color: guidelineCategoryColors[guideline.category],
+                            fontWeight: 500,
+                            fontSize: '0.7rem',
+                            height: 22,
+                          }}
+                        />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {guideline.title}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                            {guideline.description}
+                          </Typography>
+                          {guideline.examples && guideline.examples.length > 0 && (
+                            <Typography
+                              variant="caption"
+                              sx={{ display: 'block', mt: 0.5, fontStyle: 'italic' }}
+                              color="text.secondary"
+                            >
+                              e.g., {guideline.examples.slice(0, 2).join(', ')}
+                            </Typography>
+                          )}
+                        </Box>
+                        <IconButton
+                          size="small"
+                          onClick={() => deleteUXGuideline(guideline.id)}
+                          sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}
+                        >
+                          <DeleteOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              </Collapse>
+            )}
+          </CardContent>
+        </Card>
+      </Box>
 
       {/* Delete Confirmation */}
       <ConfirmDialog

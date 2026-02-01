@@ -167,7 +167,8 @@ export async function generateVariantPlan(
   onProgress?: ProgressCallback,
   screenshotBase64?: string,
   provider?: string,
-  model?: string
+  model?: string,
+  uxGuidelines?: string
 ): Promise<GeneratedPlan> {
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase not configured');
@@ -219,6 +220,7 @@ export async function generateVariantPlan(
       screenshotBase64,
       uiMetadata,
       productContext,
+      uxGuidelines,
       provider,
       model,
     },

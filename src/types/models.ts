@@ -105,3 +105,31 @@ export interface Comment {
   resolved: boolean;
   createdAt: string;
 }
+
+// UX Guidelines - extracted from product videos to guide prototype generation
+export interface UXGuideline {
+  id: string;
+  category: UXGuidelineCategory;
+  title: string;
+  description: string;
+  examples?: string[];
+}
+
+export type UXGuidelineCategory =
+  | 'navigation'      // How users navigate between screens/sections
+  | 'interaction'     // Button behaviors, form patterns, click/hover states
+  | 'feedback'        // Loading states, success/error messages, confirmations
+  | 'layout'          // Spacing patterns, component placement conventions
+  | 'content'         // Tone of voice, labeling conventions, microcopy
+  | 'accessibility'   // A11y patterns, keyboard nav, screen reader considerations
+  | 'flow';           // Multi-step processes, wizard patterns, state transitions
+
+export interface UXGuidelinesSet {
+  id: string;
+  name: string;
+  sourceVideoId?: string;      // ID of video context file used to extract
+  sourceVideoName?: string;
+  guidelines: UXGuideline[];
+  createdAt: string;
+  updatedAt: string;
+}

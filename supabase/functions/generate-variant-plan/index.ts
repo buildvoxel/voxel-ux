@@ -21,6 +21,7 @@ interface GeneratePlanRequest {
     components: Array<{ type: string; count: number }>
   }
   productContext?: string
+  uxGuidelines?: string      // UX guidelines extracted from product videos
   provider?: 'anthropic' | 'openai' | 'google'
   model?: string
 }
@@ -91,6 +92,10 @@ function buildPlanPrompt(request: GeneratePlanRequest): string {
 
   if (request.productContext) {
     prompt += `Product Context:\n${request.productContext.slice(0, 2000)}\n\n`
+  }
+
+  if (request.uxGuidelines) {
+    prompt += `${request.uxGuidelines.slice(0, 3000)}\n\n`
   }
 
   prompt += `Source HTML (compacted):\n${request.compactedHtml.slice(0, 15000)}\n\n`
