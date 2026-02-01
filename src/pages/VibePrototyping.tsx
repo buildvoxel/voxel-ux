@@ -57,7 +57,6 @@ import {
   Warning,
   CaretDown,
   CaretRight,
-  CaretLeft,
   Image as ImageIcon,
   VideoCamera,
   LinkSimple,
@@ -1165,16 +1164,12 @@ function CanvasVariantCard({
 function InlineExpansionGrid({
   wireframes,
   focusedIndex,
-  onFocusChange,
-  onBackToGrid,
   onEditClick,
   onIterateClick,
   getVariantByIndex,
 }: {
   wireframes: Array<{ variantIndex: number; wireframeUrl: string; wireframeHtml?: string }>;
   focusedIndex: number;
-  onFocusChange: (index: number) => void;
-  onBackToGrid: () => void;
   onEditClick?: () => void;
   onIterateClick?: () => void;
   getVariantByIndex: (index: number) => { html_url?: string; status: string; iteration_count?: number } | undefined;
@@ -1243,66 +1238,10 @@ function InlineExpansionGrid({
 
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 2, minHeight: 0 }}>
-      {/* Header toolbar with variant selector and actions */}
+      {/* Header toolbar with status and actions */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-        {/* Left: Back button and variant toggle */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <IconButton
-            size="small"
-            onClick={onBackToGrid}
-            sx={{
-              bgcolor: 'grey.100',
-              '&:hover': { bgcolor: 'grey.200' },
-            }}
-          >
-            <CaretLeft size={18} />
-          </IconButton>
-
-          {/* Variant selector toggle group */}
-          <ToggleButtonGroup
-            value={focusedIndex}
-            exclusive
-            onChange={(_, newIndex) => newIndex && onFocusChange(newIndex)}
-            size="small"
-            sx={{
-              '& .MuiToggleButton-root': {
-                px: 2,
-                py: 0.5,
-                textTransform: 'none',
-                fontWeight: 500,
-                fontSize: 13,
-                borderColor: 'divider',
-                '&.Mui-selected': {
-                  bgcolor: config.colors.primary,
-                  color: 'white',
-                  '&:hover': {
-                    bgcolor: config.colors.primary,
-                  },
-                },
-              },
-            }}
-          >
-            {labels.map((label, idx) => {
-              const variantIdx = idx + 1;
-              const variant = getVariantByIndex(variantIdx);
-              const wireframe = wireframes.find(w => w.variantIndex === variantIdx);
-              const hasContent = variant?.html_url || wireframe?.wireframeUrl || wireframe?.wireframeHtml;
-              return (
-                <ToggleButton
-                  key={variantIdx}
-                  value={variantIdx}
-                  disabled={!hasContent}
-                  sx={{
-                    opacity: hasContent ? 1 : 0.5,
-                  }}
-                >
-                  {label.replace('Variant ', '')}
-                </ToggleButton>
-              );
-            })}
-          </ToggleButtonGroup>
-
-          {/* Status chips */}
+        {/* Left: Status chips */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {isWireframe && (
             <Chip
               size="small"
@@ -1513,7 +1452,7 @@ export const VibePrototyping: React.FC = () => {
   const [isCreatingShare, setIsCreatingShare] = useState(false);
   const [createdShare, setCreatedShare] = useState<ShareLink | null>(null);
   const [pagesAnchorEl, setPagesAnchorEl] = useState<null | HTMLElement>(null);
-  const [variantSwitcherAnchorEl, setVariantSwitcherAnchorEl] = useState<null | HTMLElement>(null);
+  const [breadcrumbAnchorEl, setBreadcrumbAnchorEl] = useState<null | HTMLElement>(null);
   const [previewSize, setPreviewSize] = useState<PreviewSize>('desktop');
 
   // Screen name editing
@@ -3560,78 +3499,142 @@ export const VibePrototyping: React.FC = () => {
                     </Tooltip>
                   </Box>
                 ) : (
-                  <Typography
-                    variant="subtitle2"
-                    sx={{
-                      fontWeight: 500,
-                      color: 'text.secondary',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.5,
-                    }}
-                  >
-                    {focusedVariantIndex && focusedPlan ? (
-                      <>
-                        <span
-                          style={{ cursor: 'pointer', color: config.colors.primary }}
-                          onClick={handleBackToGrid}
-                        >
-                          {projectName}
-                        </span>
-                        <CaretRight size={14} />
-                        {focusedPlan.title}
-                      </>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    {/* Project name - always shown, click to rename when not focused */}
+                    {focusedVariantIndex ? (
+                      <Typography
+                        variant="subtitle2"
+                        sx={{
+                          fontWeight: 500,
+                          color: config.colors.primary,
+                          cursor: 'pointer',
+                          '&:hover': { textDecoration: 'underline' },
+                        }}
+                        onClick={handleBackToGrid}
+                      >
+                        {projectName}
+                      </Typography>
                     ) : (
                       <Tooltip title="Click to rename">
-                        <span
-                          style={{ cursor: 'pointer' }}
+                        <Typography
+                          variant="subtitle2"
+                          sx={{
+                            fontWeight: 500,
+                            color: 'text.secondary',
+                            cursor: 'pointer',
+                          }}
                           onClick={handleStartEditName}
                         >
                           {projectName}
-                        </span>
+                        </Typography>
                       </Tooltip>
                     )}
-                  </Typography>
+
+                    {/* Variant dropdown - only when variants exist */}
+                    {(hasVariants || plan) && (
+                      <>
+                        <CaretRight size={14} style={{ color: '#9e9e9e' }} />
+                        <Button
+                          size="small"
+                          endIcon={<CaretDown size={14} />}
+                          onClick={(e) => setBreadcrumbAnchorEl(e.currentTarget)}
+                          sx={{
+                            textTransform: 'none',
+                            fontWeight: 500,
+                            fontSize: '0.875rem',
+                            color: 'text.primary',
+                            minWidth: 'auto',
+                            px: 1,
+                            py: 0.25,
+                            '&:hover': { bgcolor: 'action.hover' },
+                          }}
+                        >
+                          {focusedVariantIndex && focusedPlan
+                            ? `Variant ${String.fromCharCode(64 + focusedVariantIndex)}`
+                            : 'All Variants'}
+                        </Button>
+                        <Menu
+                          anchorEl={breadcrumbAnchorEl}
+                          open={Boolean(breadcrumbAnchorEl)}
+                          onClose={() => setBreadcrumbAnchorEl(null)}
+                          TransitionComponent={Fade}
+                        >
+                          <MenuItem
+                            selected={!focusedVariantIndex}
+                            onClick={() => {
+                              handleBackToGrid();
+                              setBreadcrumbAnchorEl(null);
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box
+                                sx={{
+                                  width: 20,
+                                  height: 20,
+                                  borderRadius: 0.5,
+                                  bgcolor: 'grey.200',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: 10,
+                                }}
+                              >
+                                4
+                              </Box>
+                              All Variants
+                            </Box>
+                          </MenuItem>
+                          <Divider />
+                          {plan?.plans.map((p, idx) => {
+                            const variantIdx = idx + 1;
+                            const variant = variants.find(v => v.variant_index === variantIdx);
+                            const wireframe = wireframes.find(w => w.variantIndex === variantIdx);
+                            const hasContent = variant?.html_url || wireframe?.wireframeUrl || wireframe?.wireframeHtml;
+                            return (
+                              <MenuItem
+                                key={variantIdx}
+                                selected={focusedVariantIndex === variantIdx}
+                                disabled={!hasContent}
+                                onClick={() => {
+                                  setFocusedVariantIndex(variantIdx);
+                                  setBreadcrumbAnchorEl(null);
+                                }}
+                                sx={{ opacity: hasContent ? 1 : 0.5 }}
+                              >
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Box
+                                    sx={{
+                                      width: 20,
+                                      height: 20,
+                                      borderRadius: 0.5,
+                                      bgcolor: focusedVariantIndex === variantIdx ? config.colors.primary : 'grey.200',
+                                      color: focusedVariantIndex === variantIdx ? 'white' : 'text.primary',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {String.fromCharCode(64 + variantIdx)}
+                                  </Box>
+                                  <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+                                    {p.title}
+                                  </Typography>
+                                </Box>
+                              </MenuItem>
+                            );
+                          })}
+                        </Menu>
+                      </>
+                    )}
+                  </Box>
                 )}
               </Box>
             </Box>
 
-            {/* Center: Variant switcher + Undo/Redo + Pages dropdown */}
+            {/* Center: Undo/Redo + Pages dropdown */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {/* Variant switcher (only when focused) */}
-              {focusedVariantIndex && (
-                <>
-                  <Button
-                    size="small"
-                    endIcon={<CaretDown size={14} />}
-                    onClick={(e) => setVariantSwitcherAnchorEl(e.currentTarget)}
-                    sx={{ textTransform: 'none', minWidth: 120 }}
-                  >
-                    Variant {String.fromCharCode(64 + focusedVariantIndex)}
-                  </Button>
-                  <Menu
-                    anchorEl={variantSwitcherAnchorEl}
-                    open={Boolean(variantSwitcherAnchorEl)}
-                    onClose={() => setVariantSwitcherAnchorEl(null)}
-                    TransitionComponent={Fade}
-                  >
-                    {[1, 2, 3, 4].map((idx) => (
-                      <MenuItem
-                        key={idx}
-                        selected={focusedVariantIndex === idx}
-                        onClick={() => {
-                          setFocusedVariantIndex(idx);
-                          setVariantSwitcherAnchorEl(null);
-                        }}
-                      >
-                        Variant {String.fromCharCode(64 + idx)}
-                      </MenuItem>
-                    ))}
-                  </Menu>
-                  <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-                </>
-              )}
-
               {/* Undo/Redo */}
               <Tooltip title="Undo">
                 <IconButton size="small">
@@ -3920,8 +3923,6 @@ export const VibePrototyping: React.FC = () => {
             <InlineExpansionGrid
               wireframes={wireframes}
               focusedIndex={focusedVariantIndex}
-              onFocusChange={handleVariantClick}
-              onBackToGrid={handleBackToGrid}
               getVariantByIndex={getVariantByIndex}
             />
           )}
@@ -3955,8 +3956,6 @@ export const VibePrototyping: React.FC = () => {
             <InlineExpansionGrid
               wireframes={wireframes}
               focusedIndex={focusedVariantIndex}
-              onFocusChange={handleVariantClick}
-              onBackToGrid={handleBackToGrid}
               onEditClick={() => setEditMode('code')}
               onIterateClick={() => setIterationDialogOpen(true)}
               getVariantByIndex={getVariantByIndex}
