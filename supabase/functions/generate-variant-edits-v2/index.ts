@@ -104,7 +104,7 @@ function getBestProvider(): { provider: string; model: string } | null {
 // Prompt Building
 // ============================================================================
 
-function buildEditOperationsPrompt(plan: VariantPlan, elementSummary: string): string {
+function buildEditOperationsPrompt(plan: VariantPlan, elementSummary: string, hasScreenshot: boolean): string {
   // Safely handle potentially undefined fields
   const keyChanges = Array.isArray(plan?.keyChanges) ? plan.keyChanges : [];
   const keyChangesText = keyChanges.length > 0
@@ -115,8 +115,14 @@ function buildEditOperationsPrompt(plan: VariantPlan, elementSummary: string): s
   const description = plan?.description || 'No description provided';
   const styleNotes = plan?.styleNotes || 'Match existing styles';
 
-  return `You are a UI/UX expert. Generate edit operations to transform a web page to implement a design variant.
+  const visionContext = hasScreenshot
+    ? `\n## Visual Reference\nYou have been provided a screenshot of the current page. Use this to understand the visual layout, styling, and element positions. Match your edit operations to what you see in the screenshot.\n`
+    : '';
 
+  return `You are a UI/UX expert specializing in precise DOM manipulation. Your task is to generate EXACT edit operations to modify an existing web page.
+
+CRITICAL: You are NOT regenerating the HTML. You are creating surgical edits that will be applied to the ORIGINAL HTML. The goal is to maintain UI consistency with the original design while implementing the variant changes.
+${visionContext}
 ## Variant to Implement
 **Title:** ${title}
 **Description:** ${description}
@@ -126,59 +132,64 @@ ${keyChangesText}
 
 **Style Notes:** ${styleNotes}
 
-## Element Summary
-This is a compact representation of the current page structure:
+## Element Summary (DOM Structure)
+This shows the current page structure with CSS selectors. Use ONLY selectors that appear in this summary:
 \`\`\`
 ${elementSummary}
 \`\`\`
 
 ## Available Edit Operations
 
-Generate a JSON array of operations. Each operation has a \`type\` and \`selector\` (CSS selector).
+Generate a JSON array of operations. Each operation MUST use a selector from the element summary above.
 
 **Operation Types:**
 
-1. \`updateText\` - Change text content
-   \`{"type": "updateText", "selector": ".title", "newText": "New Title"}\`
+1. \`updateText\` - Change text content of an element
+   \`{"type": "updateText", "selector": "#main-title", "newText": "New Title", "description": "Update page heading"}\`
 
-2. \`updateAttribute\` - Set/change an attribute
-   \`{"type": "updateAttribute", "selector": "img.logo", "attribute": "src", "value": "/new-logo.png"}\`
+2. \`updateAttribute\` - Set/change an HTML attribute
+   \`{"type": "updateAttribute", "selector": "img#hero-image", "attribute": "src", "value": "/new-image.png", "description": "Change hero image"}\`
 
-3. \`updateStyle\` - Change inline styles
-   \`{"type": "updateStyle", "selector": ".button", "styles": {"background-color": "#3B82F6", "color": "white"}}\`
+3. \`updateStyle\` - Apply inline CSS styles (preserves existing styles not mentioned)
+   \`{"type": "updateStyle", "selector": "button.primary", "styles": {"background-color": "#3B82F6", "border-radius": "8px"}, "description": "Update button styling"}\`
 
-4. \`addClass\` / \`removeClass\` - Modify classes
-   \`{"type": "addClass", "selector": ".card", "className": "highlighted"}\`
+4. \`addClass\` - Add a CSS class
+   \`{"type": "addClass", "selector": ".card", "className": "highlighted", "description": "Highlight the card"}\`
 
-5. \`insertElement\` - Add new element (before/after/prepend/append)
-   \`{"type": "insertElement", "selector": ".nav", "position": "append", "html": "<li>New Item</li>"}\`
+5. \`removeClass\` - Remove a CSS class
+   \`{"type": "removeClass", "selector": ".alert", "className": "hidden", "description": "Show the alert"}\`
 
-6. \`removeElement\` - Delete an element
-   \`{"type": "removeElement", "selector": ".old-banner"}\`
+6. \`insertElement\` - Add new HTML element (positions: before, after, prepend, append)
+   \`{"type": "insertElement", "selector": "nav.main-nav", "position": "append", "html": "<a href=\\"/new\\">New Link</a>", "description": "Add navigation item"}\`
 
-7. \`replaceElement\` - Replace entire element
-   \`{"type": "replaceElement", "selector": ".old-card", "html": "<div class='new-card'>...</div>"}\`
+7. \`removeElement\` - Delete an element from the page
+   \`{"type": "removeElement", "selector": ".deprecated-banner", "description": "Remove old banner"}\`
 
-8. \`replaceInnerHtml\` - Replace element's contents
-   \`{"type": "replaceInnerHtml", "selector": ".content", "html": "<p>New content</p>"}\`
+8. \`replaceElement\` - Replace an element entirely with new HTML
+   \`{"type": "replaceElement", "selector": ".old-widget", "html": "<div class=\\"new-widget\\">Updated content</div>", "description": "Replace widget"}\`
 
-## Rules
+9. \`replaceInnerHtml\` - Replace only the inner content of an element
+   \`{"type": "replaceInnerHtml", "selector": ".content-area", "html": "<p>New paragraph</p><p>Another paragraph</p>", "description": "Update content"}\`
 
-1. **Use specific selectors** - Prefer IDs (#id) and unique classes (.class-name) over generic tags
-2. **Minimal changes** - Only modify what's necessary for the variant
-3. **Include descriptions** - Add a "description" field explaining each change
-4. **Order matters** - List operations in logical order (structure first, then content, then styling)
-5. **Valid CSS selectors** - Ensure selectors are valid and match elements in the summary
+## CRITICAL Rules
+
+1. **ONLY use selectors from the element summary** - Do not invent selectors. Every selector MUST appear in the element summary above.
+2. **Preserve the design system** - Use existing colors, fonts, and spacing from the original. Only change what the variant requires.
+3. **Minimal changes** - Make the fewest operations necessary. Do NOT restyle elements that don't need changing.
+4. **Be specific** - Prefer ID selectors (#id) over class selectors, prefer unique selectors over generic ones.
+5. **Escape properly** - In JSON, escape quotes in HTML strings with backslash.
+6. **Include descriptions** - Every operation MUST have a "description" field.
+7. **Logical order** - Structure changes first, then content, then styling.
 
 ## Response Format
 
-Return ONLY a valid JSON object:
+Return ONLY a valid JSON object (no markdown, no explanation):
 {
   "operations": [
-    {"type": "...", "selector": "...", "description": "...", ...},
+    {"type": "updateText", "selector": "...", "newText": "...", "description": "..."},
     ...
   ],
-  "summary": "One sentence describing the overall changes"
+  "summary": "Brief summary of all changes made"
 }`;
 }
 
@@ -531,8 +542,8 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const prompt = buildEditOperationsPrompt(plan, elementSummary);
-      console.log(`[generate-variant-edits-v2] Prompt length: ${prompt.length} chars`);
+      const prompt = buildEditOperationsPrompt(plan, elementSummary, !!screenshotBase64);
+      console.log(`[generate-variant-edits-v2] Prompt length: ${prompt.length} chars, hasScreenshot: ${!!screenshotBase64}`);
 
       let editsResult: { operations: EditOperation[]; summary: string };
 

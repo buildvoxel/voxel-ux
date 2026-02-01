@@ -85,47 +85,112 @@ const MAX_CHILDREN = 50;
 
 /**
  * Generate a unique CSS selector for an element
+ * Priority: ID > data-testid > aria-label > meaningful classes > data-* attrs > nth-child
  */
 function generateSelector(element: Element, parentSelector: string): string {
   const tag = element.tagName.toLowerCase();
   const id = element.id;
+
+  // Filter classes - keep semantic/meaningful classes, skip generated ones
   const classes = Array.from(element.classList).filter(c =>
-    // Skip utility classes that are too specific
-    !c.match(/^(css-|sc-|emotion-|__)/i) && c.length < 30
+    // Skip auto-generated utility classes that change frequently
+    !c.match(/^(css-|sc-|emotion-|__|\d|MuiBox-|MuiTypography-|MuiButton-|MuiIcon-)/i) &&
+    c.length > 1 &&
+    c.length < 40 &&
+    // Keep classes that look semantic/meaningful
+    !c.match(/^[a-z]{1,2}\d+$/i) // Skip things like "e1", "a3"
   );
 
-  // ID is most specific
-  if (id && !id.match(/^(:|css-|sc-)/)) {
-    return `#${id}`;
+  // 1. ID is most specific (skip auto-generated IDs)
+  if (id && !id.match(/^(:|css-|sc-|:r|mui-|\d)/i) && id.length < 50) {
+    return `#${CSS.escape(id)}`;
   }
 
-  // Build class-based selector
+  // 2. data-testid is very reliable for testing
+  const testId = element.getAttribute('data-testid');
+  if (testId && testId.length < 50) {
+    return `[data-testid="${testId}"]`;
+  }
+
+  // 3. aria-label for accessible elements
+  const ariaLabel = element.getAttribute('aria-label');
+  if (ariaLabel && ariaLabel.length < 50 && ariaLabel.length > 2) {
+    return `${tag}[aria-label="${ariaLabel}"]`;
+  }
+
+  // 4. role attribute for semantic elements
+  const role = element.getAttribute('role');
+  if (role && ['button', 'link', 'heading', 'navigation', 'main', 'banner', 'dialog', 'alert'].includes(role)) {
+    // Combine with text content for uniqueness
+    const text = element.textContent?.trim().slice(0, 20);
+    if (text && text.length > 2) {
+      return `${tag}[role="${role}"]`;
+    }
+  }
+
+  // 5. Build class-based selector with meaningful classes
   if (classes.length > 0) {
     // Use up to 2 meaningful classes
-    const meaningfulClasses = classes.slice(0, 2).join('.');
+    const meaningfulClasses = classes.slice(0, 2).map(c => CSS.escape(c)).join('.');
     return `${tag}.${meaningfulClasses}`;
   }
 
-  // Use data attributes if available
+  // 6. Use data attributes if available (prioritize semantic ones)
+  const priorityDataAttrs = ['data-id', 'data-name', 'data-type', 'data-value', 'data-key'];
+  for (const attrName of priorityDataAttrs) {
+    const value = element.getAttribute(attrName);
+    if (value && value.length < 40) {
+      return `${tag}[${attrName}="${value}"]`;
+    }
+  }
+
+  // Generic data-* attributes
   const dataAttrs = Array.from(element.attributes)
-    .filter(attr => attr.name.startsWith('data-') && attr.value.length < 30)
+    .filter(attr =>
+      attr.name.startsWith('data-') &&
+      attr.value.length < 40 &&
+      !attr.name.match(/^data-(reactid|reactroot|emotion)/i)
+    )
     .slice(0, 1);
 
   if (dataAttrs.length > 0) {
     return `${tag}[${dataAttrs[0].name}="${dataAttrs[0].value}"]`;
   }
 
-  // Fall back to tag with nth-child if needed
+  // 7. For form elements, use name or type
+  if (['input', 'select', 'textarea', 'button'].includes(tag)) {
+    const name = element.getAttribute('name');
+    if (name && name.length < 40) {
+      return `${tag}[name="${name}"]`;
+    }
+    const type = element.getAttribute('type');
+    if (type) {
+      return `${tag}[type="${type}"]`;
+    }
+  }
+
+  // 8. For links, use href pattern
+  if (tag === 'a') {
+    const href = element.getAttribute('href');
+    if (href && href.length < 50 && !href.startsWith('javascript:')) {
+      // Use partial href match for flexibility
+      const shortHref = href.split('?')[0].slice(0, 40);
+      return `a[href^="${shortHref}"]`;
+    }
+  }
+
+  // 9. Fall back to positional selector
   if (parentSelector && element.parentElement) {
     const siblings = Array.from(element.parentElement.children).filter(
       s => s.tagName === element.tagName
     );
     if (siblings.length > 1) {
       const index = siblings.indexOf(element) + 1;
-      return `${parentSelector} > ${tag}:nth-child(${index})`;
+      return `${parentSelector} > ${tag}:nth-of-type(${index})`;
     }
   }
 
+  // 10. Last resort: just the tag
   return tag;
 }
 
@@ -194,9 +259,12 @@ function processElement(
     node.id = element.id;
   }
 
-  // Add meaningful classes
+  // Add meaningful classes (use same filtering as selector generation)
   const classes = Array.from(element.classList).filter(c =>
-    !c.match(/^(css-|sc-|emotion-|__)/i) && c.length < 30
+    !c.match(/^(css-|sc-|emotion-|__|\d|MuiBox-|MuiTypography-|MuiButton-|MuiIcon-)/i) &&
+    c.length > 1 &&
+    c.length < 40 &&
+    !c.match(/^[a-z]{1,2}\d+$/i)
   );
   if (classes.length > 0) {
     node.classes = classes.slice(0, 5); // Limit to 5 classes
