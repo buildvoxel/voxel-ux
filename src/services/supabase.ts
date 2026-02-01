@@ -14,9 +14,7 @@ export const supabase: SupabaseClient = createClient(
   supabaseAnonKey || 'placeholder-key',
   {
     auth: {
-      // Use localStorage instead of Web Locks to avoid AbortError issues
       persistSession: true,
-      storageKey: 'voxel-auth',
       autoRefreshToken: true,
       detectSessionInUrl: true,
     },
