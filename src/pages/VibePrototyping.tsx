@@ -595,8 +595,10 @@ function DebugPanel({
 // Visual Stepper Component - Compact icon-based version
 function PipelineStepper({
   status,
+  onStepClick,
 }: {
   status: string;
+  onStepClick?: (step: PipelineStep) => void;
 }) {
   const { config } = useThemeStore();
 
@@ -642,10 +644,16 @@ function PipelineStepper({
         const state = getStepState(step.key);
         const isLast = index === PIPELINE_STEPS.length - 1;
 
+        const isClickable = state === 'completed' && onStepClick;
         return (
           <React.Fragment key={step.key}>
-            <Tooltip title={`${step.label}: ${step.description}`} placement="top" arrow>
+            <Tooltip
+              title={isClickable ? `Go back to ${step.label}` : `${step.label}: ${step.description}`}
+              placement="top"
+              arrow
+            >
               <Box
+                onClick={isClickable ? () => onStepClick(step.key) : undefined}
                 sx={{
                   width: 28,
                   height: 28,
@@ -661,6 +669,11 @@ function PipelineStepper({
                   color: state === 'pending' ? 'grey.500' : 'white',
                   transition: 'all 0.2s ease',
                   position: 'relative',
+                  cursor: isClickable ? 'pointer' : 'default',
+                  '&:hover': isClickable ? {
+                    transform: 'scale(1.1)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                  } : {},
                 }}
               >
                 {state === 'completed' ? <Check size={14} weight="bold" /> : step.icon}
@@ -1483,6 +1496,7 @@ export const VibePrototyping: React.FC = () => {
   const variantEditDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const partialHtmlSaveRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const lastSavedLengthRef = useRef<Record<number, number>>({});
+  const chatAreaRef = useRef<HTMLDivElement>(null);
 
   // Dynamic phase content based on user prompt
   const [phaseContent, setPhaseContent] = useState({
@@ -1845,6 +1859,20 @@ export const VibePrototyping: React.FC = () => {
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isResizing]);
+
+  // Auto-scroll chat area when status changes to states requiring user action
+  useEffect(() => {
+    const actionRequiredStates = ['understanding_ready', 'plan_ready', 'wireframe_ready', 'complete'];
+    if (actionRequiredStates.includes(status) && chatAreaRef.current) {
+      // Small delay to allow content to render
+      setTimeout(() => {
+        chatAreaRef.current?.scrollTo({
+          top: chatAreaRef.current.scrollHeight,
+          behavior: 'smooth',
+        });
+      }, 100);
+    }
+  }, [status]);
 
   // Add chat message helper
   const addChatMessage = useCallback(
@@ -2482,6 +2510,14 @@ export const VibePrototyping: React.FC = () => {
     showSuccess('Returned to wireframes');
   }, [addChatMessage, showSuccess]);
 
+  // Handle clicking on a pipeline step to navigate back
+  const handleStepClick = useCallback((step: PipelineStep) => {
+    // Only allow going back to wireframes for now
+    if (step === 'wireframing') {
+      handleBackToWireframes();
+    }
+  }, [handleBackToWireframes]);
+
   // Handle reprompting wireframes (regenerate one or all)
   const handleRepromptWireframes = useCallback(async (variantIndex?: number) => {
     if (!currentSession || !plan) return;
@@ -2801,11 +2837,11 @@ export const VibePrototyping: React.FC = () => {
         >
           {/* Pipeline Stepper - shows current phase (inside chat panel) */}
           {(status !== 'idle' || isProcessingPrompt) && (
-            <PipelineStepper status={status} />
+            <PipelineStepper status={status} onStepClick={handleStepClick} />
           )}
 
           {/* AI Phases and Variant Cards */}
-          <Box sx={{ flex: 1, overflow: 'auto', p: 2, minHeight: 0 }}>
+          <Box ref={chatAreaRef} sx={{ flex: 1, overflow: 'auto', p: 2, minHeight: 0 }}>
             {/* Initial empty state */}
             {status === 'idle' && !plan && !isProcessingPrompt && (
               <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -3009,33 +3045,30 @@ export const VibePrototyping: React.FC = () => {
                 </Box>
 
                 {/* Action buttons */}
-                <Box sx={{ display: 'flex', gap: 1.5 }}>
-                  <Button
-                    variant="contained"
-                    onClick={handleApproveUnderstanding}
-                    disabled={isClarifying}
-                    sx={{
-                      flex: 1,
-                      background: config.gradients?.primary || config.colors.primary,
-                    }}
-                  >
-                    <Check size={18} style={{ marginRight: 6 }} />
-                    Looks Good, Proceed
-                  </Button>
+                <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'flex-end' }}>
                   {clarificationInput.trim() && (
                     <Button
                       variant="outlined"
                       onClick={handleClarify}
                       disabled={isClarifying}
+                      size="small"
                     >
-                      {isClarifying ? <CircularProgress size={18} /> : 'Update Understanding'}
+                      {isClarifying ? <CircularProgress size={16} /> : 'Update'}
                     </Button>
                   )}
+                  <Button
+                    variant="contained"
+                    onClick={handleApproveUnderstanding}
+                    disabled={isClarifying}
+                    size="small"
+                    sx={{
+                      background: config.gradients?.primary || config.colors.primary,
+                    }}
+                  >
+                    <Check size={16} style={{ marginRight: 4 }} />
+                    Proceed
+                  </Button>
                 </Box>
-
-                <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
-                  AI will create 4 design approaches based on this understanding
-                </Typography>
               </Box>
             )}
 
@@ -3053,14 +3086,30 @@ export const VibePrototyping: React.FC = () => {
 
             {/* Wireframing phase */}
             {(isWireframing || isWireframeReady || isGenerating || isComplete) && (
-              <AIPhase
-                label="Wireframing"
-                content="Creating quick layout sketches for each paradigm to visualize the structure before building..."
-                isActive={isWireframing}
-                isComplete={!isWireframing && (isWireframeReady || isGenerating || isComplete)}
-                isCollapsible={true}
-                defaultCollapsed={!isWireframing && !isWireframeReady && isComplete}
-              />
+              <Box>
+                <AIPhase
+                  label="Wireframing"
+                  content="Creating quick layout sketches for each paradigm to visualize the structure before building..."
+                  isActive={isWireframing}
+                  isComplete={!isWireframing && (isWireframeReady || isGenerating || isComplete)}
+                  isCollapsible={true}
+                  defaultCollapsed={!isWireframing && !isWireframeReady && isComplete}
+                />
+                {/* Show back to wireframes inline when in generating or complete state */}
+                {(isGenerating || isComplete) && (
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: -1.5, mb: 1 }}>
+                    <Button
+                      variant="text"
+                      size="small"
+                      onClick={handleBackToWireframes}
+                      startIcon={<ArrowLeft size={14} />}
+                      sx={{ fontSize: '0.75rem', color: 'text.secondary' }}
+                    >
+                      Back to Wireframes
+                    </Button>
+                  </Box>
+                )}
+              </Box>
             )}
 
             {/* Building phase */}
@@ -3113,24 +3162,20 @@ export const VibePrototyping: React.FC = () => {
 
                 {/* Action button based on phase */}
                 {isPlanReady && (
-                  <Box sx={{ mt: 2, textAlign: 'center' }}>
-                    <Typography variant="caption" display="block" color="text.secondary" sx={{ mb: 1 }}>
-                      {selectedVariants.length === 4
-                        ? 'All 4 variants selected'
-                        : `${selectedVariants.length} of 4 variants selected`}
-                      {' '}— click checkboxes to adjust
+                  <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {selectedVariants.length}/4 selected
                     </Typography>
                     <Button
                       variant="contained"
                       onClick={handleCreateWireframes}
                       disabled={selectedVariants.length === 0}
+                      size="small"
                       sx={{
                         background: config.gradients?.primary || config.colors.primary,
-                        px: 4,
-                        py: 1,
                       }}
                     >
-                      Create Wireframes for {selectedVariants.length} Variant{selectedVariants.length !== 1 ? 's' : ''}
+                      Create Wireframes
                     </Button>
                   </Box>
                 )}
@@ -3145,30 +3190,25 @@ export const VibePrototyping: React.FC = () => {
                 )}
 
                 {isWireframeReady && (
-                  <Box sx={{ mt: 2, textAlign: 'center' }}>
-                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', mb: 1 }}>
-                      <Button
-                        variant="outlined"
-                        onClick={() => handleRepromptWireframes()}
-                        size="small"
-                        startIcon={<ArrowClockwise size={16} />}
-                      >
-                        Regenerate All
-                      </Button>
-                      <Button
-                        variant="contained"
-                        onClick={handleBuildHighFidelity}
-                        sx={{
-                          background: config.gradients?.primary || config.colors.primary,
-                          px: 3,
-                        }}
-                      >
-                        Build High-Fidelity
-                      </Button>
-                    </Box>
-                    <Typography variant="caption" display="block" color="text.secondary">
-                      Review wireframes, regenerate if needed, then build prototypes
-                    </Typography>
+                  <Box sx={{ mt: 2, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                    <Button
+                      variant="outlined"
+                      onClick={() => handleRepromptWireframes()}
+                      size="small"
+                      startIcon={<ArrowClockwise size={16} />}
+                    >
+                      Regenerate
+                    </Button>
+                    <Button
+                      variant="contained"
+                      onClick={handleBuildHighFidelity}
+                      size="small"
+                      sx={{
+                        background: config.gradients?.primary || config.colors.primary,
+                      }}
+                    >
+                      Build High-Fidelity
+                    </Button>
                   </Box>
                 )}
               </Box>
@@ -3182,13 +3222,12 @@ export const VibePrototyping: React.FC = () => {
                   content={phaseContent.summary || 'All 4 variants are ready! Click on any variant to explore it in full screen.'}
                   isComplete
                 />
-                <Box sx={{ mt: 2, textAlign: 'center' }}>
+                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
                   <Button
-                    variant="text"
+                    variant="outlined"
                     size="small"
                     onClick={handleBackToWireframes}
                     startIcon={<ArrowLeft size={16} />}
-                    sx={{ color: 'text.secondary' }}
                   >
                     Back to Wireframes
                   </Button>
