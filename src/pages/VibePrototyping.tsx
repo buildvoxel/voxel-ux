@@ -129,6 +129,9 @@ import {
   type VibeIteration,
 } from '@/services/iterationService';
 import {
+  generateVariantsFromEdits,
+} from '@/services/variantEditsService';
+import {
   generateUnderstanding,
   approveUnderstanding as approveUnderstandingService,
   clarifyRequest,
@@ -1670,7 +1673,9 @@ export const VibePrototyping: React.FC = () => {
 
   // Streaming HTML for live preview during generation
   const [streamingHtml, setStreamingHtml] = useState<Record<number, string>>({});
-  // Enable streaming by default - could add UI toggle later
+
+  // Generation method: 'edits' (faster, more consistent) or 'full' (complete regeneration)
+  const [generationMethod, setGenerationMethod] = useState<'edits' | 'full'>('edits');
   const useStreaming = true;
 
   // Update elapsed times every second during generation
@@ -2283,8 +2288,50 @@ export const VibePrototyping: React.FC = () => {
 
       let generatedVariants;
 
-      if (useStreaming) {
-        // VISION-FIRST streaming generation
+      if (generationMethod === 'edits' && screen?.editedHtml) {
+        // EDIT-BASED generation: Apply edits to original HTML (faster, more consistent)
+        console.log('[VibePrototyping] Using edit-based generation');
+        addChatMessage('assistant', 'Using efficient edit-based generation. I\'ll apply targeted changes to your original screen rather than rebuilding from scratch.');
+
+        await generateVariantsFromEdits(
+          currentSession.id,
+          plan.plans,
+          screen.editedHtml,
+          (p) => {
+            setProgress({
+              stage: 'generating',
+              message: p.message,
+              percent: p.percent,
+              variantIndex: p.variantIndex,
+            });
+
+            if (p.variantIndex) {
+              setVariantStartTimes((prev) => {
+                if (!prev[p.variantIndex!]) {
+                  return { ...prev, [p.variantIndex!]: Date.now() };
+                }
+                return prev;
+              });
+            }
+          },
+          (variantIndex, html) => {
+            // Variant completed - update preview
+            setStreamingHtml((prev) => ({
+              ...prev,
+              [variantIndex]: html,
+            }));
+            setCompletedVariantIndices((prev) => new Set([...prev, variantIndex]));
+          },
+          screenScreenshot,
+          selectedProvider || undefined,
+          selectedModel || undefined
+        );
+
+        // Fetch final variants from database
+        generatedVariants = await getVariants(currentSession.id);
+      } else if (useStreaming) {
+        // FULL streaming generation (fallback or when edits not available)
+        console.log('[VibePrototyping] Using full streaming generation');
         generatedVariants = await generateAllVariantsStreaming(
           currentSession.id,
           plan.plans,
@@ -2337,7 +2384,7 @@ export const VibePrototyping: React.FC = () => {
           selectedModel || undefined // model from dropdown
         );
       } else {
-        // Non-streaming not supported in vision-first approach
+        // Non-streaming not supported
         showError('Non-streaming generation not supported. Please enable streaming.');
         return;
       }
@@ -2368,7 +2415,7 @@ export const VibePrototyping: React.FC = () => {
         showError(`Failed to generate prototypes: ${errorMessage}`);
       }
     }
-  }, [currentSession, plan, sourceMetadata, screenScreenshot, wireframes, contextFiles, selectedProvider, selectedModel, addChatMessage, setVariants, setStatus, setProgress, debouncedSavePartialHtml, showError, showSuccess, useStreaming]);
+  }, [currentSession, plan, sourceMetadata, screenScreenshot, wireframes, contextFiles, selectedProvider, selectedModel, addChatMessage, setVariants, setStatus, setProgress, debouncedSavePartialHtml, showError, showSuccess, useStreaming, generationMethod, screen]);
 
   // Handle iteration on a variant
   const handleIterate = useCallback(async () => {
@@ -3653,8 +3700,37 @@ export const VibePrototyping: React.FC = () => {
               </Menu>
             </Box>
 
-            {/* Right: Preview size + Share button */}
+            {/* Right: Generation method + Preview size + Share button */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {/* Generation Method Toggle */}
+              <Tooltip title="Generation method: Edits = faster, applies targeted changes. Full = regenerates entire HTML">
+                <ToggleButtonGroup
+                  value={generationMethod}
+                  exclusive
+                  onChange={(_, value) => value && setGenerationMethod(value)}
+                  size="small"
+                  sx={{
+                    '& .MuiToggleButton-root': {
+                      py: 0.5,
+                      px: 1.5,
+                      fontSize: '0.75rem',
+                      textTransform: 'none',
+                    },
+                  }}
+                >
+                  <ToggleButton value="edits">
+                    <Lightning size={14} style={{ marginRight: 4 }} />
+                    Edits
+                  </ToggleButton>
+                  <ToggleButton value="full">
+                    <ArrowsClockwise size={14} style={{ marginRight: 4 }} />
+                    Full
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Tooltip>
+
+              <Divider orientation="vertical" flexItem />
+
               {/* Preview Size Selector */}
               <Box
                 sx={{
