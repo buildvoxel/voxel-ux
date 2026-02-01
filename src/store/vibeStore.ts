@@ -121,6 +121,7 @@ interface VibeState {
   // Actions - Wireframe management
   startWireframing: () => void;
   approveWireframes: () => void;  // Approves wireframes -> starts generation
+  goBackToWireframes: () => void;  // Return to wireframe stage from any later stage
 
   // Actions - Variant management
   setVariants: (variants: VibeVariant[], skipStatusUpdate?: boolean) => void;
@@ -365,6 +366,21 @@ export const useVibeStore = create<VibeState>()(
           message: 'Generating high-fidelity prototypes...',
           percent: 70,
         },
+      });
+    }
+  },
+
+  goBackToWireframes: () => {
+    const { currentSession } = get();
+    if (currentSession) {
+      set({
+        currentSession: {
+          ...currentSession,
+          status: 'wireframe_ready',
+        },
+        status: 'wireframe_ready',
+        progress: null,
+        // Keep variants in case user wants to compare
       });
     }
   },

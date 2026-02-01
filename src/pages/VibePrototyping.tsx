@@ -49,6 +49,7 @@ import {
   PencilSimple,
   ArrowCounterClockwise,
   ArrowClockwise,
+  ArrowLeft,
   ArrowsClockwise,
   Lightning,
   Paperclip,
@@ -1449,6 +1450,7 @@ export const VibePrototyping: React.FC = () => {
   const [shareType, setShareType] = useState<ShareType>('random');
   const [shareVariantIndex, setShareVariantIndex] = useState<number>(1);
   const [shareExpiration, setShareExpiration] = useState<number | null>(null); // null = never
+  const [shareWireframes, setShareWireframes] = useState(false); // Share wireframes vs prototypes
   const [isCreatingShare, setIsCreatingShare] = useState(false);
   const [createdShare, setCreatedShare] = useState<ShareLink | null>(null);
   const [pagesAnchorEl, setPagesAnchorEl] = useState<null | HTMLElement>(null);
@@ -2460,6 +2462,82 @@ export const VibePrototyping: React.FC = () => {
     }
   }, [focusedVariantIndex, getVariantByIndex]);
 
+  // Handle going back to wireframes from any later stage
+  const handleBackToWireframes = useCallback(() => {
+    const { goBackToWireframes } = useVibeStore.getState();
+    goBackToWireframes();
+    addChatMessage('assistant', 'Returned to wireframe stage. You can review and reprompt wireframes before building high-fidelity prototypes.');
+    showSuccess('Returned to wireframes');
+  }, [addChatMessage, showSuccess]);
+
+  // Handle reprompting wireframes (regenerate one or all)
+  const handleRepromptWireframes = useCallback(async (variantIndex?: number) => {
+    if (!currentSession || !plan) return;
+
+    // VISION-FIRST: Screenshot is required
+    if (!screenScreenshot) {
+      showError('Screenshot is required for wireframe generation. Please wait for the screen to load.');
+      return;
+    }
+
+    try {
+      if (variantIndex) {
+        addChatMessage('assistant', `Regenerating wireframe for Variant ${String.fromCharCode(64 + variantIndex)}...`);
+      } else {
+        addChatMessage('assistant', 'Regenerating all wireframes...');
+      }
+
+      setStatus('wireframing');
+      setProgress({
+        stage: 'wireframing',
+        message: variantIndex
+          ? `Regenerating wireframe for Variant ${String.fromCharCode(64 + variantIndex)}...`
+          : 'Regenerating wireframes...',
+        percent: 50,
+      });
+
+      // Filter plans to regenerate
+      const plansToRegenerate = variantIndex
+        ? plan.plans.filter(p => p.variant_index === variantIndex)
+        : plan.plans;
+
+      // Call wireframe generation
+      const newWireframes = await generateVisualWireframes(
+        currentSession.id,
+        plansToRegenerate,
+        screenScreenshot,
+        selectedProvider,
+        selectedModel
+      );
+
+      // Update wireframes state
+      if (variantIndex) {
+        // Replace just the one wireframe
+        setWireframes(prev => [
+          ...prev.filter(w => w.variantIndex !== variantIndex),
+          ...newWireframes
+        ].sort((a, b) => a.variantIndex - b.variantIndex));
+      } else {
+        // Replace all wireframes
+        setWireframes(newWireframes);
+      }
+
+      setStatus('wireframe_ready');
+      setProgress(null);
+
+      addChatMessage('assistant', variantIndex
+        ? `Wireframe for Variant ${String.fromCharCode(64 + variantIndex)} has been regenerated.`
+        : 'All wireframes have been regenerated. Review them and click "Build High-Fidelity" when ready.');
+      showSuccess(variantIndex ? 'Wireframe regenerated!' : 'Wireframes regenerated!');
+
+    } catch (err) {
+      console.error('[VibePrototyping] Error reprompting wireframes:', err);
+      setStatus('wireframe_ready');
+      setProgress(null);
+      showError('Failed to regenerate wireframes');
+    }
+  }, [currentSession, plan, screenScreenshot, selectedProvider, selectedModel, addChatMessage, setStatus, setProgress, showSuccess, showError]);
+
   // Handle file attachment
   const handleFileAttach = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -2530,18 +2608,19 @@ export const VibePrototyping: React.FC = () => {
         shareType,
         variantIndex: shareType === 'specific' ? shareVariantIndex : undefined,
         expiresInDays: shareExpiration || undefined,
+        shareWireframes,
       });
 
       setCreatedShare(share);
       setShareLink(share.shareUrl);
-      showSuccess('Share link created!');
+      showSuccess(`${shareWireframes ? 'Wireframe' : 'Prototype'} share link created!`);
     } catch (err) {
       console.error('Error creating share:', err);
       showError(err instanceof Error ? err.message : 'Failed to create share link');
     } finally {
       setIsCreatingShare(false);
     }
-  }, [currentSession, shareType, shareVariantIndex, shareExpiration, showSuccess, showError]);
+  }, [currentSession, shareType, shareVariantIndex, shareExpiration, shareWireframes, showSuccess, showError]);
 
   const handleCopyShareLink = useCallback(() => {
     navigator.clipboard.writeText(shareLink);
@@ -3051,19 +3130,28 @@ export const VibePrototyping: React.FC = () => {
 
                 {isWireframeReady && (
                   <Box sx={{ mt: 2, textAlign: 'center' }}>
-                    <Button
-                      variant="contained"
-                      onClick={handleBuildHighFidelity}
-                      sx={{
-                        background: config.gradients?.primary || config.colors.primary,
-                        px: 4,
-                        py: 1,
-                      }}
-                    >
-                      Build High-Fidelity
-                    </Button>
-                    <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
-                      Ready to generate polished prototypes
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', mb: 1 }}>
+                      <Button
+                        variant="outlined"
+                        onClick={() => handleRepromptWireframes()}
+                        size="small"
+                        startIcon={<ArrowClockwise size={16} />}
+                      >
+                        Regenerate All
+                      </Button>
+                      <Button
+                        variant="contained"
+                        onClick={handleBuildHighFidelity}
+                        sx={{
+                          background: config.gradients?.primary || config.colors.primary,
+                          px: 3,
+                        }}
+                      >
+                        Build High-Fidelity
+                      </Button>
+                    </Box>
+                    <Typography variant="caption" display="block" color="text.secondary">
+                      Review wireframes, regenerate if needed, then build prototypes
                     </Typography>
                   </Box>
                 )}
@@ -3072,11 +3160,24 @@ export const VibePrototyping: React.FC = () => {
 
             {/* Summary phase when complete */}
             {isComplete && (
-              <AIPhase
-                label="Summary"
-                content={phaseContent.summary || 'All 4 variants are ready! Click on any variant to explore it in full screen.'}
-                isComplete
-              />
+              <>
+                <AIPhase
+                  label="Summary"
+                  content={phaseContent.summary || 'All 4 variants are ready! Click on any variant to explore it in full screen.'}
+                  isComplete
+                />
+                <Box sx={{ mt: 2, textAlign: 'center' }}>
+                  <Button
+                    variant="text"
+                    size="small"
+                    onClick={handleBackToWireframes}
+                    startIcon={<ArrowLeft size={16} />}
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    Back to Wireframes
+                  </Button>
+                </Box>
+              </>
             )}
           </Box>
 
@@ -4241,8 +4342,40 @@ export const VibePrototyping: React.FC = () => {
           {!createdShare ? (
             <>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Create a shareable link for your prototype variants.
+                Create a shareable link for your designs.
               </Typography>
+
+              {/* Content Type Selection (Wireframes vs Prototypes) */}
+              <FormControl component="fieldset" sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  What to Share
+                </Typography>
+                <ToggleButtonGroup
+                  value={shareWireframes ? 'wireframes' : 'prototypes'}
+                  exclusive
+                  onChange={(_, value) => value && setShareWireframes(value === 'wireframes')}
+                  size="small"
+                  sx={{ mb: 1 }}
+                >
+                  <ToggleButton value="prototypes" sx={{ px: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Code size={16} />
+                      Prototypes
+                    </Box>
+                  </ToggleButton>
+                  <ToggleButton value="wireframes" sx={{ px: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <PencilLine size={16} />
+                      Wireframes
+                    </Box>
+                  </ToggleButton>
+                </ToggleButtonGroup>
+                <Typography variant="caption" color="text.secondary">
+                  {shareWireframes
+                    ? 'Share the wireframe sketches for early feedback'
+                    : 'Share the high-fidelity interactive prototypes'}
+                </Typography>
+              </FormControl>
 
               {/* Share Type Selection */}
               <FormControl component="fieldset" sx={{ mb: 3 }}>
@@ -4364,6 +4497,12 @@ export const VibePrototyping: React.FC = () => {
               />
 
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Chip
+                  size="small"
+                  icon={createdShare.shareWireframes ? <PencilLine size={14} /> : <Code size={14} />}
+                  label={createdShare.shareWireframes ? 'Wireframes' : 'Prototypes'}
+                  color={createdShare.shareWireframes ? 'warning' : 'primary'}
+                />
                 <Chip
                   size="small"
                   icon={createdShare.shareType === 'random' ? <Shuffle size={14} /> : <LinkSimple size={14} />}

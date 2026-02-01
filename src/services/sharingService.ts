@@ -13,6 +13,7 @@ export interface ShareConfig {
   shareType: ShareType;
   variantIndex?: number; // Required for 'specific' type
   expiresInDays?: number; // null = never expires
+  shareWireframes?: boolean; // When true, share wireframes instead of prototypes
 }
 
 export interface ShareLink {
@@ -23,6 +24,7 @@ export interface ShareLink {
   variantIndex?: number;
   expiresAt?: string;
   createdAt: string;
+  shareWireframes?: boolean;
 }
 
 export interface ShareData {
@@ -30,6 +32,7 @@ export interface ShareData {
     id: string;
     type: ShareType;
     created_at: string;
+    shareWireframes?: boolean;
   };
   session: {
     id: string;
@@ -38,15 +41,24 @@ export interface ShareData {
   };
   variant: {
     index: number;
-    html_url: string;
+    html_url?: string;
+    wireframe_url?: string;
     title: string;
     description: string;
   };
+  // For wireframe shares, may include all variants
+  variants?: Array<{
+    index: number;
+    wireframe_url: string;
+    title: string;
+    description: string;
+  }>;
 }
 
 export interface ShareWithViews extends ShareLink {
   viewCount: number;
   isActive: boolean;
+  shareWireframes: boolean;
 }
 
 /**
@@ -75,6 +87,7 @@ export async function createShareLink(config: ShareConfig): Promise<ShareLink> {
     p_share_type: config.shareType,
     p_variant_index: config.variantIndex || null,
     p_expires_in_days: config.expiresInDays || null,
+    p_share_wireframes: config.shareWireframes || false,
   });
 
   if (error) {
@@ -105,6 +118,7 @@ export async function createShareLink(config: ShareConfig): Promise<ShareLink> {
     variantIndex: config.variantIndex,
     expiresAt: shareDetails?.expires_at,
     createdAt: shareDetails?.created_at || new Date().toISOString(),
+    shareWireframes: config.shareWireframes,
   };
 }
 
@@ -190,6 +204,7 @@ export async function getSharesForSession(sessionId: string): Promise<ShareWithV
     createdAt: share.created_at,
     viewCount: share.view_count,
     isActive: share.is_active,
+    shareWireframes: share.share_wireframes || false,
   }));
 }
 
