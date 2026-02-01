@@ -117,9 +117,38 @@ function generateTags(comp: ExtractedComponentLLM): string[] {
   return [...new Set(tags)].slice(0, 5);
 }
 
+// Deduplicate stored components by category + normalized name
+function deduplicateStoredComponents(components: ExtractedComponent[]): ExtractedComponent[] {
+  const componentMap = new Map<string, ExtractedComponent>();
+
+  for (const comp of components) {
+    const signature = `${comp.category}:${comp.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+
+    if (componentMap.has(signature)) {
+      // Merge with existing
+      const existing = componentMap.get(signature)!;
+      existing.occurrences = (existing.occurrences || 1) + (comp.occurrences || 1);
+      if (!existing.sourceScreenIds.includes(comp.sourceScreen)) {
+        existing.sourceScreenIds.push(comp.sourceScreen);
+      }
+      // Merge variants
+      if (comp.variants) {
+        const existingVariantNames = new Set(existing.variants?.map((v) => v.name.toLowerCase()) || []);
+        const newVariants = comp.variants.filter((v) => !existingVariantNames.has(v.name.toLowerCase()));
+        existing.variants = [...(existing.variants || []), ...newVariants];
+      }
+    } else {
+      componentMap.set(signature, { ...comp });
+    }
+  }
+
+  // Sort by occurrences (most common first)
+  return Array.from(componentMap.values()).sort((a, b) => (b.occurrences || 1) - (a.occurrences || 1));
+}
+
 export const useComponentsStore = create<ComponentsState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       components: [],
       selectedComponent: null,
       selectedVariant: null,
@@ -183,23 +212,35 @@ export const useComponentsStore = create<ComponentsState>()(
             };
           }
 
-          // Extract components with progress tracking
+          // Clear existing components at start
+          set({ components: [] });
+
+          // Extract components with progress tracking and progressive loading
           const result = await extractComponentsFromMultipleScreens(
             screensWithHtml,
             {
               provider: options?.provider,
               model: options?.model,
+              concurrency: 3, // Process 3 screens in parallel
               onProgress: (progress) => {
                 set({ extractionProgress: progress });
+              },
+              // Progressive loading: add components as they're found
+              onComponentsFound: (newComponents, screenName) => {
+                const converted = newComponents.map(convertLLMComponent);
+                const current = get().components;
+                console.log(`[ComponentsStore] Progressive load: +${converted.length} components from "${screenName}"`);
+                set({ components: [...current, ...converted] });
               },
             }
           );
 
-          // Convert to store format
-          const components = result.components.map(convertLLMComponent);
+          // Final deduplication pass (components were added progressively)
+          const allComponents = get().components;
+          const deduped = deduplicateStoredComponents(allComponents);
 
           set({
-            components,
+            components: deduped,
             isExtracting: false,
             extractionProgress: null,
             lastExtractionTime: new Date().toISOString(),

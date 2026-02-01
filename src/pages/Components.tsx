@@ -456,26 +456,17 @@ function StepIndicator({ step, isActive }: { step: string; isActive: boolean }) 
   );
 }
 
-// Extraction progress display
+// Extraction progress display with parallel processing support
 function ExtractionProgressDisplay() {
-  const { extractionProgress } = useComponentsStore();
+  const { extractionProgress, components } = useComponentsStore();
 
   if (!extractionProgress) return null;
 
-  const progress =
-    ((extractionProgress.screenIndex + (extractionProgress.status === 'complete' ? 1 : 0.5)) /
-      extractionProgress.totalScreens) *
-    100;
+  // Calculate progress based on completed screens
+  const progress = (extractionProgress.screensCompleted / extractionProgress.totalScreens) * 100;
 
-  const steps = [
-    { key: 'screenshot', label: 'Screenshot' },
-    { key: 'compress', label: 'Compress' },
-    { key: 'upload', label: 'Upload' },
-    { key: 'llm-processing', label: 'AI Analysis' },
-    { key: 'parsing', label: 'Parse' },
-  ];
-
-  const currentStepIndex = steps.findIndex((s) => s.key === extractionProgress.currentStep);
+  // Determine if processing in parallel
+  const isParallel = extractionProgress.stepDetail?.includes('slots active');
 
   return (
     <Box
@@ -492,33 +483,64 @@ function ExtractionProgressDisplay() {
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Sparkle size={20} weight="fill" />
-          <Typography variant="subtitle2">AI Component Extraction in Progress</Typography>
+          <Typography variant="subtitle2">
+            AI Component Extraction {isParallel ? '(Parallel Processing)' : ''}
+          </Typography>
         </Box>
-        {extractionProgress.componentsFound > 0 && (
-          <Chip
-            size="small"
-            label={`${extractionProgress.componentsFound} found`}
-            color="primary"
-            variant="outlined"
-          />
-        )}
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {isParallel && (
+            <Chip
+              size="small"
+              label="3x faster"
+              color="success"
+              variant="outlined"
+              sx={{ fontSize: '0.7rem' }}
+            />
+          )}
+          {components.length > 0 && (
+            <Chip
+              size="small"
+              label={`${components.length} found`}
+              color="primary"
+              variant="filled"
+            />
+          )}
+        </Box>
       </Box>
 
       {/* Current action */}
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
         {extractionProgress.message}
       </Typography>
 
-      {/* Step indicators */}
-      {extractionProgress.status !== 'complete' && extractionProgress.status !== 'error' && (
-        <Box sx={{ display: 'flex', gap: 2, mb: 1.5, flexWrap: 'wrap' }}>
-          {steps.map((step, idx) => (
-            <StepIndicator
-              key={step.key}
-              step={step.label}
-              isActive={idx === currentStepIndex}
-            />
-          ))}
+      {/* Parallel processing indicator */}
+      {isParallel && extractionProgress.status !== 'complete' && (
+        <Box sx={{ display: 'flex', gap: 1, mb: 1.5, alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
+            {[1, 2, 3].map((slot) => (
+              <Box
+                key={slot}
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: extractionProgress.stepDetail?.includes(`${slot} of`) ||
+                    (parseInt(extractionProgress.stepDetail?.split(' ')[0] || '0') >= slot)
+                    ? 'primary.main'
+                    : 'action.disabled',
+                  animation: 'pulse 1.5s infinite',
+                  animationDelay: `${slot * 0.2}s`,
+                  '@keyframes pulse': {
+                    '0%, 100%': { opacity: 0.4 },
+                    '50%': { opacity: 1 },
+                  },
+                }}
+              />
+            ))}
+          </Box>
+          <Typography variant="caption" color="text.secondary">
+            {extractionProgress.stepDetail}
+          </Typography>
         </Box>
       )}
 
@@ -533,9 +555,7 @@ function ExtractionProgressDisplay() {
       {/* Footer stats */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="caption" color="text.secondary">
-          Screen {extractionProgress.screenIndex + 1} of {extractionProgress.totalScreens}
-          {extractionProgress.screensCompleted > 0 &&
-            ` • ${extractionProgress.screensCompleted} completed`}
+          {extractionProgress.screensCompleted} of {extractionProgress.totalScreens} screens completed
         </Typography>
         <Box sx={{ display: 'flex', gap: 2 }}>
           {extractionProgress.elapsedMs > 0 && (
