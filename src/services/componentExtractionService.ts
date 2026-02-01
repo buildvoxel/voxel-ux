@@ -53,6 +53,15 @@ export interface ExtractionProgress {
   screenName: string;
   status: 'capturing' | 'extracting' | 'complete' | 'error';
   message: string;
+  // Enhanced tracking
+  startTime: number;
+  elapsedMs: number;
+  estimatedTotalMs?: number;
+  estimatedRemainingMs?: number;
+  screensCompleted: number;
+  componentsFound: number;
+  currentStep: 'screenshot' | 'compress' | 'upload' | 'llm-processing' | 'parsing' | 'done';
+  stepDetail?: string;
 }
 
 export interface ExtractionResult {
@@ -186,6 +195,31 @@ export async function extractComponentsFromScreen(
   }
 }
 
+// Default timeout for LLM extraction (2 minutes per screen)
+const EXTRACTION_TIMEOUT_MS = 120000;
+
+/**
+ * Helper to create a timeout promise
+ */
+function createTimeout(ms: number, screenName: string): Promise<never> {
+  return new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`Extraction timed out after ${ms / 1000}s for "${screenName}"`));
+    }, ms);
+  });
+}
+
+/**
+ * Format milliseconds to human-readable string
+ */
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  const mins = Math.floor(ms / 60000);
+  const secs = Math.round((ms % 60000) / 1000);
+  return `${mins}m ${secs}s`;
+}
+
 /**
  * Extract components from multiple screens with progress callback
  */
@@ -200,6 +234,7 @@ export async function extractComponentsFromMultipleScreens(
     provider?: 'anthropic' | 'openai' | 'google';
     model?: string;
     onProgress?: (progress: ExtractionProgress) => void;
+    timeoutMs?: number;
   }
 ): Promise<{
   success: boolean;
@@ -208,22 +243,73 @@ export async function extractComponentsFromMultipleScreens(
 }> {
   const allComponents: ExtractedComponentLLM[] = [];
   const errors: Array<{ screenId: string; error: string }> = [];
+  const startTime = Date.now();
+  const screenTimes: number[] = [];
+  const timeout = options?.timeoutMs || EXTRACTION_TIMEOUT_MS;
+
+  console.log(`[ComponentExtraction] Starting extraction of ${screens.length} screens`);
+  console.log(`[ComponentExtraction] Timeout per screen: ${timeout / 1000}s`);
+
+  // Helper to report progress with timing info
+  const reportProgress = (
+    screenIndex: number,
+    screenName: string,
+    status: ExtractionProgress['status'],
+    currentStep: ExtractionProgress['currentStep'],
+    message: string,
+    stepDetail?: string
+  ) => {
+    const elapsedMs = Date.now() - startTime;
+    const screensCompleted = screenTimes.length;
+
+    // Estimate remaining time based on average screen time
+    let estimatedTotalMs: number | undefined;
+    let estimatedRemainingMs: number | undefined;
+
+    if (screensCompleted > 0) {
+      const avgTimePerScreen = screenTimes.reduce((a, b) => a + b, 0) / screensCompleted;
+      const remainingScreens = screens.length - screensCompleted;
+      estimatedRemainingMs = Math.round(avgTimePerScreen * remainingScreens);
+      estimatedTotalMs = elapsedMs + estimatedRemainingMs;
+    }
+
+    options?.onProgress?.({
+      screenIndex,
+      totalScreens: screens.length,
+      screenName,
+      status,
+      message,
+      startTime,
+      elapsedMs,
+      estimatedTotalMs,
+      estimatedRemainingMs,
+      screensCompleted,
+      componentsFound: allComponents.length,
+      currentStep,
+      stepDetail,
+    });
+  };
 
   for (let i = 0; i < screens.length; i++) {
     const screen = screens[i];
+    const screenStartTime = Date.now();
 
-    // Report progress: capturing
-    options?.onProgress?.({
-      screenIndex: i,
-      totalScreens: screens.length,
-      screenName: screen.name,
-      status: 'capturing',
-      message: `Capturing screenshot for "${screen.name}"...`,
-    });
+    console.log(`[ComponentExtraction] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log(`[ComponentExtraction] Screen ${i + 1}/${screens.length}: "${screen.name}"`);
+    console.log(`[ComponentExtraction] Screen ID: ${screen.id}`);
+    console.log(`[ComponentExtraction] HTML size: ${(screen.html.length / 1024).toFixed(1)}KB`);
 
-    // Capture screenshot
+    // Step 1: Capture screenshot
+    reportProgress(i, screen.name, 'capturing', 'screenshot',
+      `Capturing screenshot for "${screen.name}"...`,
+      'Rendering HTML to canvas'
+    );
+
     let screenshot: string | undefined;
     try {
+      console.log(`[ComponentExtraction] Step 1: Capturing screenshot...`);
+      const captureStart = Date.now();
+
       const result = await captureHtmlScreenshot(screen.html, {
         maxWidth: 1280,
         maxHeight: 800,
@@ -232,55 +318,105 @@ export async function extractComponentsFromMultipleScreens(
       });
 
       if (result) {
+        console.log(`[ComponentExtraction] Screenshot captured in ${Date.now() - captureStart}ms`);
+        console.log(`[ComponentExtraction] Original size: ${(result.base64.length / 1024).toFixed(1)}KB`);
+
+        // Step 2: Compress screenshot
+        reportProgress(i, screen.name, 'capturing', 'compress',
+          `Compressing screenshot for "${screen.name}"...`,
+          'Reducing image size for API'
+        );
+
+        const compressStart = Date.now();
         screenshot = await compressScreenshot(result.base64, 400);
+        console.log(`[ComponentExtraction] Compressed to ${(screenshot.length / 1024).toFixed(1)}KB in ${Date.now() - compressStart}ms`);
+      } else {
+        console.warn(`[ComponentExtraction] Screenshot capture returned null`);
       }
     } catch (err) {
       console.error('[ComponentExtraction] Screenshot capture error:', err);
     }
 
-    // Report progress: extracting
-    options?.onProgress?.({
-      screenIndex: i,
-      totalScreens: screens.length,
-      screenName: screen.name,
-      status: 'extracting',
-      message: `Extracting components from "${screen.name}"...`,
-    });
-
-    // Extract components
-    const result = await extractComponentsFromScreen(
-      screen.id,
-      screen.html,
-      screenshot,
-      {
-        provider: options?.provider,
-        model: options?.model,
-      }
+    // Step 3: Call LLM API
+    reportProgress(i, screen.name, 'extracting', 'upload',
+      `Sending to AI for analysis...`,
+      'Uploading screenshot and HTML'
     );
 
-    if (result.success) {
-      allComponents.push(...result.components);
-      options?.onProgress?.({
-        screenIndex: i,
-        totalScreens: screens.length,
-        screenName: screen.name,
-        status: 'complete',
-        message: `Extracted ${result.components.length} components from "${screen.name}"`,
-      });
-    } else {
-      errors.push({ screenId: screen.id, error: result.error || 'Unknown error' });
-      options?.onProgress?.({
-        screenIndex: i,
-        totalScreens: screens.length,
-        screenName: screen.name,
-        status: 'error',
-        message: `Error extracting from "${screen.name}": ${result.error}`,
-      });
+    console.log(`[ComponentExtraction] Step 2: Calling LLM API...`);
+    const llmStart = Date.now();
+
+    try {
+      // Race between extraction and timeout
+      const result = await Promise.race([
+        extractComponentsFromScreen(
+          screen.id,
+          screen.html,
+          screenshot,
+          {
+            provider: options?.provider,
+            model: options?.model,
+          }
+        ),
+        createTimeout(timeout, screen.name),
+      ]);
+
+      const llmDuration = Date.now() - llmStart;
+      console.log(`[ComponentExtraction] LLM response received in ${formatDuration(llmDuration)}`);
+
+      if (result.success) {
+        allComponents.push(...result.components);
+        const screenDuration = Date.now() - screenStartTime;
+        screenTimes.push(screenDuration);
+
+        console.log(`[ComponentExtraction] ✓ Extracted ${result.components.length} components`);
+        console.log(`[ComponentExtraction] Provider: ${result.provider}, Model: ${result.model}`);
+        console.log(`[ComponentExtraction] Screen completed in ${formatDuration(screenDuration)}`);
+
+        reportProgress(i, screen.name, 'complete', 'done',
+          `Extracted ${result.components.length} components from "${screen.name}" (${formatDuration(screenDuration)})`,
+          `Found: ${result.components.map(c => c.category).join(', ')}`
+        );
+      } else {
+        const screenDuration = Date.now() - screenStartTime;
+        screenTimes.push(screenDuration);
+
+        console.error(`[ComponentExtraction] ✗ Extraction failed: ${result.error}`);
+        errors.push({ screenId: screen.id, error: result.error || 'Unknown error' });
+
+        reportProgress(i, screen.name, 'error', 'done',
+          `Error: ${result.error}`,
+          `Failed after ${formatDuration(screenDuration)}`
+        );
+      }
+    } catch (err) {
+      const screenDuration = Date.now() - screenStartTime;
+      screenTimes.push(screenDuration);
+
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`[ComponentExtraction] ✗ Exception: ${errorMsg}`);
+      errors.push({ screenId: screen.id, error: errorMsg });
+
+      reportProgress(i, screen.name, 'error', 'done',
+        `Error: ${errorMsg}`,
+        `Failed after ${formatDuration(screenDuration)}`
+      );
     }
   }
 
+  // Final summary
+  const totalDuration = Date.now() - startTime;
+  console.log(`[ComponentExtraction] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+  console.log(`[ComponentExtraction] EXTRACTION COMPLETE`);
+  console.log(`[ComponentExtraction] Total time: ${formatDuration(totalDuration)}`);
+  console.log(`[ComponentExtraction] Screens processed: ${screens.length}`);
+  console.log(`[ComponentExtraction] Successful: ${screens.length - errors.length}`);
+  console.log(`[ComponentExtraction] Failed: ${errors.length}`);
+  console.log(`[ComponentExtraction] Components found: ${allComponents.length}`);
+
   // Deduplicate components by name + category
   const deduplicatedComponents = deduplicateComponents(allComponents);
+  console.log(`[ComponentExtraction] After deduplication: ${deduplicatedComponents.length} unique components`);
 
   return {
     success: errors.length === 0,

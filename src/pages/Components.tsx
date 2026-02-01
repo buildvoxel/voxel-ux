@@ -11,6 +11,7 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import CircularProgress from '@mui/material/CircularProgress';
 import LinearProgress from '@mui/material/LinearProgress';
+import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
 import {
   MagnifyingGlass,
@@ -418,6 +419,44 @@ function ComponentDetailModal({
   );
 }
 
+// Format milliseconds to human-readable string
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+  const mins = Math.floor(ms / 60000);
+  const secs = Math.round((ms % 60000) / 1000);
+  return `${mins}m ${secs}s`;
+}
+
+// Step indicator component
+function StepIndicator({ step, isActive }: { step: string; isActive: boolean }) {
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0.5,
+        color: isActive ? 'primary.main' : 'text.disabled',
+        fontSize: '0.75rem',
+      }}
+    >
+      {isActive ? (
+        <CircularProgress size={12} thickness={6} />
+      ) : (
+        <Box
+          sx={{
+            width: 12,
+            height: 12,
+            borderRadius: '50%',
+            backgroundColor: 'action.disabled',
+          }}
+        />
+      )}
+      <span>{step}</span>
+    </Box>
+  );
+}
+
 // Extraction progress display
 function ExtractionProgressDisplay() {
   const { extractionProgress } = useComponentsStore();
@@ -425,7 +464,19 @@ function ExtractionProgressDisplay() {
   if (!extractionProgress) return null;
 
   const progress =
-    ((extractionProgress.screenIndex + 1) / extractionProgress.totalScreens) * 100;
+    ((extractionProgress.screenIndex + (extractionProgress.status === 'complete' ? 1 : 0.5)) /
+      extractionProgress.totalScreens) *
+    100;
+
+  const steps = [
+    { key: 'screenshot', label: 'Screenshot' },
+    { key: 'compress', label: 'Compress' },
+    { key: 'upload', label: 'Upload' },
+    { key: 'llm-processing', label: 'AI Analysis' },
+    { key: 'parsing', label: 'Parse' },
+  ];
+
+  const currentStepIndex = steps.findIndex((s) => s.key === extractionProgress.currentStep);
 
   return (
     <Box
@@ -433,28 +484,85 @@ function ExtractionProgressDisplay() {
         mb: 3,
         p: 2,
         borderRadius: 2,
-        backgroundColor: 'primary.50',
+        backgroundColor: extractionProgress.status === 'error' ? 'error.50' : 'primary.50',
         border: '1px solid',
-        borderColor: 'primary.200',
+        borderColor: extractionProgress.status === 'error' ? 'error.200' : 'primary.200',
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-        <Sparkle size={20} weight="fill" />
-        <Typography variant="subtitle2">
-          AI Component Extraction in Progress
-        </Typography>
+      {/* Header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Sparkle size={20} weight="fill" />
+          <Typography variant="subtitle2">AI Component Extraction in Progress</Typography>
+        </Box>
+        {extractionProgress.componentsFound > 0 && (
+          <Chip
+            size="small"
+            label={`${extractionProgress.componentsFound} found`}
+            color="primary"
+            variant="outlined"
+          />
+        )}
       </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+
+      {/* Current action */}
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
         {extractionProgress.message}
       </Typography>
+
+      {/* Step indicators */}
+      {extractionProgress.status !== 'complete' && extractionProgress.status !== 'error' && (
+        <Box sx={{ display: 'flex', gap: 2, mb: 1.5, flexWrap: 'wrap' }}>
+          {steps.map((step, idx) => (
+            <StepIndicator
+              key={step.key}
+              step={step.label}
+              isActive={idx === currentStepIndex}
+            />
+          ))}
+        </Box>
+      )}
+
+      {/* Progress bar */}
       <LinearProgress
         variant="determinate"
         value={progress}
-        sx={{ height: 6, borderRadius: 3 }}
+        color={extractionProgress.status === 'error' ? 'error' : 'primary'}
+        sx={{ height: 8, borderRadius: 4, mb: 1 }}
       />
-      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-        Screen {extractionProgress.screenIndex + 1} of {extractionProgress.totalScreens}
-      </Typography>
+
+      {/* Footer stats */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="caption" color="text.secondary">
+          Screen {extractionProgress.screenIndex + 1} of {extractionProgress.totalScreens}
+          {extractionProgress.screensCompleted > 0 &&
+            ` • ${extractionProgress.screensCompleted} completed`}
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          {extractionProgress.elapsedMs > 0 && (
+            <Typography variant="caption" color="text.secondary">
+              Elapsed: {formatDuration(extractionProgress.elapsedMs)}
+            </Typography>
+          )}
+          {extractionProgress.estimatedRemainingMs !== undefined &&
+            extractionProgress.estimatedRemainingMs > 0 && (
+              <Typography variant="caption" color="primary.main" fontWeight="medium">
+                ~{formatDuration(extractionProgress.estimatedRemainingMs)} remaining
+              </Typography>
+            )}
+        </Box>
+      </Box>
+
+      {/* Step detail */}
+      {extractionProgress.stepDetail && (
+        <Typography
+          variant="caption"
+          color="text.disabled"
+          sx={{ mt: 0.5, display: 'block', fontStyle: 'italic' }}
+        >
+          {extractionProgress.stepDetail}
+        </Typography>
+      )}
     </Box>
   );
 }
