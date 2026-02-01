@@ -348,11 +348,19 @@ export async function getVisualWireframesForSession(sessionId: string): Promise<
     return [];
   }
 
-  return (data || []).map(row => ({
+  const result = (data || []).map(row => ({
     variantIndex: row.variant_index,
     planId: row.id,
     wireframeHtml: row.wireframe_text || '', // Body HTML stored for reference
     wireframePath: row.wireframe_path || '',
     wireframeUrl: row.wireframe_url || '',
   }));
+
+  console.log('[WireframeService] Loaded visual wireframes:', result.map(r => ({
+    variantIndex: r.variantIndex,
+    wireframeUrl: r.wireframeUrl,
+    htmlLength: r.wireframeHtml.length,
+  })));
+
+  return result;
 }

@@ -1116,6 +1116,64 @@ function InlineExpansionGrid({
   const isWireframe = !focusedVariant?.html_url && (focusedWireframe?.wireframeHtml || focusedWireframe?.wireframeUrl);
   const isComplete = focusedVariant?.status === 'complete';
 
+  // Fallback: fetch HTML content if URL loading fails
+  const [fetchedHtml, setFetchedHtml] = useState<string | null>(null);
+  const [urlLoadFailed, setUrlLoadFailed] = useState(false);
+
+  // Debug logging
+  console.log('[InlineExpansionGrid] Render:', {
+    focusedIndex,
+    focusedVariant: focusedVariant ? { html_url: focusedVariant.html_url, status: focusedVariant.status } : null,
+    focusedWireframe: focusedWireframe ? { wireframeUrl: focusedWireframe.wireframeUrl, hasHtml: !!focusedWireframe.wireframeHtml } : null,
+    focusedUrl,
+    hasFocusedHtml: !!focusedHtml,
+    focusedHtmlPreview: focusedHtml ? focusedHtml.substring(0, 100) : null,
+    isWireframe,
+    isComplete,
+    urlLoadFailed,
+    hasFetchedHtml: !!fetchedHtml,
+  });
+
+  // Fetch HTML content from URL for fallback rendering
+  useEffect(() => {
+    if (focusedUrl) {
+      setUrlLoadFailed(false);
+      setFetchedHtml(null);
+
+      // First check if URL is accessible
+      fetch(focusedUrl)
+        .then(res => {
+          const contentType = res.headers.get('content-type');
+          console.log('[InlineExpansionGrid] URL fetch result:', {
+            url: focusedUrl,
+            ok: res.ok,
+            status: res.status,
+            contentType,
+          });
+
+          // If content type is not HTML, fetch and use as srcDoc
+          if (contentType && !contentType.includes('text/html')) {
+            console.warn('[InlineExpansionGrid] Content type not text/html, using srcDoc fallback');
+            setUrlLoadFailed(true);
+          }
+          return res.text();
+        })
+        .then(html => {
+          setFetchedHtml(html);
+          console.log('[InlineExpansionGrid] Fetched HTML length:', html.length);
+        })
+        .catch(err => {
+          console.error('[InlineExpansionGrid] URL fetch failed:', err);
+          setUrlLoadFailed(true);
+        });
+    }
+  }, [focusedUrl]);
+
+  // Determine what to use for iframe
+  // Priority: Use srcDoc if URL loading failed or content type is wrong
+  const useUrlDirectly = focusedUrl && !urlLoadFailed;
+  const effectiveHtml = fetchedHtml || focusedHtml;
+
   // Other variants (not focused)
   const otherIndices = [1, 2, 3, 4].filter(i => i !== focusedIndex);
 
@@ -1222,11 +1280,12 @@ function InlineExpansionGrid({
             boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
           }}
         >
-          {(focusedUrl || focusedHtml) ? (
+          {(useUrlDirectly || effectiveHtml) ? (
             <iframe
-              {...(focusedUrl
+              key={useUrlDirectly ? focusedUrl : `html-${focusedIndex}-${effectiveHtml?.length || 0}`}
+              {...(useUrlDirectly
                 ? { src: focusedUrl }
-                : { srcDoc: focusedHtml! }
+                : { srcDoc: effectiveHtml! }
               )}
               title={labels[focusedIndex - 1]}
               style={{
