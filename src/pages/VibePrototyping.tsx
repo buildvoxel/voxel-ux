@@ -2232,43 +2232,53 @@ export const VibePrototyping: React.FC = () => {
         console.log('[VibePrototyping] Using edit-based generation');
         addChatMessage('assistant', 'Using efficient edit-based generation. I\'ll apply targeted changes to your original screen rather than rebuilding from scratch.');
 
-        await generateVariantsFromEdits(
-          currentSession.id,
-          plan.plans,
-          screen.editedHtml,
-          (p) => {
-            setProgress({
-              stage: 'generating',
-              message: p.message,
-              percent: p.percent,
-              variantIndex: p.variantIndex,
-            });
-
-            if (p.variantIndex) {
-              setVariantStartTimes((prev) => {
-                if (!prev[p.variantIndex!]) {
-                  return { ...prev, [p.variantIndex!]: Date.now() };
-                }
-                return prev;
+        try {
+          await generateVariantsFromEdits(
+            currentSession.id,
+            plan.plans,
+            screen.editedHtml,
+            (p) => {
+              setProgress({
+                stage: 'generating',
+                message: p.message,
+                percent: p.percent,
+                variantIndex: p.variantIndex,
               });
-            }
-          },
-          (variantIndex, html) => {
-            // Variant completed - update preview
-            setStreamingHtml((prev) => ({
-              ...prev,
-              [variantIndex]: html,
-            }));
-            setCompletedVariantIndices((prev) => new Set([...prev, variantIndex]));
-          },
-          screenScreenshot,
-          selectedProvider || undefined,
-          selectedModel || undefined
-        );
 
-        // Fetch final variants from database
-        generatedVariants = await getVariants(currentSession.id);
-      } else if (useStreaming) {
+              if (p.variantIndex) {
+                setVariantStartTimes((prev) => {
+                  if (!prev[p.variantIndex!]) {
+                    return { ...prev, [p.variantIndex!]: Date.now() };
+                  }
+                  return prev;
+                });
+              }
+            },
+            (variantIndex, html) => {
+              // Variant completed - update preview
+              setStreamingHtml((prev) => ({
+                ...prev,
+                [variantIndex]: html,
+              }));
+              setCompletedVariantIndices((prev) => new Set([...prev, variantIndex]));
+            },
+            screenScreenshot,
+            selectedProvider || undefined,
+            selectedModel || undefined
+          );
+
+          // Fetch final variants from database
+          generatedVariants = await getVariants(currentSession.id);
+        } catch (editsError) {
+          console.warn('[VibePrototyping] Edit-based generation failed, falling back to streaming:', editsError);
+          addChatMessage('assistant', 'Edit-based generation encountered an issue. Switching to full generation mode...');
+          // Fall through to streaming generation below
+          generatedVariants = null;
+        }
+      }
+
+      // Use streaming if edits failed or not selected
+      if (!generatedVariants && useStreaming) {
         // FULL streaming generation (fallback or when edits not available)
         console.log('[VibePrototyping] Using full streaming generation');
         generatedVariants = await generateAllVariantsStreaming(

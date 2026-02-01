@@ -338,18 +338,43 @@ async function callGoogle(
 // ============================================================================
 
 Deno.serve(async (req) => {
+  console.log('[generate-variant-edits-v2] Request received:', req.method);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const body: RequestBody = await req.json();
+    let body: RequestBody;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      console.error('[generate-variant-edits-v2] Failed to parse request body:', parseError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid JSON in request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { sessionId, plans, elementSummary, screenshotBase64, provider, model } = body;
+
+    // Validate required fields
+    if (!sessionId || !plans || !elementSummary) {
+      console.error('[generate-variant-edits-v2] Missing required fields:', {
+        hasSessionId: !!sessionId,
+        hasPlans: !!plans,
+        hasElementSummary: !!elementSummary
+      });
+      return new Response(
+        JSON.stringify({ success: false, error: 'Missing required fields: sessionId, plans, or elementSummary' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log('[generate-variant-edits-v2] Starting:', {
       sessionId,
-      plansCount: plans.length,
-      summaryLength: elementSummary.length,
+      plansCount: plans?.length || 0,
+      summaryLength: elementSummary?.length || 0,
       hasScreenshot: !!screenshotBase64,
     });
 
