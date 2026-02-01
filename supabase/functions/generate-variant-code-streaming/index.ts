@@ -46,6 +46,7 @@ interface GenerateCodeRequest {
   wireframeText?: string    // Layout description from wireframe phase
   designTokens?: DesignTokens  // Extracted design system tokens
   productContext?: string   // Summary of product context
+  uxGuidelines?: string     // UX guidelines extracted from product videos
   provider?: 'anthropic' | 'openai' | 'google'
   model?: string
   // Legacy - kept for backwards compatibility but not used in prompt
@@ -178,6 +179,11 @@ function buildVisionPrompt(request: GenerateCodeRequest): string {
   // Product context helps with appropriate content/tone
   if (request.productContext) {
     prompt += `## PRODUCT CONTEXT:\n${request.productContext.slice(0, 2000)}\n\n`
+  }
+
+  // UX Guidelines define how this product's UI should behave
+  if (request.uxGuidelines) {
+    prompt += `${request.uxGuidelines.slice(0, 3000)}\n\n`
   }
 
   prompt += `## INSTRUCTIONS:\n`
@@ -483,6 +489,7 @@ Deno.serve(async (req) => {
       hasWireframe: !!request.wireframeText,
       hasDesignTokens: !!request.designTokens,
       hasProductContext: !!request.productContext,
+      hasUXGuidelines: !!request.uxGuidelines,
       provider: request.provider,
       model: request.model,
     })

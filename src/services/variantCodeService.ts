@@ -500,7 +500,8 @@ export async function generateVariantCodeStreaming(
   productContext?: string,
   onChunk?: StreamingCallback,
   provider?: string,
-  model?: string
+  model?: string,
+  uxGuidelines?: string // UX guidelines extracted from product videos
 ): Promise<VibeVariant | null> {
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase not configured');
@@ -556,6 +557,7 @@ export async function generateVariantCodeStreaming(
       designTokens,
       wireframeText,
       productContext,
+      uxGuidelines,
       provider,
       model,
     }),
@@ -679,7 +681,8 @@ export async function generateAllVariantsStreaming(
   onProgress?: ProgressCallback,
   onChunk?: (variantIndex: number, chunk: string, fullHtml: string) => void,
   provider?: string,
-  model?: string
+  model?: string,
+  uxGuidelines?: string // UX guidelines extracted from product videos
 ): Promise<VibeVariant[]> {
   const variants: VibeVariant[] = [];
   const totalPlans = plans.length;
@@ -724,7 +727,8 @@ export async function generateAllVariantsStreaming(
           }
         },
         provider,
-        model
+        model,
+        uxGuidelines
       );
 
       if (variant) {

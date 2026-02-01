@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { UXGuideline, UXGuidelinesSet } from '@/types/models';
 
 export type ContextType = 'text' | 'pdf' | 'video' | 'url' | 'image';
 
@@ -25,6 +26,10 @@ interface ContextState {
   contexts: ProductContext[];
   selectedContextIds: string[]; // Which contexts are active for AI
 
+  // UX Guidelines
+  uxGuidelinesSet: UXGuidelinesSet | null;
+  uxGuidelinesEnabled: boolean;
+
   // Actions
   addContext: (context: Omit<ProductContext, 'id' | 'createdAt' | 'updatedAt'>) => ProductContext;
   updateContext: (id: string, updates: Partial<ProductContext>) => void;
@@ -37,8 +42,19 @@ interface ContextState {
   getSelectedContexts: () => ProductContext[];
   getContextsByType: (type: ContextType) => ProductContext[];
 
+  // UX Guidelines actions
+  setUXGuidelines: (guidelines: UXGuidelinesSet) => void;
+  clearUXGuidelines: () => void;
+  toggleUXGuidelinesEnabled: () => void;
+  addUXGuideline: (guideline: Omit<UXGuideline, 'id'>) => void;
+  updateUXGuideline: (id: string, updates: Partial<UXGuideline>) => void;
+  deleteUXGuideline: (id: string) => void;
+
   // Get combined context for AI prompt
   getAIContextPrompt: () => string;
+
+  // Get UX guidelines formatted for AI prompt
+  getUXGuidelinesPrompt: () => string;
 }
 
 export const useContextStore = create<ContextState>()(
@@ -46,6 +62,8 @@ export const useContextStore = create<ContextState>()(
     (set, get) => ({
       contexts: [],
       selectedContextIds: [],
+      uxGuidelinesSet: null,
+      uxGuidelinesEnabled: true,
 
       addContext: (contextData) => {
         const now = new Date().toISOString();
@@ -133,12 +151,118 @@ export const useContextStore = create<ContextState>()(
 
         return `## Product Context\n\n${contextParts.join('\n\n---\n\n')}`;
       },
+
+      // UX Guidelines actions
+      setUXGuidelines: (guidelines) => {
+        set({ uxGuidelinesSet: guidelines });
+      },
+
+      clearUXGuidelines: () => {
+        set({ uxGuidelinesSet: null });
+      },
+
+      toggleUXGuidelinesEnabled: () => {
+        set((state) => ({ uxGuidelinesEnabled: !state.uxGuidelinesEnabled }));
+      },
+
+      addUXGuideline: (guidelineData) => {
+        const state = get();
+        if (!state.uxGuidelinesSet) return;
+
+        const newGuideline: UXGuideline = {
+          ...guidelineData,
+          id: `uxg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        };
+
+        set({
+          uxGuidelinesSet: {
+            ...state.uxGuidelinesSet,
+            guidelines: [...state.uxGuidelinesSet.guidelines, newGuideline],
+            updatedAt: new Date().toISOString(),
+          },
+        });
+      },
+
+      updateUXGuideline: (id, updates) => {
+        const state = get();
+        if (!state.uxGuidelinesSet) return;
+
+        set({
+          uxGuidelinesSet: {
+            ...state.uxGuidelinesSet,
+            guidelines: state.uxGuidelinesSet.guidelines.map((g) =>
+              g.id === id ? { ...g, ...updates } : g
+            ),
+            updatedAt: new Date().toISOString(),
+          },
+        });
+      },
+
+      deleteUXGuideline: (id) => {
+        const state = get();
+        if (!state.uxGuidelinesSet) return;
+
+        set({
+          uxGuidelinesSet: {
+            ...state.uxGuidelinesSet,
+            guidelines: state.uxGuidelinesSet.guidelines.filter((g) => g.id !== id),
+            updatedAt: new Date().toISOString(),
+          },
+        });
+      },
+
+      getUXGuidelinesPrompt: () => {
+        const state = get();
+        if (!state.uxGuidelinesSet || !state.uxGuidelinesEnabled) return '';
+        if (state.uxGuidelinesSet.guidelines.length === 0) return '';
+
+        const categoryLabels: Record<string, string> = {
+          navigation: 'Navigation Patterns',
+          interaction: 'Interaction Patterns',
+          feedback: 'Feedback & States',
+          layout: 'Layout Conventions',
+          content: 'Content & Microcopy',
+          accessibility: 'Accessibility',
+          flow: 'User Flows',
+        };
+
+        // Group guidelines by category
+        const byCategory = state.uxGuidelinesSet.guidelines.reduce(
+          (acc, guideline) => {
+            if (!acc[guideline.category]) {
+              acc[guideline.category] = [];
+            }
+            acc[guideline.category].push(guideline);
+            return acc;
+          },
+          {} as Record<string, typeof state.uxGuidelinesSet.guidelines>
+        );
+
+        let prompt = `## UX Guidelines\n`;
+        prompt += `Follow these established UX patterns when generating the prototype:\n\n`;
+
+        for (const [category, guidelines] of Object.entries(byCategory)) {
+          prompt += `### ${categoryLabels[category] || category}\n`;
+          for (const g of guidelines) {
+            prompt += `- **${g.title}**: ${g.description}`;
+            if (g.examples && g.examples.length > 0) {
+              prompt += ` (e.g., ${g.examples.slice(0, 2).join(', ')})`;
+            }
+            prompt += '\n';
+          }
+          prompt += '\n';
+        }
+
+        return prompt;
+      },
     }),
     {
       name: 'voxel-context-storage',
       partialize: (state) => ({
         contexts: state.contexts,
         selectedContextIds: state.selectedContextIds,
+        uxGuidelinesSet: state.uxGuidelinesSet,
+        uxGuidelinesEnabled: state.uxGuidelinesEnabled,
       }),
     }
   )
