@@ -96,11 +96,25 @@ export async function extractComponentsFromScreen(
       screenshot = await compressScreenshot(result.base64, 400);
     }
 
-    // Get session
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      throw new Error('Not authenticated');
+    // Get a fresh session - refresh to ensure token is valid
+    let accessToken: string | undefined;
+
+    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError || !refreshData.session) {
+      console.log('[ComponentExtraction] Refresh failed, trying getSession:', refreshError?.message);
+      // Fall back to getSession if refresh fails
+      const { data: { session: fallbackSession } } = await supabase.auth.getSession();
+      if (!fallbackSession?.access_token) {
+        throw new Error('Not authenticated - please sign in again');
+      }
+      accessToken = fallbackSession.access_token;
+      console.log('[ComponentExtraction] Using fallback session token');
+    } else {
+      accessToken = refreshData.session.access_token;
+      console.log('[ComponentExtraction] Using refreshed session token');
     }
+
+    console.log('[ComponentExtraction] Token available, length:', accessToken.length);
 
     // Call the edge function with explicit auth header
     console.log('[ComponentExtraction] Calling extract-components edge function');
@@ -113,7 +127,7 @@ export async function extractComponentsFromScreen(
         model: options?.model,
       },
       headers: {
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${accessToken}`,
       },
     });
 
