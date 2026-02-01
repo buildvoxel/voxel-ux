@@ -2514,9 +2514,13 @@ export const VibePrototyping: React.FC = () => {
         : plan.plans;
 
       // Call wireframe generation
-      const newWireframes = await generateVisualWireframes(
+      const result = await generateVisualWireframes(
         currentSession.id,
         plansToRegenerate,
+        screen?.editedHtml || screen?.html || '',
+        sourceMetadata || undefined,
+        selectedVariants,
+        undefined, // onProgress
         screenScreenshot,
         selectedProvider,
         selectedModel
@@ -2527,11 +2531,11 @@ export const VibePrototyping: React.FC = () => {
         // Replace just the one wireframe
         setWireframes(prev => [
           ...prev.filter(w => w.variantIndex !== variantIndex),
-          ...newWireframes
+          ...result.wireframes
         ].sort((a, b) => a.variantIndex - b.variantIndex));
       } else {
         // Replace all wireframes
-        setWireframes(newWireframes);
+        setWireframes(result.wireframes);
       }
 
       setStatus('wireframe_ready');
@@ -2548,7 +2552,7 @@ export const VibePrototyping: React.FC = () => {
       setProgress(null);
       showError('Failed to regenerate wireframes');
     }
-  }, [currentSession, plan, screenScreenshot, selectedProvider, selectedModel, addChatMessage, setStatus, setProgress, showSuccess, showError]);
+  }, [currentSession, plan, screen, sourceMetadata, selectedVariants, screenScreenshot, selectedProvider, selectedModel, addChatMessage, setStatus, setProgress, showSuccess, showError]);
 
   // Handle file attachment
   const handleFileAttach = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
