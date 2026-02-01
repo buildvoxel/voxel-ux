@@ -37,8 +37,8 @@ export function AuthLayout() {
             src="/voxel-logo.png"
             alt="Voxel"
             sx={{
-              width: 48,
-              height: 48,
+              width: 41,
+              height: 41,
               mx: 'auto',
               mb: 2,
             }}

@@ -145,8 +145,8 @@ export function AppLayout() {
             src="/voxel-logo.png"
             alt="Voxel"
             style={{
-              width: 32,
-              height: 32,
+              width: 27,
+              height: 27,
               objectFit: 'contain',
             }}
           />
