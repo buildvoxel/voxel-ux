@@ -195,14 +195,25 @@ export const muiTheme = createTheme({
         root: {
           textTransform: 'none',
           fontWeight: 500,
-          borderRadius: 6,
+          borderRadius: 7, // Increased by 10% from 6
           padding: '6px 12px',
+          minHeight: 30, // Consistent height for all buttons
           fontSize: '0.8125rem',
           transition: 'all 150ms ease',
+          // Improved disabled state contrast
+          '&.Mui-disabled': {
+            backgroundColor: 'rgba(0, 0, 0, 0.08)',
+            color: 'rgba(0, 0, 0, 0.38)',
+          },
         },
         sizeSmall: {
           padding: '4px 10px',
+          minHeight: 30, // Same height as regular buttons
           fontSize: '0.75rem',
+        },
+        sizeLarge: {
+          minHeight: 36,
+          padding: '8px 16px',
         },
         contained: {
           boxShadow: 'none',
@@ -213,17 +224,32 @@ export const muiTheme = createTheme({
           '&:active': {
             transform: 'translateY(0)',
           },
+          // Better disabled contrast for contained buttons
+          '&.Mui-disabled': {
+            backgroundColor: 'rgba(0, 0, 0, 0.12)',
+            color: 'rgba(0, 0, 0, 0.42)',
+          },
         },
         containedPrimary: {
           backgroundColor: voxelColors.primary,
           '&:hover': {
             backgroundColor: voxelColors.primaryDark,
           },
+          // Disabled primary button with better contrast
+          '&.Mui-disabled': {
+            backgroundColor: 'rgba(184, 134, 11, 0.3)',
+            color: 'rgba(255, 255, 255, 0.7)',
+          },
         },
         containedSecondary: {
           backgroundColor: voxelColors.bgDark,
           '&:hover': {
             backgroundColor: voxelColors.textPrimary,
+          },
+          // Disabled secondary button with better contrast
+          '&.Mui-disabled': {
+            backgroundColor: 'rgba(28, 25, 23, 0.3)',
+            color: 'rgba(255, 255, 255, 0.7)',
           },
         },
         outlined: {
@@ -233,12 +259,21 @@ export const muiTheme = createTheme({
             borderColor: 'rgba(0, 0, 0, 0.24)',
             backgroundColor: 'rgba(0, 0, 0, 0.04)',
           },
+          // Disabled outlined button with better contrast
+          '&.Mui-disabled': {
+            borderColor: 'rgba(0, 0, 0, 0.15)',
+            color: 'rgba(0, 0, 0, 0.38)',
+          },
         },
         text: {
           color: voxelColors.textSecondary,
           '&:hover': {
             backgroundColor: 'rgba(0, 0, 0, 0.04)',
             color: voxelColors.textPrimary,
+          },
+          // Disabled text button with better contrast
+          '&.Mui-disabled': {
+            color: 'rgba(0, 0, 0, 0.32)',
           },
         },
       },
