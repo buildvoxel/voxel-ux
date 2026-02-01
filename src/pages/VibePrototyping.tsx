@@ -967,6 +967,7 @@ function CanvasVariantCard({
   streamingHtml,
   progress = 0,
   onClick,
+  viewMode = 'prototypes',
 }: {
   label: string;
   isLoading?: boolean;
@@ -976,11 +977,16 @@ function CanvasVariantCard({
   streamingHtml?: string | null;
   progress?: number;
   onClick?: () => void;
+  viewMode?: 'wireframes' | 'prototypes';
 }) {
   // Show streaming preview if available during loading
   const showStreamingPreview = isLoading && streamingHtml && streamingHtml.length > 100;
-  // Show wireframe if no high-fidelity yet but wireframe exists (prefer URL over body content)
-  const showWireframePreview = !htmlUrl && !isLoading && (wireframeUrl || wireframeHtml);
+  // In wireframe mode, always show wireframe if available (even if prototype exists)
+  // In prototype mode, show prototype if available, fall back to wireframe
+  const forceWireframeView = viewMode === 'wireframes' && (wireframeUrl || wireframeHtml);
+  const showWireframePreview = forceWireframeView || (!htmlUrl && !isLoading && (wireframeUrl || wireframeHtml));
+  // Show prototype only if in prototype mode and available
+  const showPrototypePreview = viewMode === 'prototypes' && htmlUrl && !isLoading;
 
   return (
     <Card
@@ -1091,7 +1097,7 @@ function CanvasVariantCard({
                 </Typography>
               </Box>
             </Box>
-          ) : htmlUrl ? (
+          ) : showPrototypePreview ? (
             <Box
               sx={{
                 width: '100%',
@@ -1101,7 +1107,7 @@ function CanvasVariantCard({
               }}
             >
               <FetchedHtmlIframe
-                url={htmlUrl}
+                url={htmlUrl!}
                 title={label}
                 style={{
                   width: '200%',
@@ -1184,20 +1190,25 @@ function InlineExpansionGrid({
   onEditClick,
   onIterateClick,
   getVariantByIndex,
+  viewMode = 'prototypes',
 }: {
   wireframes: Array<{ variantIndex: number; wireframeUrl: string; wireframeHtml?: string }>;
   focusedIndex: number;
   onEditClick?: () => void;
   onIterateClick?: () => void;
   getVariantByIndex: (index: number) => { html_url?: string; status: string; iteration_count?: number } | undefined;
+  viewMode?: 'wireframes' | 'prototypes';
 }) {
   const { config } = useThemeStore();
   const labels = ['Variant A', 'Variant B', 'Variant C', 'Variant D'];
   const focusedVariant = getVariantByIndex(focusedIndex);
   const focusedWireframe = wireframes.find(w => w.variantIndex === focusedIndex);
-  const focusedUrl = focusedVariant?.html_url || focusedWireframe?.wireframeUrl;
+  // In wireframe mode, prioritize wireframe; in prototype mode, prioritize prototype
+  const focusedUrl = viewMode === 'wireframes'
+    ? (focusedWireframe?.wireframeUrl || focusedVariant?.html_url)
+    : (focusedVariant?.html_url || focusedWireframe?.wireframeUrl);
   const focusedHtml = focusedWireframe?.wireframeHtml;
-  const isWireframe = !focusedVariant?.html_url && (focusedWireframe?.wireframeHtml || focusedWireframe?.wireframeUrl);
+  const isWireframe = viewMode === 'wireframes' || (!focusedVariant?.html_url && (focusedWireframe?.wireframeHtml || focusedWireframe?.wireframeUrl));
   const isComplete = focusedVariant?.status === 'complete';
 
   // Fetch HTML content to use srcDoc (bypasses Supabase CSP restrictions)
@@ -1468,6 +1479,7 @@ export const VibePrototyping: React.FC = () => {
   const [shareExpiration, setShareExpiration] = useState<number | null>(null); // null = never
   const [shareWireframes, setShareWireframes] = useState(false); // Share wireframes vs prototypes
   const [isCreatingShare, setIsCreatingShare] = useState(false);
+  const [viewMode, setViewMode] = useState<'wireframes' | 'prototypes'>('prototypes'); // Toggle between views
   const [createdShare, setCreatedShare] = useState<ShareLink | null>(null);
   const [pagesAnchorEl, setPagesAnchorEl] = useState<null | HTMLElement>(null);
   const [breadcrumbAnchorEl, setBreadcrumbAnchorEl] = useState<null | HTMLElement>(null);
@@ -2503,21 +2515,26 @@ export const VibePrototyping: React.FC = () => {
     }
   }, [focusedVariantIndex, getVariantByIndex]);
 
-  // Handle going back to wireframes from any later stage
-  const handleBackToWireframes = useCallback(() => {
-    const { goBackToWireframes } = useVibeStore.getState();
-    goBackToWireframes();
-    addChatMessage('assistant', 'Returned to wireframe stage. You can review and reprompt wireframes before building high-fidelity prototypes.');
-    showSuccess('Returned to wireframes');
-  }, [addChatMessage, showSuccess]);
+  // Toggle to wireframe view (keeps prototypes accessible)
+  const handleViewWireframes = useCallback(() => {
+    setViewMode('wireframes');
+    showSuccess('Viewing wireframes');
+  }, [showSuccess]);
 
-  // Handle clicking on a pipeline step to navigate back
+  // Toggle to prototype view
+  const handleViewPrototypes = useCallback(() => {
+    setViewMode('prototypes');
+    showSuccess('Viewing prototypes');
+  }, [showSuccess]);
+
+  // Handle clicking on a pipeline step to switch views
   const handleStepClick = useCallback((step: PipelineStep) => {
-    // Only allow going back to wireframes for now
     if (step === 'wireframing') {
-      handleBackToWireframes();
+      handleViewWireframes();
+    } else if (step === 'prototyping' || step === 'sharing') {
+      handleViewPrototypes();
     }
-  }, [handleBackToWireframes]);
+  }, [handleViewWireframes, handleViewPrototypes]);
 
   // Handle reprompting wireframes (regenerate one or all)
   const handleRepromptWireframes = useCallback(async (variantIndex?: number) => {
@@ -3234,14 +3251,21 @@ export const VibePrototyping: React.FC = () => {
                 </>
               )}
               {isComplete && (
-                <Button
-                  variant="outlined"
+                <ToggleButtonGroup
+                  value={viewMode}
+                  exclusive
+                  onChange={(_, value) => value && setViewMode(value)}
                   size="small"
-                  onClick={handleBackToWireframes}
-                  startIcon={<ArrowLeft size={14} />}
                 >
-                  Back to Wireframes
-                </Button>
+                  <ToggleButton value="wireframes" sx={{ px: 2 }}>
+                    <PencilLine size={16} style={{ marginRight: 4 }} />
+                    Wireframes
+                  </ToggleButton>
+                  <ToggleButton value="prototypes" sx={{ px: 2 }}>
+                    <Cube size={16} style={{ marginRight: 4 }} />
+                    Prototypes
+                  </ToggleButton>
+                </ToggleButtonGroup>
               )}
             </Box>
           )}
@@ -4076,6 +4100,7 @@ export const VibePrototyping: React.FC = () => {
                         streamingHtml={variantStreamingHtml}
                         progress={variantProgress}
                         onClick={canClick ? () => handleVariantClick(idx + 1) : undefined}
+                        viewMode={viewMode}
                       />
                     </Grid>
                   );
@@ -4090,6 +4115,7 @@ export const VibePrototyping: React.FC = () => {
               wireframes={wireframes}
               focusedIndex={focusedVariantIndex}
               getVariantByIndex={getVariantByIndex}
+              viewMode={viewMode}
             />
           )}
 
@@ -4108,6 +4134,7 @@ export const VibePrototyping: React.FC = () => {
                         wireframeUrl={wireframe?.wireframeUrl}
                         wireframeHtml={wireframe?.wireframeHtml}
                         onClick={() => handleVariantClick(idx + 1)}
+                        viewMode={viewMode}
                       />
                     </Grid>
                   );
@@ -4125,6 +4152,7 @@ export const VibePrototyping: React.FC = () => {
               onEditClick={() => setEditMode('code')}
               onIterateClick={() => setIterationDialogOpen(true)}
               getVariantByIndex={getVariantByIndex}
+              viewMode={viewMode}
             />
           )}
 
