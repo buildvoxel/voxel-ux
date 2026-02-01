@@ -1,68 +1,62 @@
 /**
- * Variant Edits Service
+ * Variant Edits Service (V2)
  *
- * Generates and applies edit operations to create variants from original HTML.
- * This is much more efficient than generating complete HTML from scratch.
+ * Generates and applies structured edit operations to create variants.
+ * Uses element summary instead of full HTML for LLM context efficiency.
+ *
+ * Flow:
+ * 1. Extract element summary from original HTML (compact representation)
+ * 2. Send summary + screenshot + plan to LLM
+ * 3. LLM returns structured EditOperation[]
+ * 4. Apply operations to original HTML using DOM manipulation
  */
 
 import { supabase, isSupabaseConfigured } from './supabase';
 import type { VariantPlan } from './variantPlanService';
+import { extractMinimalSummary } from './elementSummaryService';
+import {
+  applyEditOperations,
+  type EditOperation,
+  type ApplyOperationsResult,
+} from './editOperationsService';
 
+// ============================================================================
 // Types
-export interface EditOperation {
-  find: string;
-  replace: string;
-  description?: string;
-}
+// ============================================================================
 
-export interface VariantEdits {
+export interface VariantEditsV2 {
   variantIndex: number;
   planId: string;
-  edits: EditOperation[];
+  operations: EditOperation[];
   summary: string;
 }
 
-export interface ApplyEditsResult {
-  html: string;
-  appliedEdits: number;
-  failedEdits: EditOperation[];
-}
-
 export interface GenerateEditsProgress {
-  stage: 'preparing' | 'generating' | 'applying' | 'saving' | 'complete';
+  stage: 'preparing' | 'extracting' | 'generating' | 'applying' | 'saving' | 'complete';
   message: string;
   percent: number;
   variantIndex?: number;
 }
 
-type ProgressCallback = (progress: GenerateEditsProgress) => void;
-
-/**
- * Apply edit operations to HTML
- * Returns the modified HTML and info about which edits succeeded/failed
- */
-export function applyEdits(html: string, edits: EditOperation[]): ApplyEditsResult {
-  let result = html;
-  let appliedEdits = 0;
-  const failedEdits: EditOperation[] = [];
-
-  for (const edit of edits) {
-    if (result.includes(edit.find)) {
-      result = result.replace(edit.find, edit.replace);
-      appliedEdits++;
-    } else {
-      console.warn('[applyEdits] Could not find string to replace:', edit.find.substring(0, 100));
-      failedEdits.push(edit);
-    }
-  }
-
-  return { html: result, appliedEdits, failedEdits };
+export interface GenerateVariantsResult {
+  variantIndex: number;
+  html: string;
+  operationsApplied: number;
+  operationsFailed: number;
 }
 
+type ProgressCallback = (progress: GenerateEditsProgress) => void;
+type VariantCompleteCallback = (variantIndex: number, html: string) => void;
+
+// ============================================================================
+// V2: Element Summary Based Generation
+// ============================================================================
+
 /**
- * Generate edit operations for all variant plans
+ * Generate edit operations using element summary (V2 approach)
+ * This sends a compact representation instead of full HTML
  */
-export async function generateVariantEdits(
+export async function generateVariantEditsV2(
   sessionId: string,
   plans: VariantPlan[],
   originalHtml: string,
@@ -70,7 +64,7 @@ export async function generateVariantEdits(
   screenshotBase64?: string,
   provider?: string,
   model?: string
-): Promise<VariantEdits[]> {
+): Promise<VariantEditsV2[]> {
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase not configured');
   }
@@ -81,12 +75,27 @@ export async function generateVariantEdits(
   }
 
   onProgress?.({
-    stage: 'preparing',
-    message: 'Preparing edit generation...',
+    stage: 'extracting',
+    message: 'Extracting element structure...',
     percent: 10,
   });
 
-  // Prepare plans for the edge function
+  // Extract element summary (compact representation)
+  const elementSummary = extractMinimalSummary(originalHtml, 3000);
+
+  console.log('[VariantEditsService V2] Element summary extracted:', {
+    originalLength: originalHtml.length,
+    summaryLength: elementSummary.length,
+    compressionRatio: (originalHtml.length / elementSummary.length).toFixed(1) + 'x',
+  });
+
+  onProgress?.({
+    stage: 'preparing',
+    message: 'Preparing edit generation...',
+    percent: 20,
+  });
+
+  // Prepare plans payload
   const plansPayload = plans.map(p => ({
     id: p.id,
     variantIndex: p.variant_index,
@@ -96,24 +105,18 @@ export async function generateVariantEdits(
     styleNotes: p.style_notes || '',
   }));
 
-  console.log('[VariantEditsService] Calling generate-variant-edits:', {
-    sessionId,
-    plansCount: plansPayload.length,
-    htmlLength: originalHtml.length,
-  });
-
   onProgress?.({
     stage: 'generating',
     message: 'AI is generating edit operations...',
     percent: 30,
   });
 
-  // Call Edge Function
-  const { data, error } = await supabase.functions.invoke('generate-variant-edits', {
+  // Call V2 Edge Function
+  const { data, error } = await supabase.functions.invoke('generate-variant-edits-v2', {
     body: {
       sessionId,
       plans: plansPayload,
-      originalHtml,
+      elementSummary,
       screenshotBase64,
       provider,
       model,
@@ -124,16 +127,16 @@ export async function generateVariantEdits(
   });
 
   if (error) {
-    console.error('[VariantEditsService] Edge function error:', error);
+    console.error('[VariantEditsService V2] Edge function error:', error);
     throw new Error(error.message || 'Failed to generate variant edits');
   }
 
   if (!data.success) {
-    console.error('[VariantEditsService] Generation failed:', data.error);
+    console.error('[VariantEditsService V2] Generation failed:', data.error);
     throw new Error(data.error || 'Variant edits generation failed');
   }
 
-  console.log('[VariantEditsService] Generated edits for', data.variantEdits?.length, 'variants');
+  console.log('[VariantEditsService V2] Generated operations for', data.variantEdits?.length, 'variants');
 
   onProgress?.({
     stage: 'complete',
@@ -145,18 +148,19 @@ export async function generateVariantEdits(
 }
 
 /**
- * Generate variants by applying edits to original HTML
+ * Generate variants by applying edit operations to original HTML (V2)
  * This is the main entry point that:
- * 1. Generates edit operations via LLM
- * 2. Applies edits to create variant HTML
- * 3. Saves results to storage and database
+ * 1. Extracts element summary
+ * 2. Generates edit operations via LLM
+ * 3. Applies operations using DOM manipulation
+ * 4. Saves results to storage and database
  */
-export async function generateVariantsFromEdits(
+export async function generateVariantsFromEditsV2(
   sessionId: string,
   plans: VariantPlan[],
   originalHtml: string,
   onProgress?: ProgressCallback,
-  onVariantComplete?: (variantIndex: number, html: string) => void,
+  onVariantComplete?: VariantCompleteCallback,
   screenshotBase64?: string,
   provider?: string,
   model?: string
@@ -179,8 +183,8 @@ export async function generateVariantsFromEdits(
     .eq('id', sessionId);
 
   try {
-    // Step 1: Generate edit operations
-    const variantEdits = await generateVariantEdits(
+    // Step 1: Generate edit operations (V2)
+    const variantEdits = await generateVariantEditsV2(
       sessionId,
       plans,
       originalHtml,
@@ -196,29 +200,46 @@ export async function generateVariantsFromEdits(
       model
     );
 
-    // Step 2: Apply edits and save each variant
+    // Step 2: Apply operations and save each variant
     for (let i = 0; i < variantEdits.length; i++) {
       const variantEdit = variantEdits[i];
       const progressBase = 50 + (i / variantEdits.length) * 40;
 
       onProgress?.({
         stage: 'applying',
-        message: `Applying edits for Variant ${String.fromCharCode(64 + variantEdit.variantIndex)}...`,
+        message: `Applying ${variantEdit.operations.length} edits for Variant ${String.fromCharCode(64 + variantEdit.variantIndex)}...`,
         percent: progressBase,
         variantIndex: variantEdit.variantIndex,
       });
 
-      // Apply edits to original HTML
-      const { html: variantHtml, appliedEdits, failedEdits } = applyEdits(originalHtml, variantEdit.edits);
+      // Apply operations using DOM manipulation (V2 approach)
+      let applyResult: ApplyOperationsResult;
+      try {
+        applyResult = applyEditOperations(originalHtml, variantEdit.operations);
+      } catch (applyError) {
+        console.error(`[VariantEditsService V2] Failed to apply operations for variant ${variantEdit.variantIndex}:`, applyError);
+        // Fall back to original HTML if operations fail
+        applyResult = {
+          html: originalHtml,
+          results: [],
+          totalOperations: variantEdit.operations.length,
+          successfulOperations: 0,
+          failedOperations: variantEdit.operations.length,
+        };
+      }
 
-      console.log(`[VariantEditsService] Variant ${variantEdit.variantIndex}: Applied ${appliedEdits}/${variantEdit.edits.length} edits`);
+      console.log(`[VariantEditsService V2] Variant ${variantEdit.variantIndex}: Applied ${applyResult.successfulOperations}/${applyResult.totalOperations} operations`);
 
-      if (failedEdits.length > 0) {
-        console.warn(`[VariantEditsService] Variant ${variantEdit.variantIndex}: ${failedEdits.length} edits failed`);
+      if (applyResult.failedOperations > 0) {
+        console.warn(`[VariantEditsService V2] Variant ${variantEdit.variantIndex}: ${applyResult.failedOperations} operations failed`);
+        // Log failed operations for debugging
+        applyResult.results
+          .filter(r => !r.success)
+          .forEach(r => console.warn('  Failed:', r.operation.type, r.operation.selector, r.error));
       }
 
       // Notify caller of completed variant
-      onVariantComplete?.(variantEdit.variantIndex, variantHtml);
+      onVariantComplete?.(variantEdit.variantIndex, applyResult.html);
 
       onProgress?.({
         stage: 'saving',
@@ -231,13 +252,13 @@ export async function generateVariantsFromEdits(
       const htmlPath = `${userId}/${sessionId}/variant_${variantEdit.variantIndex}.html`;
       const { error: uploadError } = await supabase.storage
         .from('vibe-files')
-        .upload(htmlPath, new Blob([variantHtml], { type: 'text/html' }), {
+        .upload(htmlPath, new Blob([applyResult.html], { type: 'text/html' }), {
           contentType: 'text/html',
           upsert: true,
         });
 
       if (uploadError) {
-        console.error(`[VariantEditsService] Failed to upload variant ${variantEdit.variantIndex}:`, uploadError);
+        console.error(`[VariantEditsService V2] Failed to upload variant ${variantEdit.variantIndex}:`, uploadError);
         continue;
       }
 
@@ -293,7 +314,7 @@ export async function generateVariantsFromEdits(
     });
 
   } catch (error) {
-    console.error('[VariantEditsService] Error:', error);
+    console.error('[VariantEditsService V2] Error:', error);
 
     // Update session status to failed
     await supabase
@@ -308,10 +329,117 @@ export async function generateVariantsFromEdits(
   }
 }
 
+// ============================================================================
+// Legacy V1 Support (for backwards compatibility)
+// ============================================================================
+
+// Re-export the old types for backwards compatibility
+export interface EditOperationV1 {
+  find: string;
+  replace: string;
+  description?: string;
+}
+
+export interface VariantEdits {
+  variantIndex: number;
+  planId: string;
+  edits: EditOperationV1[];
+  summary: string;
+}
+
+export interface ApplyEditsResult {
+  html: string;
+  appliedEdits: number;
+  failedEdits: EditOperationV1[];
+}
+
+/**
+ * Apply V1 edit operations (find/replace strings) - Legacy
+ */
+export function applyEdits(html: string, edits: EditOperationV1[]): ApplyEditsResult {
+  let result = html;
+  let appliedEdits = 0;
+  const failedEdits: EditOperationV1[] = [];
+
+  for (const edit of edits) {
+    if (result.includes(edit.find)) {
+      result = result.replace(edit.find, edit.replace);
+      appliedEdits++;
+    } else {
+      console.warn('[applyEdits V1] Could not find string to replace:', edit.find.substring(0, 100));
+      failedEdits.push(edit);
+    }
+  }
+
+  return { html: result, appliedEdits, failedEdits };
+}
+
+/**
+ * Generate V1 edits - Legacy (calls old edge function)
+ */
+export async function generateVariantEdits(
+  sessionId: string,
+  plans: VariantPlan[],
+  originalHtml: string,
+  onProgress?: ProgressCallback,
+  screenshotBase64?: string,
+  provider?: string,
+  model?: string
+): Promise<VariantEdits[]> {
+  // Redirect to V2 and convert result format
+  const v2Results = await generateVariantEditsV2(
+    sessionId,
+    plans,
+    originalHtml,
+    onProgress,
+    screenshotBase64,
+    provider,
+    model
+  );
+
+  // Convert V2 operations to V1 format (best effort)
+  return v2Results.map(v2 => ({
+    variantIndex: v2.variantIndex,
+    planId: v2.planId,
+    edits: [], // V1 edits are no longer generated
+    summary: v2.summary,
+  }));
+}
+
+/**
+ * Generate variants from edits - Updated to use V2
+ */
+export async function generateVariantsFromEdits(
+  sessionId: string,
+  plans: VariantPlan[],
+  originalHtml: string,
+  onProgress?: ProgressCallback,
+  onVariantComplete?: VariantCompleteCallback,
+  screenshotBase64?: string,
+  provider?: string,
+  model?: string
+): Promise<void> {
+  // Use V2 implementation
+  return generateVariantsFromEditsV2(
+    sessionId,
+    plans,
+    originalHtml,
+    onProgress,
+    onVariantComplete,
+    screenshotBase64,
+    provider,
+    model
+  );
+}
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
 /**
  * Get stored edit operations for a session
  */
-export async function getEditsForSession(sessionId: string): Promise<VariantEdits[]> {
+export async function getEditsForSession(sessionId: string): Promise<VariantEditsV2[]> {
   if (!isSupabaseConfigured()) {
     return [];
   }
@@ -331,7 +459,7 @@ export async function getEditsForSession(sessionId: string): Promise<VariantEdit
   return (data || []).map(row => ({
     variantIndex: row.variant_index,
     planId: row.id,
-    edits: row.edit_operations || [],
+    operations: row.edit_operations || [],
     summary: row.edit_summary || '',
   }));
 }
