@@ -889,8 +889,8 @@ function CanvasVariantCard({
 }) {
   // Show streaming preview if available during loading
   const showStreamingPreview = isLoading && streamingHtml && streamingHtml.length > 100;
-  // Show wireframe if no high-fidelity yet but wireframe exists (prefer HTML over URL)
-  const showWireframePreview = !htmlUrl && !isLoading && (wireframeHtml || wireframeUrl);
+  // Show wireframe if no high-fidelity yet but wireframe exists (prefer URL over body content)
+  const showWireframePreview = !htmlUrl && !isLoading && (wireframeUrl || wireframeHtml);
 
   return (
     <Card
@@ -1040,6 +1040,7 @@ function CanvasVariantCard({
             </Box>
           ) : showWireframePreview ? (
             // Wireframe preview (sketch style)
+            // Prioritize wireframeUrl (full HTML in storage) over wireframeHtml (body content only)
             <Box
               sx={{
                 width: '100%',
@@ -1049,9 +1050,9 @@ function CanvasVariantCard({
               }}
             >
               <iframe
-                {...(wireframeHtml
-                  ? { srcDoc: wireframeHtml }
-                  : { src: wireframeUrl! }
+                {...(wireframeUrl
+                  ? { src: wireframeUrl }
+                  : { srcDoc: wireframeHtml! }
                 )}
                 title={`${label} (wireframe)`}
                 style={{
@@ -1223,9 +1224,9 @@ function InlineExpansionGrid({
         >
           {(focusedUrl || focusedHtml) ? (
             <iframe
-              {...(isWireframe && focusedHtml
-                ? { srcDoc: focusedHtml }
-                : { src: focusedUrl }
+              {...(focusedUrl
+                ? { src: focusedUrl }
+                : { srcDoc: focusedHtml! }
               )}
               title={labels[focusedIndex - 1]}
               style={{
@@ -1295,9 +1296,9 @@ function InlineExpansionGrid({
                 {(previewUrl || previewHtml) ? (
                   <>
                     <iframe
-                      {...(isThumbWireframe && previewHtml
-                        ? { srcDoc: previewHtml }
-                        : { src: previewUrl }
+                      {...(previewUrl
+                        ? { src: previewUrl }
+                        : { srcDoc: previewHtml! }
                       )}
                       title={labels[idx - 1]}
                       style={{
