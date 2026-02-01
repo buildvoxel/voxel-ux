@@ -30,6 +30,8 @@ import RadioGroup from '@mui/material/RadioGroup';
 import Radio from '@mui/material/Radio';
 import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import {
   Button,
   TextField,
@@ -1236,253 +1238,183 @@ function InlineExpansionGrid({
   // Priority: fetched HTML > wireframe HTML body > null
   const effectiveHtml = fetchedHtml || focusedHtml;
 
-  // Other variants (not focused)
-  const otherIndices = [1, 2, 3, 4].filter(i => i !== focusedIndex);
-
   return (
-    <Box sx={{ flex: 1, display: 'flex', gap: 2, p: 2, minHeight: 0 }}>
-      {/* Main focused variant - takes ~70% */}
-      <Box
-        sx={{
-          flex: '0 0 70%',
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: 0,
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
-      >
-        {/* Header with back button and actions */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 2, minHeight: 0 }}>
+      {/* Header toolbar with variant selector and actions */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+        {/* Left: Back button and variant toggle */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <IconButton
+            size="small"
+            onClick={onBackToGrid}
+            sx={{
+              bgcolor: 'grey.100',
+              '&:hover': { bgcolor: 'grey.200' },
+            }}
+          >
+            <CaretLeft size={18} />
+          </IconButton>
+
+          {/* Variant selector toggle group */}
+          <ToggleButtonGroup
+            value={focusedIndex}
+            exclusive
+            onChange={(_, newIndex) => newIndex && onFocusChange(newIndex)}
+            size="small"
+            sx={{
+              '& .MuiToggleButton-root': {
+                px: 2,
+                py: 0.5,
+                textTransform: 'none',
+                fontWeight: 500,
+                fontSize: 13,
+                borderColor: 'divider',
+                '&.Mui-selected': {
+                  bgcolor: config.colors.primary,
+                  color: 'white',
+                  '&:hover': {
+                    bgcolor: config.colors.primary,
+                  },
+                },
+              },
+            }}
+          >
+            {labels.map((label, idx) => {
+              const variantIdx = idx + 1;
+              const variant = getVariantByIndex(variantIdx);
+              const wireframe = wireframes.find(w => w.variantIndex === variantIdx);
+              const hasContent = variant?.html_url || wireframe?.wireframeUrl || wireframe?.wireframeHtml;
+              return (
+                <ToggleButton
+                  key={variantIdx}
+                  value={variantIdx}
+                  disabled={!hasContent}
+                  sx={{
+                    opacity: hasContent ? 1 : 0.5,
+                  }}
+                >
+                  {label.replace('Variant ', '')}
+                </ToggleButton>
+              );
+            })}
+          </ToggleButtonGroup>
+
+          {/* Status chips */}
+          {isWireframe && (
+            <Chip
               size="small"
-              onClick={onBackToGrid}
+              label="Wireframe"
               sx={{
-                bgcolor: 'grey.100',
-                '&:hover': { bgcolor: 'grey.200' },
+                bgcolor: 'rgba(255, 193, 7, 0.2)',
+                color: '#f57c00',
+                fontSize: 11,
+                height: 22,
               }}
-            >
-              <CaretLeft size={18} />
-            </IconButton>
-            <Typography variant="subtitle1" fontWeight={600}>
-              {labels[focusedIndex - 1]}
-            </Typography>
-            {isWireframe && (
-              <Chip
-                size="small"
-                label="Wireframe"
-                sx={{
-                  bgcolor: 'rgba(255, 193, 7, 0.2)',
-                  color: '#f57c00',
-                  fontSize: 11,
-                  height: 22,
-                }}
-              />
-            )}
-            {focusedVariant?.iteration_count && focusedVariant.iteration_count > 0 && (
-              <Chip
-                size="small"
-                label={`${focusedVariant.iteration_count} iteration${focusedVariant.iteration_count > 1 ? 's' : ''}`}
-                sx={{ fontSize: 11, height: 22 }}
-              />
-            )}
-          </Box>
-          {/* Action buttons for complete variants */}
-          {isComplete && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {onIterateClick && (
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<ArrowsClockwise size={16} />}
-                  onClick={onIterateClick}
-                  sx={{
-                    borderColor: '#764ba2',
-                    color: '#764ba2',
-                    '&:hover': {
-                      borderColor: '#667eea',
-                      bgcolor: 'rgba(118, 75, 162, 0.04)',
-                    },
-                  }}
-                >
-                  Iterate
-                </Button>
-              )}
-              {onEditClick && (
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Code size={16} />}
-                  onClick={onEditClick}
-                  sx={{
-                    borderColor: 'grey.400',
-                    color: 'text.secondary',
-                    '&:hover': {
-                      borderColor: 'grey.600',
-                      bgcolor: 'grey.50',
-                    },
-                  }}
-                >
-                  Edit Code
-                </Button>
-              )}
-            </Box>
+            />
+          )}
+          {focusedVariant?.iteration_count && focusedVariant.iteration_count > 0 && (
+            <Chip
+              size="small"
+              label={`${focusedVariant.iteration_count} iteration${focusedVariant.iteration_count > 1 ? 's' : ''}`}
+              sx={{ fontSize: 11, height: 22 }}
+            />
           )}
         </Box>
 
-        {/* Main preview */}
-        <Card
-          variant="outlined"
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            overflow: 'hidden',
-            borderRadius: 2,
-            border: `2px solid ${config.colors.primary}`,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-          }}
-        >
-          {effectiveHtml ? (
-            <iframe
-              key={`html-${focusedIndex}-${effectiveHtml.length}`}
-              srcDoc={effectiveHtml}
-              title={labels[focusedIndex - 1]}
-              style={{
-                width: '100%',
-                height: '100%',
-                border: 'none',
-              }}
-            />
-          ) : isFetching ? (
-            // Show loading while fetching HTML
-            <Box
-              sx={{
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: '#fafafa',
-              }}
-            >
-              <CircularProgress size={32} />
-            </Box>
-          ) : (
-            <Box
-              sx={{
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: '#fafafa',
-              }}
-            >
-              <Typography color="text.secondary">No preview available</Typography>
-            </Box>
-          )}
-        </Card>
+        {/* Right: Action buttons for complete variants */}
+        {isComplete && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {onIterateClick && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ArrowsClockwise size={16} />}
+                onClick={onIterateClick}
+                sx={{
+                  borderColor: '#764ba2',
+                  color: '#764ba2',
+                  '&:hover': {
+                    borderColor: '#667eea',
+                    bgcolor: 'rgba(118, 75, 162, 0.04)',
+                  },
+                }}
+              >
+                Iterate
+              </Button>
+            )}
+            {onEditClick && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Code size={16} />}
+                onClick={onEditClick}
+                sx={{
+                  borderColor: 'grey.400',
+                  color: 'text.secondary',
+                  '&:hover': {
+                    borderColor: 'grey.600',
+                    bgcolor: 'grey.50',
+                  },
+                }}
+              >
+                Edit Code
+              </Button>
+            )}
+          </Box>
+        )}
       </Box>
 
-      {/* Thumbnails column - takes ~30% */}
-      <Box
+      {/* Full screen preview */}
+      <Card
+        variant="outlined"
         sx={{
-          flex: '0 0 28%',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 1.5,
+          flex: 1,
           minHeight: 0,
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          overflow: 'hidden',
+          borderRadius: 2,
+          border: `2px solid ${config.colors.primary}`,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
         }}
       >
-        <Typography variant="caption" color="text.secondary" fontWeight={500} sx={{ px: 0.5 }}>
-          Other Variants
-        </Typography>
-        {otherIndices.map((idx) => {
-          const variant = getVariantByIndex(idx);
-          const wireframe = wireframes.find(w => w.variantIndex === idx);
-          const previewUrl = variant?.html_url || wireframe?.wireframeUrl;
-          const previewHtml = wireframe?.wireframeHtml;
-          const isThumbWireframe = !variant?.html_url && (wireframe?.wireframeHtml || wireframe?.wireframeUrl);
-
-          return (
-            <Card
-              key={idx}
-              variant="outlined"
-              onClick={() => onFocusChange(idx)}
-              sx={{
-                flex: 1,
-                minHeight: 80,
-                cursor: 'pointer',
-                overflow: 'hidden',
-                borderRadius: 1.5,
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  borderColor: config.colors.primary,
-                  transform: 'scale(1.02)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                },
-              }}
-            >
-              <Box sx={{ position: 'relative', height: '100%' }}>
-                {(previewUrl || previewHtml) ? (
-                  <>
-                    <FetchedHtmlIframe
-                      url={previewUrl}
-                      fallbackHtml={previewHtml}
-                      title={labels[idx - 1]}
-                      style={{
-                        width: '300%',
-                        height: '300%',
-                        border: 'none',
-                        transform: 'scale(0.333)',
-                        transformOrigin: 'top left',
-                        pointerEvents: 'none',
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        bottom: 4,
-                        left: 4,
-                        px: 1,
-                        py: 0.25,
-                        bgcolor: isThumbWireframe ? 'rgba(255, 193, 7, 0.9)' : 'rgba(0,0,0,0.7)',
-                        borderRadius: 0.5,
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          color: isThumbWireframe ? '#333' : 'white',
-                          fontWeight: 500,
-                          fontSize: 10,
-                        }}
-                      >
-                        {labels[idx - 1]}
-                      </Typography>
-                    </Box>
-                  </>
-                ) : (
-                  <Box
-                    sx={{
-                      height: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      bgcolor: '#fafafa',
-                    }}
-                  >
-                    <Typography variant="caption" color="text.secondary">
-                      {labels[idx - 1]}
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </Card>
-          );
-        })}
-      </Box>
+        {effectiveHtml ? (
+          <iframe
+            key={`html-${focusedIndex}-${effectiveHtml.length}`}
+            srcDoc={effectiveHtml}
+            title={labels[focusedIndex - 1]}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+            }}
+          />
+        ) : isFetching ? (
+          <Box
+            sx={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: '#fafafa',
+            }}
+          >
+            <CircularProgress size={32} />
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: '#fafafa',
+            }}
+          >
+            <Typography color="text.secondary">No preview available</Typography>
+          </Box>
+        )}
+      </Card>
     </Box>
   );
 }
