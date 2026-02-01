@@ -820,8 +820,8 @@ function VariantCard({
               bgcolor: '#fafafa',
             }}
           >
-            <iframe
-              src={wireframeUrl}
+            <FetchedHtmlIframe
+              url={wireframeUrl}
               title="Wireframe Preview"
               style={{
                 width: '100%',
