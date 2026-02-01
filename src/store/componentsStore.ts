@@ -9,6 +9,8 @@ import {
   CATEGORY_INFO,
 } from '@/services/componentExtractionService';
 
+export type ComponentStatus = 'pending' | 'approved' | 'rejected' | 'needs-fix';
+
 export interface ExtractedComponent {
   id: string;
   name: string;
@@ -24,6 +26,9 @@ export interface ExtractedComponent {
   variants?: ComponentVariant[];
   props?: string[];
   generatedBy: 'dom-parser' | 'llm';
+  status?: ComponentStatus;
+  approvedAt?: string;
+  approvedBy?: string;
 }
 
 interface ComponentsState {
@@ -38,6 +43,10 @@ interface ComponentsState {
   lastExtractionTime: string | null;
   lastExtractionProvider: string | null;
   lastExtractionModel: string | null;
+
+  // Batch selection state
+  selectedIds: string[];
+  isSelectionMode: boolean;
 
   // Actions
   setSearchQuery: (query: string) => void;
@@ -59,6 +68,19 @@ interface ComponentsState {
     errors: Array<{ screenId: string; error: string }>;
   } | undefined>;
   clearComponents: () => void;
+
+  // Batch selection actions
+  toggleSelectionMode: () => void;
+  toggleComponentSelection: (id: string) => void;
+  selectAllComponents: (ids: string[]) => void;
+  clearSelection: () => void;
+
+  // Batch operations
+  deleteSelectedComponents: () => void;
+  approveSelectedComponents: () => void;
+  rejectSelectedComponents: () => void;
+  markSelectedAsNeedsFix: () => void;
+  updateComponentStatus: (id: string, status: ComponentStatus) => void;
 }
 
 // Convert LLM extracted component to store component
@@ -160,6 +182,10 @@ export const useComponentsStore = create<ComponentsState>()(
       lastExtractionTime: null,
       lastExtractionProvider: null,
       lastExtractionModel: null,
+
+      // Batch selection state
+      selectedIds: [],
+      isSelectionMode: false,
 
       setSearchQuery: (query) => set({ searchQuery: query }),
 
@@ -273,7 +299,74 @@ export const useComponentsStore = create<ComponentsState>()(
           lastExtractionTime: null,
           lastExtractionProvider: null,
           lastExtractionModel: null,
+          selectedIds: [],
+          isSelectionMode: false,
         }),
+
+      // Batch selection actions
+      toggleSelectionMode: () =>
+        set((state) => ({
+          isSelectionMode: !state.isSelectionMode,
+          selectedIds: state.isSelectionMode ? [] : state.selectedIds,
+        })),
+
+      toggleComponentSelection: (id) =>
+        set((state) => ({
+          selectedIds: state.selectedIds.includes(id)
+            ? state.selectedIds.filter((i) => i !== id)
+            : [...state.selectedIds, id],
+        })),
+
+      selectAllComponents: (ids) => set({ selectedIds: ids }),
+
+      clearSelection: () => set({ selectedIds: [] }),
+
+      // Batch operations
+      deleteSelectedComponents: () =>
+        set((state) => ({
+          components: state.components.filter((c) => !state.selectedIds.includes(c.id)),
+          selectedIds: [],
+          isSelectionMode: false,
+        })),
+
+      approveSelectedComponents: () =>
+        set((state) => ({
+          components: state.components.map((c) =>
+            state.selectedIds.includes(c.id)
+              ? { ...c, status: 'approved' as ComponentStatus, approvedAt: new Date().toISOString() }
+              : c
+          ),
+          selectedIds: [],
+        })),
+
+      rejectSelectedComponents: () =>
+        set((state) => ({
+          components: state.components.map((c) =>
+            state.selectedIds.includes(c.id)
+              ? { ...c, status: 'rejected' as ComponentStatus }
+              : c
+          ),
+          selectedIds: [],
+        })),
+
+      markSelectedAsNeedsFix: () =>
+        set((state) => ({
+          components: state.components.map((c) =>
+            state.selectedIds.includes(c.id)
+              ? { ...c, status: 'needs-fix' as ComponentStatus }
+              : c
+          ),
+          selectedIds: [],
+        })),
+
+      updateComponentStatus: (id, status) =>
+        set((state) => ({
+          components: state.components.map((c) =>
+            c.id === id
+              ? { ...c, status, ...(status === 'approved' ? { approvedAt: new Date().toISOString() } : {}) }
+              : c
+          ),
+        })),
     }),
     {
       name: 'voxel-components-store',
