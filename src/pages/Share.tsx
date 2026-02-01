@@ -233,20 +233,40 @@ export default function SharePage() {
             </Box>
           )
         ) : variant.html_url ? (
-          <iframe
-            src={variant.html_url}
-            title={`${session.name} - Variant ${variantLetter}`}
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-            }}
-          />
+          // Check if html_url is a URL or raw HTML content
+          variant.html_url.startsWith('http') ? (
+            <iframe
+              src={variant.html_url}
+              title={`${session.name} - Variant ${variantLetter}`}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+              }}
+            />
+          ) : (
+            // Raw HTML content - use srcdoc
+            <iframe
+              srcDoc={variant.html_url}
+              title={`${session.name} - Variant ${variantLetter}`}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+              }}
+              sandbox="allow-scripts allow-same-origin"
+            />
+          )
         ) : (
           <Box
             sx={{

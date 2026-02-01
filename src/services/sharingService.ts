@@ -137,6 +137,8 @@ export async function getShareData(token: string): Promise<ShareData | null> {
     p_share_token: token,
   });
 
+  console.log('[SharingService] RPC response:', { data, error });
+
   if (error) {
     console.error('[SharingService] Error fetching share:', error);
     return null;
@@ -144,7 +146,7 @@ export async function getShareData(token: string): Promise<ShareData | null> {
 
   // The RPC returns an array of rows - we need the first one
   if (!data || (Array.isArray(data) && data.length === 0)) {
-    console.error('[SharingService] No share data found');
+    console.error('[SharingService] No share data found. Data:', data);
     return null;
   }
 
