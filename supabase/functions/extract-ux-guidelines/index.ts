@@ -1,5 +1,6 @@
-// Supabase Edge Function for extracting UX guidelines from product video transcripts
-// Analyzes video content to extract interaction patterns, navigation flows, and UX conventions
+// Supabase Edge Function for extracting UX guidelines from product video
+// Uses vision models (Claude, Gemini, GPT-4V) to analyze video content
+// Gemini supports native video; Claude/OpenAI use extracted frames
 // Deploy with: supabase functions deploy extract-ux-guidelines
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -11,8 +12,10 @@ const corsHeaders = {
 
 interface ExtractGuidelinesRequest {
   videoName: string
-  transcript: string           // Video transcript text
-  videoDescription?: string    // Optional description of the video
+  frames?: string[]              // Array of base64-encoded video frames (for Claude/OpenAI)
+  videoBase64?: string           // Full video as base64 (for Gemini native video support)
+  videoMimeType?: string         // MIME type of video (e.g., 'video/mp4')
+  videoDescription?: string      // Optional description of the video
   provider?: 'anthropic' | 'openai' | 'google'
   model?: string
 }
@@ -38,15 +41,15 @@ interface ExtractGuidelinesResponse {
   summary: string
 }
 
-const SYSTEM_PROMPT = `You are a UX analyst expert at extracting product UX guidelines from video transcripts and descriptions.
+const SYSTEM_PROMPT = `You are a UX analyst expert at extracting product UX guidelines by analyzing product demo videos.
 
-Your task is to analyze a product video transcript and identify the UX patterns, interaction conventions, navigation flows, and design principles demonstrated or discussed in the video.
+You will be shown frames/screenshots from a product demo video. Analyze these visual frames to identify UX patterns, interaction conventions, navigation flows, and design principles demonstrated in the product.
 
 CRITICAL REQUIREMENTS:
 1. Return ONLY valid JSON - no markdown, no code blocks, no explanations
-2. Extract concrete, actionable guidelines - not vague principles
+2. Extract concrete, actionable guidelines from what you SEE in the frames
 3. Focus on patterns that would help an AI generate consistent UI prototypes
-4. Include specific examples when mentioned in the transcript
+4. Note specific visual elements, colors, component styles you observe
 5. Categorize each guideline appropriately
 
 CATEGORIES:
@@ -55,50 +58,46 @@ CATEGORIES:
 - feedback: Loading states, success/error messages, toast notifications, confirmations
 - layout: Spacing patterns, component placement, responsive behaviors, visual hierarchy
 - content: Tone of voice, labeling conventions, microcopy style, terminology
-- accessibility: Keyboard navigation, screen reader considerations, contrast requirements
+- accessibility: Keyboard navigation hints, contrast, focus indicators
 - flow: Multi-step processes, wizard patterns, state transitions, onboarding sequences
 
 JSON Schema (MUST follow exactly):
 {
-  "summary": "Brief 1-2 sentence summary of the product's overall UX approach",
+  "summary": "Brief 1-2 sentence summary of the product's overall UX approach based on what you see",
   "guidelines": [
     {
       "category": "navigation|interaction|feedback|layout|content|accessibility|flow",
       "title": "Short descriptive title (e.g., 'Sidebar Navigation Pattern')",
-      "description": "Detailed description of the UX pattern or convention",
-      "examples": ["Optional specific example 1", "Optional example 2"]
+      "description": "Detailed description of the UX pattern observed in the frames",
+      "examples": ["Specific visual example from the frames"]
     }
   ]
 }
 
-GUIDELINES TO EXTRACT:
-- How do buttons behave? (primary/secondary styles, loading states, disabled states)
-- What happens on form submission? (validation, success feedback, error handling)
-- How is navigation structured? (sidebar, tabs, breadcrumbs, back buttons)
-- What loading patterns are used? (skeletons, spinners, progress bars)
-- How are confirmations handled? (modals, inline, toast notifications)
-- What's the tone of microcopy? (formal, friendly, technical)
-- How do multi-step flows work? (wizards, progress indicators, save states)
-- What accessibility considerations exist?
+ANALYZE THE FRAMES FOR:
+- Button styles (colors, shapes, sizes, states)
+- Navigation structure (sidebar, tabs, breadcrumbs, menus)
+- Card/container styles and spacing
+- Typography hierarchy and font usage
+- Color scheme and brand colors
+- Form field styles and layouts
+- Modal/dialog patterns
+- Loading and empty states
+- Icon styles and usage
+- Visual feedback patterns
 
-Be specific and extract 5-15 guidelines. Quality over quantity.`
+Extract 5-15 specific, actionable guidelines based on what you observe. Quality over quantity.`
 
-function buildExtractionPrompt(request: ExtractGuidelinesRequest): string {
-  let prompt = `## Video: ${request.videoName}\n\n`
+const TEXT_PROMPT = `Analyze these frames from a product demo video and extract UX guidelines.
 
-  if (request.videoDescription) {
-    prompt += `## Video Description:\n${request.videoDescription}\n\n`
-  }
+Look carefully at each frame and identify:
+1. Visual design patterns (colors, typography, spacing)
+2. Component styles (buttons, forms, cards, navigation)
+3. Interaction patterns suggested by the UI
+4. Layout conventions and visual hierarchy
+5. Any consistent design language
 
-  prompt += `## Video Transcript:\n${request.transcript}\n\n`
-
-  prompt += `## Instructions:\n`
-  prompt += `Analyze this product video transcript and extract UX guidelines that describe how this product's interface works. `
-  prompt += `Focus on patterns that would help an AI maintain consistency when generating new UI prototypes for this product. `
-  prompt += `Return your analysis as JSON following the schema in your instructions.`
-
-  return prompt
-}
+Return your analysis as JSON following the schema in your instructions.`
 
 function parseGuidelines(response: string): ExtractGuidelinesResponse {
   let cleaned = response.trim()
@@ -131,8 +130,30 @@ function parseGuidelines(response: string): ExtractGuidelinesResponse {
   }
 }
 
-async function generateWithAnthropic(apiKey: string, model: string, prompt: string): Promise<string> {
-  console.log('[extract-ux-guidelines] Calling Anthropic API')
+// Generate with Anthropic Claude (Vision)
+async function generateWithAnthropic(apiKey: string, model: string, frames: string[], videoName: string): Promise<string> {
+  console.log('[extract-ux-guidelines] Calling Anthropic Vision API with', frames.length, 'frames')
+
+  // Build content array with images and text
+  const content: Array<{ type: string; text?: string; source?: { type: string; media_type: string; data: string } }> = []
+
+  // Add each frame as an image
+  for (let i = 0; i < frames.length; i++) {
+    content.push({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: 'image/jpeg',
+        data: frames[i],
+      },
+    })
+  }
+
+  // Add the analysis prompt
+  content.push({
+    type: 'text',
+    text: `Video: ${videoName}\n\n${TEXT_PROMPT}`,
+  })
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -145,7 +166,7 @@ async function generateWithAnthropic(apiKey: string, model: string, prompt: stri
       model: model || 'claude-sonnet-4-20250514',
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content }],
     }),
   })
 
@@ -158,8 +179,28 @@ async function generateWithAnthropic(apiKey: string, model: string, prompt: stri
   return data.content[0]?.text || ''
 }
 
-async function generateWithOpenAI(apiKey: string, model: string, prompt: string): Promise<string> {
-  console.log('[extract-ux-guidelines] Calling OpenAI API')
+// Generate with OpenAI GPT-4V (Vision)
+async function generateWithOpenAI(apiKey: string, model: string, frames: string[], videoName: string): Promise<string> {
+  console.log('[extract-ux-guidelines] Calling OpenAI Vision API with', frames.length, 'frames')
+
+  // Build content array with images and text
+  const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = []
+
+  // Add each frame as an image
+  for (let i = 0; i < frames.length; i++) {
+    content.push({
+      type: 'image_url',
+      image_url: {
+        url: `data:image/jpeg;base64,${frames[i]}`,
+      },
+    })
+  }
+
+  // Add the analysis prompt
+  content.push({
+    type: 'text',
+    text: `Video: ${videoName}\n\n${TEXT_PROMPT}`,
+  })
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -173,7 +214,7 @@ async function generateWithOpenAI(apiKey: string, model: string, prompt: string)
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: prompt },
+        { role: 'user', content },
       ],
     }),
   })
@@ -187,8 +228,46 @@ async function generateWithOpenAI(apiKey: string, model: string, prompt: string)
   return data.choices[0]?.message?.content || ''
 }
 
-async function generateWithGoogle(apiKey: string, model: string, prompt: string): Promise<string> {
-  console.log('[extract-ux-guidelines] Calling Google API')
+// Generate with Google Gemini (Vision) - supports native video or frames
+async function generateWithGoogle(
+  apiKey: string,
+  model: string,
+  videoName: string,
+  frames?: string[],
+  videoBase64?: string,
+  videoMimeType?: string
+): Promise<string> {
+  // Build parts array
+  const parts: Array<{ text?: string; inline_data?: { mime_type: string; data: string } }> = []
+
+  if (videoBase64 && videoMimeType) {
+    // Native video support - Gemini can analyze video directly!
+    console.log('[extract-ux-guidelines] Calling Gemini with NATIVE VIDEO support')
+    parts.push({
+      inline_data: {
+        mime_type: videoMimeType,
+        data: videoBase64,
+      },
+    })
+  } else if (frames && frames.length > 0) {
+    // Fallback to frames
+    console.log('[extract-ux-guidelines] Calling Gemini with', frames.length, 'frames')
+    for (let i = 0; i < frames.length; i++) {
+      parts.push({
+        inline_data: {
+          mime_type: 'image/jpeg',
+          data: frames[i],
+        },
+      })
+    }
+  } else {
+    throw new Error('No video or frames provided for Gemini')
+  }
+
+  // Add the analysis prompt
+  parts.push({
+    text: `${SYSTEM_PROMPT}\n\nVideo: ${videoName}\n\n${TEXT_PROMPT}`,
+  })
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-1.5-pro'}:generateContent?key=${apiKey}`,
@@ -196,7 +275,7 @@ async function generateWithGoogle(apiKey: string, model: string, prompt: string)
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: SYSTEM_PROMPT + '\n\n' + prompt }] }],
+        contents: [{ parts }],
         generationConfig: {
           maxOutputTokens: 4096,
           responseMimeType: 'application/json',
@@ -263,10 +342,26 @@ Deno.serve(async (req) => {
     })
 
     const body: ExtractGuidelinesRequest = await req.json()
-    console.log('[extract-ux-guidelines] Video:', body.videoName, 'Transcript length:', body.transcript?.length)
+    console.log('[extract-ux-guidelines] Video:', body.videoName,
+      'Frames:', body.frames?.length,
+      'HasVideo:', !!body.videoBase64,
+      'VideoType:', body.videoMimeType)
 
-    if (!body.videoName || !body.transcript) {
-      throw new Error('Missing required fields: videoName, transcript')
+    // Validate input - need either frames or video
+    const hasFrames = body.frames && body.frames.length > 0
+    const hasVideo = body.videoBase64 && body.videoMimeType
+
+    if (!body.videoName || (!hasFrames && !hasVideo)) {
+      throw new Error('Missing required fields: videoName and either frames[] or videoBase64+videoMimeType')
+    }
+
+    // Limit frames to prevent token overflow (max 10 frames)
+    const framesToUse = hasFrames ? body.frames!.slice(0, 10) : undefined
+    if (framesToUse) {
+      console.log('[extract-ux-guidelines] Using', framesToUse.length, 'frames for analysis')
+    }
+    if (hasVideo) {
+      console.log('[extract-ux-guidelines] Video provided for native analysis')
     }
 
     // Get user's API key
@@ -298,27 +393,46 @@ Deno.serve(async (req) => {
       throw new Error('Failed to retrieve API key')
     }
 
-    const prompt = buildExtractionPrompt(body)
-
     const startTime = Date.now()
     let rawResponse: string
+    let analysisMode: 'frames' | 'video' = 'frames'
 
     switch (keyConfig.provider) {
       case 'anthropic':
-        rawResponse = await generateWithAnthropic(apiKey, modelToUse, prompt)
+        // Claude requires frames (no native video support)
+        if (!framesToUse) {
+          throw new Error('Anthropic/Claude requires frames. Please use Google Gemini for native video support.')
+        }
+        rawResponse = await generateWithAnthropic(apiKey, modelToUse, framesToUse, body.videoName)
         break
       case 'openai':
-        rawResponse = await generateWithOpenAI(apiKey, modelToUse, prompt)
+        // OpenAI requires frames (no native video support)
+        if (!framesToUse) {
+          throw new Error('OpenAI/GPT-4V requires frames. Please use Google Gemini for native video support.')
+        }
+        rawResponse = await generateWithOpenAI(apiKey, modelToUse, framesToUse, body.videoName)
         break
       case 'google':
-        rawResponse = await generateWithGoogle(apiKey, modelToUse, prompt)
+        // Gemini supports native video OR frames
+        if (hasVideo) {
+          analysisMode = 'video'
+          rawResponse = await generateWithGoogle(
+            apiKey, modelToUse, body.videoName,
+            undefined, body.videoBase64, body.videoMimeType
+          )
+        } else {
+          rawResponse = await generateWithGoogle(
+            apiKey, modelToUse, body.videoName,
+            framesToUse, undefined, undefined
+          )
+        }
         break
       default:
         throw new Error(`Unsupported provider: ${keyConfig.provider}`)
     }
 
     const durationMs = Date.now() - startTime
-    console.log('[extract-ux-guidelines] Response length:', rawResponse.length, 'Duration:', durationMs, 'ms')
+    console.log('[extract-ux-guidelines] Response length:', rawResponse.length, 'Duration:', durationMs, 'ms', 'Mode:', analysisMode)
 
     const result = parseGuidelines(rawResponse)
     console.log('[extract-ux-guidelines] Extracted', result.guidelines.length, 'guidelines')
@@ -330,6 +444,8 @@ Deno.serve(async (req) => {
         guidelines: result.guidelines,
         model: modelToUse,
         provider: keyConfig.provider,
+        analysisMode,
+        framesAnalyzed: analysisMode === 'frames' ? framesToUse?.length : undefined,
         durationMs,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
