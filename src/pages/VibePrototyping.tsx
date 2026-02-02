@@ -1815,6 +1815,30 @@ export const VibePrototyping: React.FC = () => {
                 setStreamingHtml(partialHtml);
                 console.log('[VibePrototyping] Restored partial HTML for variants:', Object.keys(partialHtml));
               }
+
+              // Detect failed/interrupted generation: has plans + wireframes but variants not complete
+              // This handles cases where generation was interrupted or failed
+              const hasPlans = plans.length > 0;
+              const hasWireframes = existingWireframes.length > 0;
+              const allVariantsComplete = existingVariants.length === 4 &&
+                existingVariants.every(v => v.status === 'complete');
+              const isStuckInGenerating = session.status === 'generating' ||
+                (hasPlans && hasWireframes && !allVariantsComplete && session.status !== 'wireframe_ready' && session.status !== 'complete');
+
+              if (isStuckInGenerating) {
+                console.log('[VibePrototyping] Detected failed/interrupted generation, setting to wireframe_ready');
+                setStatus('wireframe_ready');
+                if (session.error_message) {
+                  setError(session.error_message);
+                }
+                // Update database to persist the corrected status
+                supabase.from('vibe_sessions').update({ status: 'wireframe_ready' }).eq('id', sessionId);
+              }
+
+              // Also generate phase content for loaded sessions
+              if (session.prompt && s.name) {
+                generatePhaseContent(session.prompt, s.name);
+              }
             }
           } else {
             clearSession();
@@ -2344,14 +2368,23 @@ export const VibePrototyping: React.FC = () => {
           code: err.code,
           provider: err.provider,
         });
-        // Reset status to wireframing so user can retry
-        setStatus('wireframing');
-        setProgress(null);
-      } else {
-        showError(`Failed to generate prototypes: ${errorMessage}`);
+      }
+
+      // Reset status to wireframe_ready so user can use Rebuild button
+      setStatus('wireframe_ready');
+      setProgress(null);
+      setError(errorMessage);
+      showError(`Failed to generate prototypes: ${errorMessage}`);
+
+      // Also update the database status so it persists on reload
+      if (currentSession?.id) {
+        supabase.from('vibe_sessions').update({
+          status: 'wireframe_ready',
+          error_message: errorMessage
+        }).eq('id', currentSession.id);
       }
     }
-  }, [currentSession, plan, sourceMetadata, screenScreenshot, wireframes, contextFiles, selectedProvider, selectedModel, addChatMessage, setVariants, setStatus, setProgress, debouncedSavePartialHtml, showError, showSuccess, screen]);
+  }, [currentSession, plan, sourceMetadata, screenScreenshot, wireframes, contextFiles, selectedProvider, selectedModel, addChatMessage, setVariants, setStatus, setProgress, setError, debouncedSavePartialHtml, showError, showSuccess, screen]);
 
   // Handle Rebuild - re-run V2 generation for projects that already have wireframes/plans
   const [isRebuilding, setIsRebuilding] = useState(false);
@@ -2364,6 +2397,9 @@ export const VibePrototyping: React.FC = () => {
 
     try {
       addChatMessage('assistant', 'Rebuilding prototypes from existing wireframes and plans...');
+
+      // Clear any previous error
+      setError(null);
 
       // Reset to wireframe_ready state so the generation flow works correctly
       setStatus('wireframe_ready');
@@ -2387,7 +2423,7 @@ export const VibePrototyping: React.FC = () => {
     } finally {
       setIsRebuilding(false);
     }
-  }, [currentSession, plan, isRebuilding, addChatMessage, setStatus, setVariants, handleBuildHighFidelity, showError]);
+  }, [currentSession, plan, isRebuilding, addChatMessage, setStatus, setError, setVariants, handleBuildHighFidelity, showError]);
 
   // Handle iteration on a variant
   const handleIterate = useCallback(async () => {
@@ -3212,6 +3248,16 @@ export const VibePrototyping: React.FC = () => {
               )}
               {isWireframeReady && (
                 <>
+                  {error && (
+                    <Chip
+                      icon={<Warning size={14} />}
+                      label="Build failed"
+                      size="small"
+                      color="error"
+                      variant="outlined"
+                      sx={{ mr: 1 }}
+                    />
+                  )}
                   <Button
                     variant="outlined"
                     onClick={() => handleRepromptWireframes()}
@@ -3224,9 +3270,10 @@ export const VibePrototyping: React.FC = () => {
                     variant="contained"
                     onClick={handleBuildHighFidelity}
                     size="small"
+                    startIcon={error ? <ArrowClockwise size={14} /> : undefined}
                     sx={{ background: config.gradients?.primary || config.colors.primary }}
                   >
-                    Build High-Fidelity
+                    {error ? 'Retry Build' : 'Build High-Fidelity'}
                   </Button>
                 </>
               )}
@@ -4091,8 +4138,23 @@ export const VibePrototyping: React.FC = () => {
 
           {/* Complete state - 2x2 grid with variants (no focus) */}
           {isComplete && !focusedVariantIndex && (
-            <Box sx={{ flex: 1, p: 2, overflow: 'auto', minHeight: 0 }}>
-              <Grid container spacing={2} sx={{ height: '100%', minHeight: 0 }}>
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+              {/* Header with Rebuild button */}
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, pt: 2, pb: 1 }}>
+                <Typography variant="subtitle1" fontWeight={600}>
+                  All Variants Ready
+                </Typography>
+                <Button
+                  variant="outlined"
+                  onClick={handleRebuild}
+                  disabled={isRebuilding}
+                  size="small"
+                  startIcon={<ArrowClockwise size={14} />}
+                >
+                  {isRebuilding ? 'Rebuilding...' : 'Rebuild Variants'}
+                </Button>
+              </Box>
+              <Grid container spacing={2} sx={{ flex: 1, px: 2, pb: 2, minHeight: 0, overflow: 'auto' }}>
                 {['Variant A', 'Variant B', 'Variant C', 'Variant D'].map((label, idx) => {
                   const variant = getVariantByIndex(idx + 1);
                   const wireframe = wireframes.find(w => w.variantIndex === idx + 1);
