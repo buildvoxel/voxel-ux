@@ -1815,6 +1815,30 @@ export const VibePrototyping: React.FC = () => {
                 setStreamingHtml(partialHtml);
                 console.log('[VibePrototyping] Restored partial HTML for variants:', Object.keys(partialHtml));
               }
+
+              // Detect failed/interrupted generation: has plans + wireframes but variants not complete
+              // This handles cases where generation was interrupted or failed
+              const hasPlans = plans.length > 0;
+              const hasWireframes = existingWireframes.length > 0;
+              const allVariantsComplete = existingVariants.length === 4 &&
+                existingVariants.every(v => v.status === 'complete');
+              const isStuckInGenerating = session.status === 'generating' ||
+                (hasPlans && hasWireframes && !allVariantsComplete && session.status !== 'wireframe_ready' && session.status !== 'complete');
+
+              if (isStuckInGenerating) {
+                console.log('[VibePrototyping] Detected failed/interrupted generation, setting to wireframe_ready');
+                setStatus('wireframe_ready');
+                if (session.error_message) {
+                  setError(session.error_message);
+                }
+                // Update database to persist the corrected status
+                supabase.from('vibe_sessions').update({ status: 'wireframe_ready' }).eq('id', sessionId);
+              }
+
+              // Also generate phase content for loaded sessions
+              if (session.prompt && s.name) {
+                generatePhaseContent(session.prompt, s.name);
+              }
             }
           } else {
             clearSession();
@@ -2351,6 +2375,14 @@ export const VibePrototyping: React.FC = () => {
       setProgress(null);
       setError(errorMessage);
       showError(`Failed to generate prototypes: ${errorMessage}`);
+
+      // Also update the database status so it persists on reload
+      if (currentSession?.id) {
+        supabase.from('vibe_sessions').update({
+          status: 'wireframe_ready',
+          error_message: errorMessage
+        }).eq('id', currentSession.id);
+      }
     }
   }, [currentSession, plan, sourceMetadata, screenScreenshot, wireframes, contextFiles, selectedProvider, selectedModel, addChatMessage, setVariants, setStatus, setProgress, setError, debouncedSavePartialHtml, showError, showSuccess, screen]);
 
