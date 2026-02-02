@@ -4091,8 +4091,23 @@ export const VibePrototyping: React.FC = () => {
 
           {/* Complete state - 2x2 grid with variants (no focus) */}
           {isComplete && !focusedVariantIndex && (
-            <Box sx={{ flex: 1, p: 2, overflow: 'auto', minHeight: 0 }}>
-              <Grid container spacing={2} sx={{ height: '100%', minHeight: 0 }}>
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+              {/* Header with Rebuild button */}
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, pt: 2, pb: 1 }}>
+                <Typography variant="subtitle1" fontWeight={600}>
+                  All Variants Ready
+                </Typography>
+                <Button
+                  variant="outlined"
+                  onClick={handleRebuild}
+                  disabled={isRebuilding}
+                  size="small"
+                  startIcon={<ArrowClockwise size={14} />}
+                >
+                  {isRebuilding ? 'Rebuilding...' : 'Rebuild Variants'}
+                </Button>
+              </Box>
+              <Grid container spacing={2} sx={{ flex: 1, px: 2, pb: 2, minHeight: 0, overflow: 'auto' }}>
                 {['Variant A', 'Variant B', 'Variant C', 'Variant D'].map((label, idx) => {
                   const variant = getVariantByIndex(idx + 1);
                   const wireframe = wireframes.find(w => w.variantIndex === idx + 1);
