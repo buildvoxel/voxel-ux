@@ -674,31 +674,68 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
 
         {/* Variant Thumbnail / Actions */}
         <Grid item xs={12} md={4}>
-          <Card variant="outlined" sx={{ height: '100%', minHeight: 180 }}>
-            <Box
-              sx={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: config.colors.bgSecondary,
-                p: 2,
-              }}
-            >
-              <Eye size={32} color={config.colors.textSecondary} />
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
-                {detail.label}
-              </Typography>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<ArrowsClockwise size={16} />}
-                onClick={() => navigate(`/vibe/${projectId}`)}
+          <Card variant="outlined" sx={{ height: '100%', minHeight: 180, overflow: 'hidden' }}>
+            {detail.wireframeUrl ? (
+              <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Box
+                  sx={{
+                    flex: 1,
+                    minHeight: 120,
+                    backgroundColor: '#f5f5f5',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <img
+                    src={detail.wireframeUrl}
+                    alt={detail.label}
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      objectFit: 'contain',
+                    }}
+                  />
+                </Box>
+                <Box sx={{ p: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    fullWidth
+                    startIcon={<ArrowsClockwise size={16} />}
+                    onClick={() => navigate(`/vibe/${projectId}`)}
+                  >
+                    Create iteration
+                  </Button>
+                </Box>
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: config.colors.bgSecondary,
+                  p: 2,
+                }}
               >
-                Create iteration
-              </Button>
-            </Box>
+                <Eye size={32} color={config.colors.textSecondary} />
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+                  {detail.label}
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<ArrowsClockwise size={16} />}
+                  onClick={() => navigate(`/vibe/${projectId}`)}
+                >
+                  Create iteration
+                </Button>
+              </Box>
+            )}
           </Card>
         </Grid>
       </Grid>
