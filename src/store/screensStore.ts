@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { CapturedScreen, ScreenVersion } from '@/types';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
+import { useAuthStore } from '@/store/authStore';
 
 interface ScreensState {
   screens: CapturedScreen[];
@@ -90,14 +91,16 @@ export const useScreensStore = create<ScreensState>()(
           return;
         }
 
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          console.warn('[ScreensStore] No authenticated user, using empty state');
+        // Use user from authStore to avoid concurrent auth.getUser() calls
+        // which cause AbortError due to Supabase's internal lock mechanism
+        const authUser = useAuthStore.getState().supabaseUser;
+        if (!authUser) {
+          console.warn('[ScreensStore] No authenticated user in authStore, using empty state');
           set({ screens: [] });
           return;
         }
 
-        console.log('[ScreensStore] Fetching screens for user:', user.id);
+        console.log('[ScreensStore] Fetching screens for user:', authUser.id);
 
         // Fetch screens with their versions
         const { data, error } = await supabase

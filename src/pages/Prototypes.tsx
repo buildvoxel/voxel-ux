@@ -44,6 +44,7 @@ import { EmptyState, ThumbnailCard, PageHeader } from '@/components';
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { useThemeStore } from '@/store/themeStore';
 import { useScreensStore } from '@/store/screensStore';
+import { useAuthStore } from '@/store/authStore';
 import { supabase, isSupabaseConfigured } from '@/services/supabase';
 
 interface Prototype {
@@ -107,6 +108,7 @@ export function Prototypes() {
   const { showSuccess, showError } = useSnackbar();
   const { config, mode } = useThemeStore();
   const { screens, initializeScreens } = useScreensStore();
+  const { supabaseUser } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [tabValue, setTabValue] = useState(0);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -123,9 +125,13 @@ export function Prototypes() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Initialize screens and fetch prototypes on mount
+  // Run sequentially to avoid concurrent auth.getUser() calls which cause AbortError
   useEffect(() => {
-    initializeScreens();
-    fetchPrototypes();
+    const init = async () => {
+      await initializeScreens();
+      await fetchPrototypes();
+    };
+    init();
   }, []);
 
   // Fetch prototypes from Supabase
@@ -138,8 +144,9 @@ export function Prototypes() {
         return;
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      // Use supabaseUser from authStore to avoid concurrent auth.getUser() calls
+      // which cause AbortError due to Supabase's internal lock mechanism
+      if (!supabaseUser) {
         console.warn('[Prototypes] No authenticated user');
         setPrototypes([]);
         return;
@@ -232,13 +239,13 @@ export function Prototypes() {
 
     try {
       if (isSupabaseConfigured()) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Not authenticated');
+        // Use supabaseUser from authStore to avoid concurrent auth.getUser() calls
+        if (!supabaseUser) throw new Error('Not authenticated');
 
         const { data, error } = await supabase
           .from('vibe_sessions')
           .insert({
-            user_id: user.id,
+            user_id: supabaseUser.id,
             screen_id: selectedPrototype.screenId,
             name: `${selectedPrototype.name} (Copy)`,
             prompt: selectedPrototype.prompt,
