@@ -6,7 +6,7 @@
 
 import { supabase, isSupabaseConfigured } from './supabase';
 
-export type ContextCategory = 'goals' | 'kpis' | 'backlog' | 'knowledge';
+export type ContextCategory = 'goals' | 'ux-guidelines' | 'backlog' | 'knowledge';
 
 export interface ContextFile {
   id: string;

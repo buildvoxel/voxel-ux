@@ -197,6 +197,8 @@ export async function extractComponentsFromScreen(
 
 // Default timeout for LLM extraction (2 minutes per screen)
 const EXTRACTION_TIMEOUT_MS = 120000;
+// Default concurrency for parallel processing
+const DEFAULT_CONCURRENCY = 3;
 
 /**
  * Helper to create a timeout promise
@@ -221,7 +223,124 @@ function formatDuration(ms: number): string {
 }
 
 /**
- * Extract components from multiple screens with progress callback
+ * Process a single screen extraction (used for parallel processing)
+ */
+async function processScreen(
+  screen: { id: string; name: string; html: string },
+  screenIndex: number,
+  totalScreens: number,
+  options: {
+    provider?: 'anthropic' | 'openai' | 'google';
+    model?: string;
+    timeoutMs: number;
+    onStepChange?: (step: string, detail?: string) => void;
+  }
+): Promise<{
+  screenId: string;
+  screenName: string;
+  success: boolean;
+  components: ExtractedComponentLLM[];
+  error?: string;
+  durationMs: number;
+}> {
+  const screenStartTime = Date.now();
+
+  console.log(`[ComponentExtraction] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+  console.log(`[ComponentExtraction] Screen ${screenIndex + 1}/${totalScreens}: "${screen.name}"`);
+  console.log(`[ComponentExtraction] Screen ID: ${screen.id}`);
+  console.log(`[ComponentExtraction] HTML size: ${(screen.html.length / 1024).toFixed(1)}KB`);
+
+  // Step 1: Capture screenshot
+  options.onStepChange?.('screenshot', 'Rendering HTML to canvas');
+  let screenshot: string | undefined;
+
+  try {
+    console.log(`[ComponentExtraction] Step 1: Capturing screenshot...`);
+    const captureStart = Date.now();
+
+    const result = await captureHtmlScreenshot(screen.html, {
+      maxWidth: 1280,
+      maxHeight: 800,
+      quality: 0.8,
+      format: 'jpeg',
+    });
+
+    if (result) {
+      console.log(`[ComponentExtraction] Screenshot captured in ${Date.now() - captureStart}ms`);
+      console.log(`[ComponentExtraction] Original size: ${(result.base64.length / 1024).toFixed(1)}KB`);
+
+      // Step 2: Compress screenshot
+      options.onStepChange?.('compress', 'Reducing image size for API');
+      const compressStart = Date.now();
+      screenshot = await compressScreenshot(result.base64, 400);
+      console.log(`[ComponentExtraction] Compressed to ${(screenshot.length / 1024).toFixed(1)}KB in ${Date.now() - compressStart}ms`);
+    } else {
+      console.warn(`[ComponentExtraction] Screenshot capture returned null`);
+    }
+  } catch (err) {
+    console.error('[ComponentExtraction] Screenshot capture error:', err);
+  }
+
+  // Step 3: Call LLM API
+  options.onStepChange?.('llm-processing', 'AI analyzing components...');
+  console.log(`[ComponentExtraction] Step 2: Calling LLM API...`);
+  const llmStart = Date.now();
+
+  try {
+    // Race between extraction and timeout
+    const result = await Promise.race([
+      extractComponentsFromScreen(screen.id, screen.html, screenshot, {
+        provider: options.provider,
+        model: options.model,
+      }),
+      createTimeout(options.timeoutMs, screen.name),
+    ]);
+
+    const llmDuration = Date.now() - llmStart;
+    const screenDuration = Date.now() - screenStartTime;
+    console.log(`[ComponentExtraction] LLM response received in ${formatDuration(llmDuration)}`);
+
+    if (result.success) {
+      console.log(`[ComponentExtraction] ✓ Extracted ${result.components.length} components`);
+      console.log(`[ComponentExtraction] Provider: ${result.provider}, Model: ${result.model}`);
+      console.log(`[ComponentExtraction] Screen completed in ${formatDuration(screenDuration)}`);
+
+      return {
+        screenId: screen.id,
+        screenName: screen.name,
+        success: true,
+        components: result.components,
+        durationMs: screenDuration,
+      };
+    } else {
+      console.error(`[ComponentExtraction] ✗ Extraction failed: ${result.error}`);
+      return {
+        screenId: screen.id,
+        screenName: screen.name,
+        success: false,
+        components: [],
+        error: result.error,
+        durationMs: screenDuration,
+      };
+    }
+  } catch (err) {
+    const screenDuration = Date.now() - screenStartTime;
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+    console.error(`[ComponentExtraction] ✗ Exception: ${errorMsg}`);
+
+    return {
+      screenId: screen.id,
+      screenName: screen.name,
+      success: false,
+      components: [],
+      error: errorMsg,
+      durationMs: screenDuration,
+    };
+  }
+}
+
+/**
+ * Extract components from multiple screens with parallel processing and progress callbacks
  */
 export async function extractComponentsFromMultipleScreens(
   screens: Array<{
@@ -234,7 +353,9 @@ export async function extractComponentsFromMultipleScreens(
     provider?: 'anthropic' | 'openai' | 'google';
     model?: string;
     onProgress?: (progress: ExtractionProgress) => void;
+    onComponentsFound?: (components: ExtractedComponentLLM[], screenName: string) => void;
     timeoutMs?: number;
+    concurrency?: number;
   }
 ): Promise<{
   success: boolean;
@@ -244,165 +365,112 @@ export async function extractComponentsFromMultipleScreens(
   const allComponents: ExtractedComponentLLM[] = [];
   const errors: Array<{ screenId: string; error: string }> = [];
   const startTime = Date.now();
-  const screenTimes: number[] = [];
   const timeout = options?.timeoutMs || EXTRACTION_TIMEOUT_MS;
+  const concurrency = options?.concurrency || DEFAULT_CONCURRENCY;
+
+  // Track screen states for parallel progress
+  const screenStates = new Map<string, {
+    status: 'pending' | 'processing' | 'complete' | 'error';
+    step?: string;
+    componentsFound: number;
+  }>();
+
+  screens.forEach((s) => screenStates.set(s.id, { status: 'pending', componentsFound: 0 }));
 
   console.log(`[ComponentExtraction] Starting extraction of ${screens.length} screens`);
-  console.log(`[ComponentExtraction] Timeout per screen: ${timeout / 1000}s`);
+  console.log(`[ComponentExtraction] Concurrency: ${concurrency}, Timeout: ${timeout / 1000}s`);
 
-  // Helper to report progress with timing info
-  const reportProgress = (
-    screenIndex: number,
-    screenName: string,
-    status: ExtractionProgress['status'],
-    currentStep: ExtractionProgress['currentStep'],
-    message: string,
-    stepDetail?: string
-  ) => {
+  // Helper to report aggregated progress
+  const reportProgress = () => {
+    const completed = [...screenStates.values()].filter((s) => s.status === 'complete' || s.status === 'error').length;
+    const processing = [...screenStates.entries()].filter(([, s]) => s.status === 'processing');
+    const currentScreen = processing[0];
+
     const elapsedMs = Date.now() - startTime;
-    const screensCompleted = screenTimes.length;
-
-    // Estimate remaining time based on average screen time
-    let estimatedTotalMs: number | undefined;
-    let estimatedRemainingMs: number | undefined;
-
-    if (screensCompleted > 0) {
-      const avgTimePerScreen = screenTimes.reduce((a, b) => a + b, 0) / screensCompleted;
-      const remainingScreens = screens.length - screensCompleted;
-      estimatedRemainingMs = Math.round(avgTimePerScreen * remainingScreens);
-      estimatedTotalMs = elapsedMs + estimatedRemainingMs;
-    }
+    const avgTimePerScreen = completed > 0 ? elapsedMs / completed : 60000; // Default estimate: 1 min
+    const remainingScreens = screens.length - completed;
+    const estimatedRemainingMs = Math.round((avgTimePerScreen * remainingScreens) / concurrency);
 
     options?.onProgress?.({
-      screenIndex,
+      screenIndex: completed,
       totalScreens: screens.length,
-      screenName,
-      status,
-      message,
+      screenName: currentScreen ? screens.find((s) => s.id === currentScreen[0])?.name || '' : '',
+      status: completed === screens.length ? 'complete' : 'extracting',
+      message: processing.length > 0
+        ? `Processing ${processing.length} screen${processing.length > 1 ? 's' : ''} in parallel...`
+        : 'Finishing up...',
       startTime,
       elapsedMs,
-      estimatedTotalMs,
+      estimatedTotalMs: elapsedMs + estimatedRemainingMs,
       estimatedRemainingMs,
-      screensCompleted,
+      screensCompleted: completed,
       componentsFound: allComponents.length,
-      currentStep,
-      stepDetail,
+      currentStep: currentScreen?.[1].step as ExtractionProgress['currentStep'] || 'llm-processing',
+      stepDetail: `${processing.length} of ${concurrency} slots active`,
     });
   };
 
-  for (let i = 0; i < screens.length; i++) {
-    const screen = screens[i];
-    const screenStartTime = Date.now();
+  // Process screens in parallel with limited concurrency
+  const processWithConcurrency = async () => {
+    const queue = [...screens.map((s, i) => ({ screen: s, index: i }))];
+    const inProgress: Promise<void>[] = [];
 
-    console.log(`[ComponentExtraction] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    console.log(`[ComponentExtraction] Screen ${i + 1}/${screens.length}: "${screen.name}"`);
-    console.log(`[ComponentExtraction] Screen ID: ${screen.id}`);
-    console.log(`[ComponentExtraction] HTML size: ${(screen.html.length / 1024).toFixed(1)}KB`);
+    const processNext = async (): Promise<void> => {
+      if (queue.length === 0) return;
 
-    // Step 1: Capture screenshot
-    reportProgress(i, screen.name, 'capturing', 'screenshot',
-      `Capturing screenshot for "${screen.name}"...`,
-      'Rendering HTML to canvas'
-    );
+      const item = queue.shift()!;
+      const { screen, index } = item;
 
-    let screenshot: string | undefined;
-    try {
-      console.log(`[ComponentExtraction] Step 1: Capturing screenshot...`);
-      const captureStart = Date.now();
+      screenStates.set(screen.id, { status: 'processing', componentsFound: 0 });
+      reportProgress();
 
-      const result = await captureHtmlScreenshot(screen.html, {
-        maxWidth: 1280,
-        maxHeight: 800,
-        quality: 0.8,
-        format: 'jpeg',
-      });
-
-      if (result) {
-        console.log(`[ComponentExtraction] Screenshot captured in ${Date.now() - captureStart}ms`);
-        console.log(`[ComponentExtraction] Original size: ${(result.base64.length / 1024).toFixed(1)}KB`);
-
-        // Step 2: Compress screenshot
-        reportProgress(i, screen.name, 'capturing', 'compress',
-          `Compressing screenshot for "${screen.name}"...`,
-          'Reducing image size for API'
-        );
-
-        const compressStart = Date.now();
-        screenshot = await compressScreenshot(result.base64, 400);
-        console.log(`[ComponentExtraction] Compressed to ${(screenshot.length / 1024).toFixed(1)}KB in ${Date.now() - compressStart}ms`);
-      } else {
-        console.warn(`[ComponentExtraction] Screenshot capture returned null`);
-      }
-    } catch (err) {
-      console.error('[ComponentExtraction] Screenshot capture error:', err);
-    }
-
-    // Step 3: Call LLM API
-    reportProgress(i, screen.name, 'extracting', 'upload',
-      `Sending to AI for analysis...`,
-      'Uploading screenshot and HTML'
-    );
-
-    console.log(`[ComponentExtraction] Step 2: Calling LLM API...`);
-    const llmStart = Date.now();
-
-    try {
-      // Race between extraction and timeout
-      const result = await Promise.race([
-        extractComponentsFromScreen(
-          screen.id,
-          screen.html,
-          screenshot,
-          {
-            provider: options?.provider,
-            model: options?.model,
+      const result = await processScreen(screen, index, screens.length, {
+        provider: options?.provider,
+        model: options?.model,
+        timeoutMs: timeout,
+        onStepChange: (step) => {
+          const state = screenStates.get(screen.id);
+          if (state) {
+            state.step = step;
+            reportProgress();
           }
-        ),
-        createTimeout(timeout, screen.name),
-      ]);
-
-      const llmDuration = Date.now() - llmStart;
-      console.log(`[ComponentExtraction] LLM response received in ${formatDuration(llmDuration)}`);
+        },
+      });
 
       if (result.success) {
         allComponents.push(...result.components);
-        const screenDuration = Date.now() - screenStartTime;
-        screenTimes.push(screenDuration);
+        screenStates.set(screen.id, {
+          status: 'complete',
+          componentsFound: result.components.length,
+        });
 
-        console.log(`[ComponentExtraction] ✓ Extracted ${result.components.length} components`);
-        console.log(`[ComponentExtraction] Provider: ${result.provider}, Model: ${result.model}`);
-        console.log(`[ComponentExtraction] Screen completed in ${formatDuration(screenDuration)}`);
-
-        reportProgress(i, screen.name, 'complete', 'done',
-          `Extracted ${result.components.length} components from "${screen.name}" (${formatDuration(screenDuration)})`,
-          `Found: ${result.components.map(c => c.category).join(', ')}`
-        );
+        // Notify about new components immediately
+        if (result.components.length > 0 && options?.onComponentsFound) {
+          options.onComponentsFound(result.components, result.screenName);
+        }
       } else {
-        const screenDuration = Date.now() - screenStartTime;
-        screenTimes.push(screenDuration);
-
-        console.error(`[ComponentExtraction] ✗ Extraction failed: ${result.error}`);
-        errors.push({ screenId: screen.id, error: result.error || 'Unknown error' });
-
-        reportProgress(i, screen.name, 'error', 'done',
-          `Error: ${result.error}`,
-          `Failed after ${formatDuration(screenDuration)}`
-        );
+        errors.push({ screenId: result.screenId, error: result.error || 'Unknown error' });
+        screenStates.set(screen.id, { status: 'error', componentsFound: 0 });
       }
-    } catch (err) {
-      const screenDuration = Date.now() - screenStartTime;
-      screenTimes.push(screenDuration);
 
-      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      console.error(`[ComponentExtraction] ✗ Exception: ${errorMsg}`);
-      errors.push({ screenId: screen.id, error: errorMsg });
+      reportProgress();
 
-      reportProgress(i, screen.name, 'error', 'done',
-        `Error: ${errorMsg}`,
-        `Failed after ${formatDuration(screenDuration)}`
-      );
+      // Process next item if queue is not empty
+      if (queue.length > 0) {
+        await processNext();
+      }
+    };
+
+    // Start initial batch up to concurrency limit
+    for (let i = 0; i < Math.min(concurrency, screens.length); i++) {
+      inProgress.push(processNext());
     }
-  }
+
+    // Wait for all to complete
+    await Promise.all(inProgress);
+  };
+
+  await processWithConcurrency();
 
   // Final summary
   const totalDuration = Date.now() - startTime;
@@ -413,6 +481,7 @@ export async function extractComponentsFromMultipleScreens(
   console.log(`[ComponentExtraction] Successful: ${screens.length - errors.length}`);
   console.log(`[ComponentExtraction] Failed: ${errors.length}`);
   console.log(`[ComponentExtraction] Components found: ${allComponents.length}`);
+  console.log(`[ComponentExtraction] Effective parallelism: ${concurrency}x`);
 
   // Deduplicate components by name + category
   const deduplicatedComponents = deduplicateComponents(allComponents);
