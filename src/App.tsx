@@ -15,6 +15,7 @@ import {
   Components,
   DesignSystem,
   VibePrototyping,
+  VisualBuilder,
   Context,
   Insights,
   Collaborate,
@@ -173,6 +174,24 @@ function App() {
                 <Route path="/prototypes/:screenId" element={<VibePrototyping />} />
                 <Route path="/prototypes/:screenId/:sessionId" element={<VibePrototyping />} />
               </Route>
+
+              {/* Visual Builder (full-screen) */}
+              <Route
+                path="/visual-builder"
+                element={
+                  <ProtectedRoute>
+                    <VisualBuilder />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/visual-builder/:projectId"
+                element={
+                  <ProtectedRoute>
+                    <VisualBuilder />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Collaborative view (full-screen) */}
               <Route

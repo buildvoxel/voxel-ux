@@ -7,6 +7,7 @@ export { Screens } from './Screens';
 export { Components } from './Components';
 export { DesignSystem } from './DesignSystem';
 export { VibePrototyping } from './VibePrototyping';
+export { default as VisualBuilder } from './VisualBuilder';
 export { Context } from './Context';
 export { Collaborate } from './Collaborate';
 export { SharedView } from './SharedView';
