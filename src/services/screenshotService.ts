@@ -50,16 +50,16 @@ export async function captureIframeScreenshot(
     // Convert to data URL
     const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
     const dataUrl = canvas.toDataURL(mimeType, quality);
-    
-    // Extract base64 part (remove "data:image/jpeg;base64," prefix)
-    const base64 = dataUrl.split(',')[1];
+
+    // Extract raw base64 for size calculation
+    const rawBase64 = dataUrl.split(',')[1] || '';
 
     return {
-      base64,
+      base64: dataUrl, // Return full data URL so media type can be detected
       mimeType,
       width: canvas.width,
       height: canvas.height,
-      sizeBytes: Math.ceil(base64.length * 0.75), // Approximate decoded size
+      sizeBytes: Math.ceil(rawBase64.length * 0.75), // Approximate decoded size
     };
   } catch (error) {
     console.error('[ScreenshotService] Error capturing screenshot:', error);
@@ -130,18 +130,25 @@ export async function captureHtmlScreenshot(
 /**
  * Compress a screenshot if it's too large for LLM APIs
  * Most APIs accept up to 20MB, but smaller is faster
+ * Accepts either raw base64 or full data URL, returns full data URL
  */
 export async function compressScreenshot(
-  base64: string,
+  input: string,
   targetSizeKB: number = 500
 ): Promise<string> {
-  const currentSizeKB = Math.ceil(base64.length * 0.75 / 1024);
-  
+  // Handle both raw base64 and data URL inputs
+  const isDataUrl = input.startsWith('data:');
+  const rawBase64 = isDataUrl ? (input.split(',')[1] || input) : input;
+  const inputDataUrl = isDataUrl ? input : `data:image/jpeg;base64,${input}`;
+
+  const currentSizeKB = Math.ceil(rawBase64.length * 0.75 / 1024);
+
   if (currentSizeKB <= targetSizeKB) {
-    return base64;
+    // Return as full data URL
+    return inputDataUrl;
   }
 
-  // Create an image from the base64
+  // Create an image from the input
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
@@ -157,13 +164,14 @@ export async function compressScreenshot(
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(img, 0, 0, newWidth, newHeight);
-        const compressed = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+        // Return full data URL so media type is preserved
+        const compressed = canvas.toDataURL('image/jpeg', 0.7);
         resolve(compressed);
       } else {
-        resolve(base64);
+        resolve(inputDataUrl);
       }
     };
-    img.onerror = () => resolve(base64);
-    img.src = `data:image/jpeg;base64,${base64}`;
+    img.onerror = () => resolve(inputDataUrl);
+    img.src = inputDataUrl;
   });
 }
