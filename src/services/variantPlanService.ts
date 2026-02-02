@@ -210,9 +210,19 @@ export async function generateVariantPlan(
     percent: 30,
   });
 
-  // Call Edge Function
-  const { data, error } = await supabase.functions.invoke('generate-variant-plan', {
-    body: {
+  // Call Edge Function using direct fetch for better error visibility (same as V2 edits service)
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const functionUrl = `${supabaseUrl}/functions/v1/generate-variant-plan`;
+
+  console.log('[VariantPlanService] Calling:', functionUrl);
+
+  const response = await fetch(functionUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({
       sessionId,
       prompt,
       compactedHtml,
@@ -221,27 +231,38 @@ export async function generateVariantPlan(
       productContext,
       provider,
       model,
-    },
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-    },
+    }),
   });
 
-  if (error) {
-    // Update session status to failed
+  let data;
+  try {
+    data = await response.json();
+  } catch (e) {
+    console.error('[VariantPlanService] Failed to parse response:', e);
+    const text = await response.text().catch(() => 'Unable to read response');
+    console.error('[VariantPlanService] Raw response:', text);
     await supabase
       .from('vibe_sessions')
-      .update({ status: 'failed', error_message: error.message })
+      .update({ status: 'failed', error_message: 'Edge function returned invalid response' })
       .eq('id', sessionId);
-    throw new Error(error.message || 'Failed to generate variant plan');
+    throw new Error(`Edge function returned invalid JSON: ${response.status}`);
   }
 
-  if (!data.success) {
+  if (!response.ok) {
+    console.error('[VariantPlanService] Edge function error:', response.status, data);
     await supabase
       .from('vibe_sessions')
-      .update({ status: 'failed', error_message: data.error })
+      .update({ status: 'failed', error_message: data?.error || `HTTP ${response.status}` })
       .eq('id', sessionId);
-    throw new Error(data.error || 'Plan generation failed');
+    throw new Error(data?.error || `Edge function failed: ${response.status}`);
+  }
+
+  if (!data?.success) {
+    await supabase
+      .from('vibe_sessions')
+      .update({ status: 'failed', error_message: data?.error })
+      .eq('id', sessionId);
+    throw new Error(data?.error || 'Plan generation failed');
   }
 
   // Progress: Saving
