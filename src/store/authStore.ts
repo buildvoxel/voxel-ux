@@ -54,30 +54,9 @@ async function mapSupabaseUser(supabaseUser: SupabaseUser): Promise<User> {
   };
 }
 
-// Helper to retry async operations with exponential backoff for AbortError
-async function retryOnAbortError<T>(
-  operation: () => Promise<T>,
-  maxRetries = 3,
-  baseDelayMs = 100
-): Promise<T> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error;
-      // Only retry on AbortError (Supabase lock mechanism issue)
-      const isAbortError = error instanceof Error && error.name === 'AbortError';
-      if (!isAbortError || attempt === maxRetries) {
-        throw error;
-      }
-      // Exponential backoff: 100ms, 200ms, 400ms
-      const delay = baseDelayMs * Math.pow(2, attempt);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  throw lastError;
-}
+// Track if auth listener is already set up to prevent duplicate listeners
+let authListenerSetUp = false;
+let initializePromise: Promise<void> | null = null;
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -104,49 +83,80 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
 
-        try {
-          // Use retry logic to handle AbortError from Supabase's lock mechanism
-          // This can happen when detectSessionInUrl processes concurrently with getSession
-          const { data: { session } } = await retryOnAbortError(
-            () => supabase.auth.getSession()
-          );
+        // Return existing promise if already initializing
+        if (initializePromise) {
+          return initializePromise;
+        }
 
-          if (session?.user) {
-            const user = await mapSupabaseUser(session.user);
-            set({
-              supabaseUser: session.user,
-              user,
-              isAuthenticated: true,
-              accessToken: session.access_token,
-              isLoading: false,
-            });
-          } else {
-            set({ isLoading: false });
-          }
+        // Prevent setting up multiple listeners
+        if (authListenerSetUp) {
+          return;
+        }
+        authListenerSetUp = true;
 
-          // Listen for auth changes
-          supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN' && session?.user) {
-              const user = await mapSupabaseUser(session.user);
+        // Create a promise that resolves when initial auth state is determined
+        initializePromise = new Promise<void>((resolve) => {
+          let initialResolved = false;
+
+          supabase.auth.onAuthStateChange((event, session) => {
+            console.log('[AuthStore] Auth state change:', event);
+
+            if (session?.user) {
+              // Set basic auth state immediately WITHOUT async calls
+              // This prevents AbortError from concurrent Supabase operations
+              const basicUser: User = {
+                id: session.user.id,
+                email: session.user.email || '',
+                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+                role: 'user', // Default, will be updated by profile fetch
+                avatar: session.user.user_metadata?.avatar_url,
+                createdAt: session.user.created_at,
+              };
+
               set({
                 supabaseUser: session.user,
-                user,
+                user: basicUser,
                 isAuthenticated: true,
                 accessToken: session.access_token,
+                isLoading: false,
               });
-            } else if (event === 'SIGNED_OUT') {
+
+              // Fetch full profile AFTER auth state is set, with delay to release lock
+              setTimeout(() => {
+                fetchUserProfile(session.user.id).then((profile) => {
+                  if (profile) {
+                    set((state) => ({
+                      user: state.user ? {
+                        ...state.user,
+                        name: profile.name || state.user.name,
+                        role: profile.role || state.user.role,
+                      } : state.user,
+                    }));
+                  }
+                }).catch((err) => {
+                  console.warn('[AuthStore] Could not fetch profile:', err);
+                });
+              }, 50);
+
+            } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
               set({
                 supabaseUser: null,
                 user: null,
                 isAuthenticated: false,
                 accessToken: null,
+                isLoading: false,
               });
             }
+
+            // Resolve promise after first auth state is set
+            if (!initialResolved) {
+              initialResolved = true;
+              resolve();
+            }
           });
-        } catch (error) {
-          console.error('Auth initialization error:', error);
-          set({ isLoading: false });
-        }
+        });
+
+        return initializePromise;
       },
 
       loginWithEmail: async (email, password) => {
@@ -173,12 +183,20 @@ export const useAuthStore = create<AuthState>()(
           return { error: error.message };
         }
 
-        // Set auth state immediately on successful login (don't wait for listener)
+        // Set basic auth state immediately (onAuthStateChange will also fire)
+        // Avoid async calls here to prevent AbortError
         if (data.session?.user) {
-          const user = await mapSupabaseUser(data.session.user);
+          const sessionUser = data.session.user;
           set({
-            supabaseUser: data.session.user,
-            user,
+            supabaseUser: sessionUser,
+            user: {
+              id: sessionUser.id,
+              email: sessionUser.email || '',
+              name: sessionUser.user_metadata?.name || sessionUser.email?.split('@')[0] || 'User',
+              role: 'user',
+              avatar: sessionUser.user_metadata?.avatar_url,
+              createdAt: sessionUser.created_at,
+            },
             isAuthenticated: true,
             accessToken: data.session.access_token,
           });
