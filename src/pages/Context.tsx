@@ -434,7 +434,15 @@ function UXGuidelinesCard({
   const [isDragging, setIsDragging] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [extractionProgress, setExtractionProgress] = useState<ExtractionProgress | null>(null);
-  const [showGuidelines, setShowGuidelines] = useState(false);
+  // Show guidelines by default if they exist
+  const [showGuidelines, setShowGuidelines] = useState(!!uxGuidelinesSet);
+
+  // Update showGuidelines when uxGuidelinesSet changes
+  useEffect(() => {
+    if (uxGuidelinesSet) {
+      setShowGuidelines(true);
+    }
+  }, [uxGuidelinesSet]);
 
   // Get video files for extraction
   const videoFiles = files.filter(f => f.fileType === 'video');
