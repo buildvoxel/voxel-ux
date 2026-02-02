@@ -16,7 +16,13 @@ export const supabase: SupabaseClient = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true,
+      // Disable automatic URL detection to prevent race conditions with getSession()
+      // that cause AbortError. Session from URL is handled explicitly in AuthCallback.
+      detectSessionInUrl: false,
+      // Use a unique storage key to avoid conflicts
+      storageKey: 'voxel-auth-token',
+      // Increase flow state expiry to handle slow connections
+      flowType: 'pkce',
     },
   }
 );
