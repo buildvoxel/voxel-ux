@@ -86,7 +86,7 @@ function ComponentPreview({
         background: 'white',
       }}
       title={component.name}
-      sandbox="allow-same-origin"
+      sandbox="allow-scripts allow-same-origin"
     />
   );
 }

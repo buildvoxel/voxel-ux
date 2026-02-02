@@ -264,7 +264,7 @@ export function VersionHistoryPanel({
                     height: '100%',
                     border: 'none',
                   }}
-                  sandbox="allow-same-origin"
+                  sandbox="allow-scripts allow-same-origin"
                   title="Version preview"
                 />
               </Box>
