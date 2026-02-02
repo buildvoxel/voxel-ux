@@ -8,8 +8,6 @@ import Tooltip from '@mui/material/Tooltip';
 import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
 import Switch from '@mui/material/Switch';
-import Collapse from '@mui/material/Collapse';
-import Divider from '@mui/material/Divider';
 import FlagIcon from '@mui/icons-material/Flag';
 import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import ListAltIcon from '@mui/icons-material/ListAlt';
@@ -30,8 +28,6 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { Button, Card, CardContent, Chip } from '@/components/ui';
 import { useSnackbar } from '@/components/SnackbarProvider';
 import { PageHeader } from '@/components/PageHeader';
@@ -39,11 +35,10 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useContextStore } from '@/store/contextStore';
 import {
   extractGuidelinesFromVideo,
-  extractGuidelinesDemo,
   createGuidelinesSet,
   type ExtractionProgress,
 } from '@/services/uxGuidelinesService';
-import type { UXGuidelineCategory } from '@/types/models';
+import type { UXGuidelineCategory, UXGuidelinesSet, UXGuideline } from '@/types/models';
 import {
   getContextFiles,
   uploadContextFile,
@@ -90,6 +85,13 @@ const categoryConfigs: CategoryConfig[] = [
     description: 'Documentation and reference materials',
     icon: <MenuBookIcon />,
     color: '#667eea',
+  },
+  {
+    id: 'ux_guidelines',
+    title: 'UX Principles & Guidelines',
+    description: 'Extract UX patterns from product videos',
+    icon: <AutoAwesomeIcon />,
+    color: '#4ade80', // Light green
   },
 ];
 
@@ -397,6 +399,424 @@ function CategoryCard({ config, files, onUpload, onDeleteFile, onOpenFile, uploa
   );
 }
 
+// UX Guidelines Card - specialized card with extraction functionality
+interface UXGuidelinesCardProps {
+  config: CategoryConfig;
+  files: ContextFile[];
+  onUpload: (category: ContextCategoryType, file: File) => void;
+  onDeleteFile: (file: ContextFile) => void;
+  onOpenFile: (file: ContextFile) => void;
+  uploading: boolean;
+  // UX Guidelines specific
+  uxGuidelinesSet: UXGuidelinesSet | null;
+  uxGuidelinesEnabled: boolean;
+  onToggleEnabled: () => void;
+  onSetGuidelines: (set: UXGuidelinesSet) => void;
+  onClearGuidelines: () => void;
+  onDeleteGuideline: (id: string) => void;
+}
+
+function UXGuidelinesCard({
+  config,
+  files,
+  onUpload,
+  onDeleteFile,
+  onOpenFile,
+  uploading,
+  uxGuidelinesSet,
+  uxGuidelinesEnabled,
+  onToggleEnabled,
+  onSetGuidelines,
+  onClearGuidelines,
+  onDeleteGuideline,
+}: UXGuidelinesCardProps) {
+  const { showSuccess, showError } = useSnackbar();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [extractionProgress, setExtractionProgress] = useState<ExtractionProgress | null>(null);
+  const [showGuidelines, setShowGuidelines] = useState(false);
+
+  // Get video files for extraction
+  const videoFiles = files.filter(f => f.fileType === 'video');
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+
+      const droppedFiles = Array.from(e.dataTransfer.files);
+      if (droppedFiles.length > 0) {
+        onUpload(config.id, droppedFiles[0]);
+      }
+    },
+    [config.id, onUpload]
+  );
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files;
+    if (selectedFiles && selectedFiles.length > 0) {
+      onUpload(config.id, selectedFiles[0]);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Extract UX guidelines from the first video file
+  const handleExtractGuidelines = async () => {
+    const videoFile = videoFiles[0];
+    if (!videoFile) {
+      showError('Please upload a video file first');
+      return;
+    }
+
+    try {
+      setExtracting(true);
+      setExtractionProgress({ stage: 'preparing', message: 'Preparing video...', percent: 0 });
+
+      // Get the actual file from the data URL or fetch it
+      let fileToAnalyze: File;
+
+      if (videoFile.localDataUrl) {
+        // Convert data URL back to File
+        const response = await fetch(videoFile.localDataUrl);
+        const blob = await response.blob();
+        fileToAnalyze = new File([blob], videoFile.fileName, { type: videoFile.mimeType || 'video/mp4' });
+      } else {
+        // For Supabase files, we need to download first
+        const downloadUrl = await getFileDownloadUrl(videoFile.filePath);
+        const response = await fetch(downloadUrl);
+        const blob = await response.blob();
+        fileToAnalyze = new File([blob], videoFile.fileName, { type: videoFile.mimeType || 'video/mp4' });
+      }
+
+      // Extract guidelines using vision AI
+      const result = await extractGuidelinesFromVideo(
+        fileToAnalyze,
+        (progress) => setExtractionProgress(progress),
+        8, // number of frames to extract
+        undefined, // provider (use default)
+        undefined  // model (use default)
+      );
+
+      // Create and store guidelines set
+      const guidelinesSet = createGuidelinesSet(
+        videoFile.title || 'Product UX Guidelines',
+        result,
+        videoFile.id,
+        videoFile.fileName
+      );
+
+      onSetGuidelines(guidelinesSet);
+      setShowGuidelines(true);
+      showSuccess(`Extracted ${result.guidelines.length} UX guidelines!`);
+    } catch (error) {
+      console.error('Failed to extract guidelines:', error);
+      showError(error instanceof Error ? error.message : 'Failed to extract guidelines');
+    } finally {
+      setExtracting(false);
+      setExtractionProgress(null);
+    }
+  };
+
+  return (
+    <Card
+      sx={{
+        height: '100%',
+        minHeight: 320,
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+        border: isDragging ? `2px dashed ${config.color}` : '2px solid transparent',
+        backgroundColor: isDragging ? `${config.color}08` : undefined,
+        '&:hover': {
+          boxShadow: 4,
+          transform: 'translateY(-4px)',
+        },
+      }}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 2.5 }}>
+        {/* Header */}
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 2 }}>
+          <Box
+            sx={{
+              width: 48,
+              height: 48,
+              borderRadius: 2,
+              backgroundColor: `${config.color}15`,
+              color: config.color,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              '& svg': { fontSize: 24 },
+            }}
+          >
+            {config.icon}
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="subtitle1" fontWeight={600}>
+              {config.title}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {config.description}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {uxGuidelinesSet && (
+              <Tooltip title={uxGuidelinesEnabled ? 'Disable guidelines' : 'Enable guidelines'}>
+                <Switch
+                  checked={uxGuidelinesEnabled}
+                  onChange={onToggleEnabled}
+                  color="primary"
+                  size="small"
+                />
+              </Tooltip>
+            )}
+            <Chip
+              label={uxGuidelinesSet ? `${uxGuidelinesSet.guidelines.length} guidelines` : `${files.length} files`}
+              size="small"
+              sx={{
+                backgroundColor: `${config.color}15`,
+                color: config.color,
+                fontWeight: 500,
+              }}
+            />
+          </Box>
+        </Box>
+
+        {uploading && <LinearProgress sx={{ mb: 2 }} />}
+
+        {/* Extraction Progress */}
+        {extracting && extractionProgress && (
+          <Box sx={{ mb: 2, p: 2, borderRadius: 1, backgroundColor: 'rgba(0,0,0,0.03)' }}>
+            <LinearProgress
+              variant="determinate"
+              value={extractionProgress.percent}
+              sx={{ mb: 1, borderRadius: 1 }}
+            />
+            <Typography variant="caption" color="text.secondary">
+              {extractionProgress.message}
+            </Typography>
+          </Box>
+        )}
+
+        {/* Content Area */}
+        <Box sx={{ flex: 1, overflow: 'auto', mb: 2 }}>
+          {/* Show extracted guidelines if available */}
+          {uxGuidelinesSet && showGuidelines ? (
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {uxGuidelinesEnabled ? 'Active in prototyping' : 'Disabled'}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  <Button
+                    size="small"
+                    variant="text"
+                    onClick={() => setShowGuidelines(false)}
+                    sx={{ fontSize: '0.7rem', minWidth: 'auto', px: 1 }}
+                  >
+                    Show Files
+                  </Button>
+                  <Button
+                    size="small"
+                    color="error"
+                    variant="text"
+                    onClick={onClearGuidelines}
+                    sx={{ fontSize: '0.7rem', minWidth: 'auto', px: 1 }}
+                  >
+                    Clear
+                  </Button>
+                </Box>
+              </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {uxGuidelinesSet.guidelines.slice(0, 4).map((guideline: UXGuideline) => (
+                  <Box
+                    key={guideline.id}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 1,
+                      p: 1,
+                      borderRadius: 1,
+                      backgroundColor: 'rgba(0,0,0,0.02)',
+                      '&:hover': { backgroundColor: 'rgba(0,0,0,0.04)' },
+                    }}
+                  >
+                    <Chip
+                      label={guidelineCategoryLabels[guideline.category]}
+                      size="small"
+                      sx={{
+                        backgroundColor: `${guidelineCategoryColors[guideline.category]}15`,
+                        color: guidelineCategoryColors[guideline.category],
+                        fontWeight: 500,
+                        fontSize: '0.65rem',
+                        height: 18,
+                      }}
+                    />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 600, display: 'block' }}>
+                        {guideline.title}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                        }}
+                      >
+                        {guideline.description}
+                      </Typography>
+                    </Box>
+                    <IconButton
+                      size="small"
+                      onClick={() => onDeleteGuideline(guideline.id)}
+                      sx={{ opacity: 0.5, '&:hover': { opacity: 1 }, p: 0.25 }}
+                    >
+                      <DeleteOutlinedIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Box>
+                ))}
+                {uxGuidelinesSet.guidelines.length > 4 && (
+                  <Typography variant="caption" color="text.secondary" sx={{ pl: 1 }}>
+                    +{uxGuidelinesSet.guidelines.length - 4} more guidelines
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          ) : files.length === 0 ? (
+            <Box
+              sx={{
+                height: '100%',
+                minHeight: 100,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px dashed',
+                borderColor: 'divider',
+                borderRadius: 2,
+                p: 2,
+              }}
+            >
+              <VideocamOutlinedIcon sx={{ fontSize: 32, color: 'text.disabled', mb: 1 }} />
+              <Typography variant="body2" color="text.secondary" align="center">
+                Upload a product demo video
+              </Typography>
+              <Typography variant="caption" color="text.disabled" align="center" sx={{ mt: 0.5 }}>
+                MP4, MOV, WebM supported
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {files.slice(0, 3).map((file) => (
+                <FilePreview
+                  key={file.id}
+                  file={file}
+                  color={config.color}
+                  onDelete={() => onDeleteFile(file)}
+                  onOpen={() => onOpenFile(file)}
+                />
+              ))}
+              {files.length > 3 && (
+                <Typography variant="caption" color="text.secondary" sx={{ pl: 1 }}>
+                  +{files.length - 3} more files
+                </Typography>
+              )}
+              {uxGuidelinesSet && (
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => setShowGuidelines(true)}
+                  sx={{ alignSelf: 'flex-start', fontSize: '0.75rem' }}
+                >
+                  View {uxGuidelinesSet.guidelines.length} extracted guidelines
+                </Button>
+              )}
+            </Box>
+          )}
+        </Box>
+
+        {/* Action Buttons */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          hidden
+          onChange={handleFileSelect}
+          accept=".mp4,.mov,.avi,.webm,.mkv,video/*"
+        />
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<AddOutlinedIcon />}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading || extracting}
+            sx={{
+              flex: 1,
+              borderColor: config.color,
+              color: config.color,
+              '&:hover': {
+                borderColor: config.color,
+                backgroundColor: `${config.color}10`,
+              },
+            }}
+          >
+            Upload Video
+          </Button>
+          {videoFiles.length > 0 && (
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<PlayArrowIcon />}
+              onClick={handleExtractGuidelines}
+              disabled={uploading || extracting}
+              sx={{
+                flex: 1,
+                backgroundColor: config.color,
+                '&:hover': {
+                  backgroundColor: config.color,
+                  filter: 'brightness(0.9)',
+                },
+              }}
+            >
+              {extracting ? 'Extracting...' : uxGuidelinesSet ? 'Re-extract' : 'Extract'}
+            </Button>
+          )}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
 // Category labels for UX guidelines
 const guidelineCategoryLabels: Record<UXGuidelineCategory, string> = {
   navigation: 'Navigation',
@@ -425,6 +845,7 @@ export function Context() {
     kpis: [],
     backlog: [],
     knowledge: [],
+    ux_guidelines: [],
   });
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<ContextCategoryType | null>(null);
@@ -440,12 +861,6 @@ export function Context() {
     toggleUXGuidelinesEnabled,
     deleteUXGuideline,
   } = useContextStore();
-  const [extracting, setExtracting] = useState(false);
-  const [extractionProgress, setExtractionProgress] = useState<ExtractionProgress | null>(null);
-  const [guidelinesExpanded, setGuidelinesExpanded] = useState(true);
-  const [guidelinesVideo, setGuidelinesVideo] = useState<File | null>(null);
-  const [isDraggingVideo, setIsDraggingVideo] = useState(false);
-  const guidelinesVideoInputRef = useRef<HTMLInputElement>(null);
 
   // Load files on mount
   useEffect(() => {
@@ -463,6 +878,7 @@ export function Context() {
         kpis: [],
         backlog: [],
         knowledge: [],
+        ux_guidelines: [],
       };
 
       allFiles.forEach((file) => {
@@ -537,74 +953,6 @@ export function Context() {
     }
   };
 
-  // Handle video upload for guidelines
-  const handleGuidelinesVideoSelect = (file: File) => {
-    const videoTypes = ['video/mp4', 'video/mov', 'video/avi', 'video/webm', 'video/quicktime'];
-    if (!videoTypes.includes(file.type) && !file.name.match(/\.(mp4|mov|avi|webm|mkv)$/i)) {
-      showError('Please upload a video file (MP4, MOV, AVI, WebM)');
-      return;
-    }
-    setGuidelinesVideo(file);
-    showSuccess(`Video "${file.name}" ready for analysis`);
-  };
-
-  const handleGuidelinesVideoDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingVideo(false);
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    if (droppedFiles.length > 0) {
-      handleGuidelinesVideoSelect(droppedFiles[0]);
-    }
-  }, []);
-
-  // Extract UX guidelines using vision AI to analyze video frames
-  const handleExtractGuidelines = async (useDemo = false) => {
-    try {
-      setExtracting(true);
-      setExtractionProgress({ stage: 'preparing', message: 'Preparing...', percent: 0 });
-
-      const videoName = guidelinesVideo?.name || 'Product Demo';
-
-      let result;
-
-      if (useDemo || !guidelinesVideo) {
-        // Demo mode - no video available
-        result = await extractGuidelinesDemo(
-          videoName,
-          (progress) => setExtractionProgress(progress)
-        );
-      } else {
-        // Real extraction - extract frames and analyze with vision AI
-        result = await extractGuidelinesFromVideo(
-          guidelinesVideo,
-          (progress) => setExtractionProgress(progress),
-          8, // number of frames to extract
-          undefined, // provider (use default)
-          undefined  // model (use default)
-        );
-      }
-
-      // Create and store guidelines set
-      const guidelinesSet = createGuidelinesSet(
-        videoName.replace(/\.[^/.]+$/, '') || 'Product UX Guidelines',
-        result,
-        undefined,
-        videoName
-      );
-
-      setUXGuidelines(guidelinesSet);
-      setGuidelinesVideo(null); // Clear video after successful extraction
-      showSuccess(`Extracted ${result.guidelines.length} UX guidelines from ${result.framesAnalyzed || 'demo'} frames`);
-    } catch (error) {
-      console.error('Failed to extract guidelines:', error);
-      showError(error instanceof Error ? error.message : 'Failed to extract guidelines');
-    } finally {
-      setExtracting(false);
-      setExtractionProgress(null);
-    }
-  };
-
   const totalFiles = Object.values(files).reduce((sum, arr) => sum + arr.length, 0);
 
   return (
@@ -626,7 +974,7 @@ export function Context() {
       {/* 2x2 Category Grid */}
       {loading ? (
         <Grid container spacing={3}>
-          {[1, 2, 3, 4].map((i) => (
+          {[1, 2, 3, 4, 5].map((i) => (
             <Grid item xs={12} md={6} key={i}>
               <Skeleton variant="rectangular" height={320} sx={{ borderRadius: 2 }} />
             </Grid>
@@ -650,336 +998,41 @@ export function Context() {
                 },
               }}
             >
-              <CategoryCard
-                config={config}
-                files={files[config.id]}
-                onUpload={handleUpload}
-                onDeleteFile={(file) => {
-                  setFileToDelete(file);
-                  setDeleteConfirmOpen(true);
-                }}
-                onOpenFile={handleOpenFile}
-                uploading={uploading === config.id}
-              />
+              {config.id === 'ux_guidelines' ? (
+                <UXGuidelinesCard
+                  config={config}
+                  files={files[config.id]}
+                  onUpload={handleUpload}
+                  onDeleteFile={(file) => {
+                    setFileToDelete(file);
+                    setDeleteConfirmOpen(true);
+                  }}
+                  onOpenFile={handleOpenFile}
+                  uploading={uploading === config.id}
+                  uxGuidelinesSet={uxGuidelinesSet}
+                  uxGuidelinesEnabled={uxGuidelinesEnabled}
+                  onToggleEnabled={toggleUXGuidelinesEnabled}
+                  onSetGuidelines={setUXGuidelines}
+                  onClearGuidelines={clearUXGuidelines}
+                  onDeleteGuideline={deleteUXGuideline}
+                />
+              ) : (
+                <CategoryCard
+                  config={config}
+                  files={files[config.id]}
+                  onUpload={handleUpload}
+                  onDeleteFile={(file) => {
+                    setFileToDelete(file);
+                    setDeleteConfirmOpen(true);
+                  }}
+                  onOpenFile={handleOpenFile}
+                  uploading={uploading === config.id}
+                />
+              )}
             </Grid>
           ))}
         </Grid>
       )}
-
-      {/* UX Guidelines Section */}
-      <Box sx={{ mt: 4 }}>
-        <Divider sx={{ mb: 3 }} />
-        <Card
-          sx={{
-            border: '1px solid',
-            borderColor: 'divider',
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-            },
-          }}
-        >
-          <CardContent>
-            {/* Header */}
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                mb: 2,
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 2,
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                  }}
-                >
-                  <AutoAwesomeIcon />
-                </Box>
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    UX Guidelines
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Extract patterns from product videos to guide AI prototyping
-                  </Typography>
-                </Box>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                {uxGuidelinesSet && (
-                  <>
-                    <Tooltip title={uxGuidelinesEnabled ? 'Disable guidelines' : 'Enable guidelines'}>
-                      <Switch
-                        checked={uxGuidelinesEnabled}
-                        onChange={toggleUXGuidelinesEnabled}
-                        color="primary"
-                      />
-                    </Tooltip>
-                    <IconButton
-                      onClick={() => setGuidelinesExpanded(!guidelinesExpanded)}
-                      size="small"
-                    >
-                      {guidelinesExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    </IconButton>
-                  </>
-                )}
-              </Box>
-            </Box>
-
-            {/* Extract Button or Guidelines Display */}
-            {!uxGuidelinesSet ? (
-              <Box sx={{ py: 2 }}>
-                {extracting ? (
-                  <Box sx={{ textAlign: 'center' }}>
-                    <LinearProgress
-                      variant="determinate"
-                      value={extractionProgress?.percent || 0}
-                      sx={{ mb: 2, borderRadius: 1 }}
-                    />
-                    <Typography variant="body2" color="text.secondary">
-                      {extractionProgress?.message || 'Extracting...'}
-                    </Typography>
-                  </Box>
-                ) : (
-                  <>
-                    {/* Video Upload Area */}
-                    <input
-                      ref={guidelinesVideoInputRef}
-                      type="file"
-                      hidden
-                      accept=".mp4,.mov,.avi,.webm,.mkv,video/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleGuidelinesVideoSelect(file);
-                        e.target.value = '';
-                      }}
-                    />
-                    <Box
-                      onDragEnter={(e) => { e.preventDefault(); setIsDraggingVideo(true); }}
-                      onDragLeave={(e) => { e.preventDefault(); setIsDraggingVideo(false); }}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={handleGuidelinesVideoDrop}
-                      onClick={() => !guidelinesVideo && guidelinesVideoInputRef.current?.click()}
-                      sx={{
-                        border: '2px dashed',
-                        borderColor: isDraggingVideo ? '#667eea' : guidelinesVideo ? '#52c41a' : 'divider',
-                        borderRadius: 2,
-                        p: 3,
-                        textAlign: 'center',
-                        cursor: guidelinesVideo ? 'default' : 'pointer',
-                        backgroundColor: isDraggingVideo ? 'rgba(102, 126, 234, 0.05)' : guidelinesVideo ? 'rgba(82, 196, 26, 0.05)' : 'transparent',
-                        transition: 'all 0.2s ease',
-                        '&:hover': !guidelinesVideo ? {
-                          borderColor: '#667eea',
-                          backgroundColor: 'rgba(102, 126, 234, 0.03)',
-                        } : {},
-                      }}
-                    >
-                      {guidelinesVideo ? (
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                          <Box
-                            sx={{
-                              width: 48,
-                              height: 48,
-                              borderRadius: 1,
-                              backgroundColor: 'rgba(82, 196, 26, 0.1)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: '#52c41a',
-                            }}
-                          >
-                            <VideocamOutlinedIcon />
-                          </Box>
-                          <Box sx={{ textAlign: 'left' }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {guidelinesVideo.name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {(guidelinesVideo.size / (1024 * 1024)).toFixed(1)} MB
-                            </Typography>
-                          </Box>
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setGuidelinesVideo(null);
-                            }}
-                            sx={{ ml: 1 }}
-                          >
-                            <DeleteOutlinedIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      ) : (
-                        <>
-                          <CloudUploadOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
-                          <Typography variant="body2" color="text.secondary">
-                            Drop a product demo video here or click to upload
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            MP4, MOV, AVI, WebM supported
-                          </Typography>
-                        </>
-                      )}
-                    </Box>
-
-                    {/* Extract Buttons */}
-                    <Box sx={{ textAlign: 'center', mt: 2, display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-                      {guidelinesVideo && (
-                        <Button
-                          variant="contained"
-                          startIcon={<PlayArrowIcon />}
-                          onClick={() => handleExtractGuidelines(false)}
-                          sx={{
-                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                            '&:hover': {
-                              background: 'linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%)',
-                            },
-                          }}
-                        >
-                          Extract UX Guidelines
-                        </Button>
-                      )}
-                      <Button
-                        variant={guidelinesVideo ? 'outlined' : 'contained'}
-                        startIcon={<PlayArrowIcon />}
-                        onClick={() => handleExtractGuidelines(true)}
-                        sx={guidelinesVideo ? {} : {
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                          '&:hover': {
-                            background: 'linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%)',
-                          },
-                        }}
-                      >
-                        {guidelinesVideo ? 'Try Demo Instead' : 'Try Demo Extraction'}
-                      </Button>
-                    </Box>
-                    {guidelinesVideo && (
-                      <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
-                        Will extract 8 frames and analyze with vision AI (Claude/Gemini/GPT-4V)
-                      </Typography>
-                    )}
-                    {!guidelinesVideo && (
-                      <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
-                        No video? Try demo mode to see sample guidelines
-                      </Typography>
-                    )}
-                  </>
-                )}
-              </Box>
-            ) : (
-              <Collapse in={guidelinesExpanded}>
-                <Box sx={{ mt: 2 }}>
-                  {/* Guidelines Info */}
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      mb: 2,
-                      p: 1.5,
-                      borderRadius: 1,
-                      backgroundColor: uxGuidelinesEnabled ? 'rgba(102, 126, 234, 0.08)' : 'rgba(0,0,0,0.03)',
-                    }}
-                  >
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                        {uxGuidelinesSet.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {uxGuidelinesSet.guidelines.length} guidelines •{' '}
-                        {uxGuidelinesEnabled ? 'Active in prototyping' : 'Disabled'}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => handleExtractGuidelines()}
-                        disabled={extracting}
-                      >
-                        Re-extract
-                      </Button>
-                      <Button
-                        size="small"
-                        color="error"
-                        onClick={clearUXGuidelines}
-                      >
-                        Clear
-                      </Button>
-                    </Box>
-                  </Box>
-
-                  {/* Guidelines List */}
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                    {uxGuidelinesSet.guidelines.map((guideline) => (
-                      <Box
-                        key={guideline.id}
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: 1.5,
-                          p: 1.5,
-                          borderRadius: 1,
-                          backgroundColor: 'rgba(0,0,0,0.02)',
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            backgroundColor: 'rgba(0,0,0,0.04)',
-                          },
-                        }}
-                      >
-                        <Chip
-                          label={guidelineCategoryLabels[guideline.category]}
-                          size="small"
-                          sx={{
-                            backgroundColor: `${guidelineCategoryColors[guideline.category]}15`,
-                            color: guidelineCategoryColors[guideline.category],
-                            fontWeight: 500,
-                            fontSize: '0.7rem',
-                            height: 22,
-                          }}
-                        />
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {guideline.title}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                            {guideline.description}
-                          </Typography>
-                          {guideline.examples && guideline.examples.length > 0 && (
-                            <Typography
-                              variant="caption"
-                              sx={{ display: 'block', mt: 0.5, fontStyle: 'italic' }}
-                              color="text.secondary"
-                            >
-                              e.g., {guideline.examples.slice(0, 2).join(', ')}
-                            </Typography>
-                          )}
-                        </Box>
-                        <IconButton
-                          size="small"
-                          onClick={() => deleteUXGuideline(guideline.id)}
-                          sx={{ opacity: 0.5, '&:hover': { opacity: 1 } }}
-                        >
-                          <DeleteOutlinedIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-              </Collapse>
-            )}
-          </CardContent>
-        </Card>
-      </Box>
 
       {/* Delete Confirmation */}
       <ConfirmDialog
