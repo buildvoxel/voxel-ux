@@ -8,7 +8,6 @@ import Tooltip from '@mui/material/Tooltip';
 import Alert from '@mui/material/Alert';
 import Skeleton from '@mui/material/Skeleton';
 import FlagIcon from '@mui/icons-material/Flag';
-import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
@@ -50,16 +49,16 @@ interface CategoryConfig {
 const categoryConfigs: CategoryConfig[] = [
   {
     id: 'goals',
-    title: 'Goals / OKRs / Mission',
-    description: 'Company objectives and key results',
+    title: 'Goals & KPIs',
+    description: 'Company objectives, key results, and performance metrics',
     icon: <FlagIcon />,
     color: '#764ba2',
   },
   {
-    id: 'kpis',
-    title: 'KPIs',
-    description: 'Key performance indicators and metrics',
-    icon: <TrendingUpOutlinedIcon />,
+    id: 'ux-guidelines',
+    title: 'UX Principles & Guidelines',
+    description: 'Design principles, accessibility standards, and UX patterns',
+    icon: <LightbulbIcon />,
     color: '#52c41a',
   },
   {
@@ -386,7 +385,7 @@ export function Context() {
   const { showSuccess, showError } = useSnackbar();
   const [files, setFiles] = useState<Record<ContextCategoryType, ContextFile[]>>({
     goals: [],
-    kpis: [],
+    'ux-guidelines': [],
     backlog: [],
     knowledge: [],
   });
@@ -408,7 +407,7 @@ export function Context() {
       // Group files by category
       const grouped: Record<ContextCategoryType, ContextFile[]> = {
         goals: [],
-        kpis: [],
+        'ux-guidelines': [],
         backlog: [],
         knowledge: [],
       };
