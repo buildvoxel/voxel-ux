@@ -124,6 +124,8 @@ Captured screens are stored in `src/mock-captures/screens/` as HTML files from t
 - **Use `onAuthStateChange` as the primary auth source** - It handles the `INITIAL_SESSION` event reliably
 - **Do NOT call `supabase.auth.getSession()` or `supabase.auth.getUser()` directly during initialization** - This races with `detectSessionInUrl` and causes `AbortError`
 - **The auth listener should only be set up once** - Use a flag to prevent duplicate listeners
+- **Do NOT make async Supabase calls inside `onAuthStateChange` callback** - The auth lock is still held; use `setTimeout` to delay profile fetches
+- **`initialize()` returns a Promise** - It resolves after the first auth state is determined, so App.tsx can await it
 
 ### Getting User in Components/Stores
 - **Use `useAuthStore.getState().supabaseUser`** instead of calling `supabase.auth.getUser()` directly

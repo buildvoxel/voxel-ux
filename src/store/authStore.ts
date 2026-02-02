@@ -56,6 +56,7 @@ async function mapSupabaseUser(supabaseUser: SupabaseUser): Promise<User> {
 
 // Track if auth listener is already set up to prevent duplicate listeners
 let authListenerSetUp = false;
+let initializePromise: Promise<void> | null = null;
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -82,40 +83,80 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
 
+        // Return existing promise if already initializing
+        if (initializePromise) {
+          return initializePromise;
+        }
+
         // Prevent setting up multiple listeners
         if (authListenerSetUp) {
           return;
         }
         authListenerSetUp = true;
 
-        // Use onAuthStateChange as the primary way to get auth state
-        // This avoids race conditions with detectSessionInUrl that cause AbortError
-        // The INITIAL_SESSION event fires when the client first initializes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          console.log('[AuthStore] Auth state change:', event);
+        // Create a promise that resolves when initial auth state is determined
+        initializePromise = new Promise<void>((resolve) => {
+          let initialResolved = false;
 
-          if (session?.user) {
-            const user = await mapSupabaseUser(session.user);
-            set({
-              supabaseUser: session.user,
-              user,
-              isAuthenticated: true,
-              accessToken: session.access_token,
-              isLoading: false,
-            });
-          } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
-            set({
-              supabaseUser: null,
-              user: null,
-              isAuthenticated: false,
-              accessToken: null,
-              isLoading: false,
-            });
-          }
+          supabase.auth.onAuthStateChange((event, session) => {
+            console.log('[AuthStore] Auth state change:', event);
+
+            if (session?.user) {
+              // Set basic auth state immediately WITHOUT async calls
+              // This prevents AbortError from concurrent Supabase operations
+              const basicUser: User = {
+                id: session.user.id,
+                email: session.user.email || '',
+                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+                role: 'user', // Default, will be updated by profile fetch
+                avatar: session.user.user_metadata?.avatar_url,
+                createdAt: session.user.created_at,
+              };
+
+              set({
+                supabaseUser: session.user,
+                user: basicUser,
+                isAuthenticated: true,
+                accessToken: session.access_token,
+                isLoading: false,
+              });
+
+              // Fetch full profile AFTER auth state is set, with delay to release lock
+              setTimeout(() => {
+                fetchUserProfile(session.user.id).then((profile) => {
+                  if (profile) {
+                    set((state) => ({
+                      user: state.user ? {
+                        ...state.user,
+                        name: profile.name || state.user.name,
+                        role: profile.role || state.user.role,
+                      } : state.user,
+                    }));
+                  }
+                }).catch((err) => {
+                  console.warn('[AuthStore] Could not fetch profile:', err);
+                });
+              }, 50);
+
+            } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
+              set({
+                supabaseUser: null,
+                user: null,
+                isAuthenticated: false,
+                accessToken: null,
+                isLoading: false,
+              });
+            }
+
+            // Resolve promise after first auth state is set
+            if (!initialResolved) {
+              initialResolved = true;
+              resolve();
+            }
+          });
         });
 
-        // Store subscription for potential cleanup (not strictly needed in this app)
-        (window as unknown as { __authSubscription?: typeof subscription }).__authSubscription = subscription;
+        return initializePromise;
       },
 
       loginWithEmail: async (email, password) => {
@@ -142,12 +183,20 @@ export const useAuthStore = create<AuthState>()(
           return { error: error.message };
         }
 
-        // Set auth state immediately on successful login (don't wait for listener)
+        // Set basic auth state immediately (onAuthStateChange will also fire)
+        // Avoid async calls here to prevent AbortError
         if (data.session?.user) {
-          const user = await mapSupabaseUser(data.session.user);
+          const sessionUser = data.session.user;
           set({
-            supabaseUser: data.session.user,
-            user,
+            supabaseUser: sessionUser,
+            user: {
+              id: sessionUser.id,
+              email: sessionUser.email || '',
+              name: sessionUser.user_metadata?.name || sessionUser.email?.split('@')[0] || 'User',
+              role: 'user',
+              avatar: sessionUser.user_metadata?.avatar_url,
+              createdAt: sessionUser.created_at,
+            },
             isAuthenticated: true,
             accessToken: data.session.access_token,
           });
