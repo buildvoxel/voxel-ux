@@ -69,7 +69,7 @@ const categoryConfigs: CategoryConfig[] = [
     color: '#764ba2',
   },
   {
-    id: 'ux-guidelines',
+    id: 'kpis',
     title: 'UX Principles & Guidelines',
     description: 'Design principles, accessibility standards, and UX patterns',
     icon: <LightbulbIcon />,
@@ -420,7 +420,7 @@ export function Context() {
   const { showSuccess, showError } = useSnackbar();
   const [files, setFiles] = useState<Record<ContextCategoryType, ContextFile[]>>({
     goals: [],
-    'ux-guidelines': [],
+    kpis: [],
     backlog: [],
     knowledge: [],
   });
@@ -458,7 +458,7 @@ export function Context() {
       // Group files by category
       const grouped: Record<ContextCategoryType, ContextFile[]> = {
         goals: [],
-        'ux-guidelines': [],
+        kpis: [],
         backlog: [],
         knowledge: [],
       };
