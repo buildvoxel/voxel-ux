@@ -76,9 +76,19 @@ export async function generateUnderstanding(
     percent: 30,
   });
 
-  // Call Edge Function
-  const { data, error } = await supabase.functions.invoke('understand-request', {
-    body: {
+  // Call Edge Function using direct fetch for better error visibility
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const functionUrl = `${supabaseUrl}/functions/v1/understand-request`;
+
+  console.log('[UnderstandingService] Calling:', functionUrl);
+
+  const response = await fetch(functionUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({
       sessionId,
       prompt,
       compactedHtml,
@@ -86,43 +96,33 @@ export async function generateUnderstanding(
       productContext,
       provider,
       model,
-    },
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-    },
+    }),
   });
 
-  if (error) {
-    // Try to extract the actual error from multiple possible locations
-    // Supabase edge function errors can have the message in different places
-    let actualError = 'Failed to generate understanding';
-
-    // Check data.error first (our edge function format)
-    if (data?.error) {
-      actualError = data.error;
-    }
-    // Check error.context for FunctionsHttpError
-    else if ((error as unknown as { context?: { json?: () => Promise<{ error?: string }> } }).context) {
-      try {
-        const context = (error as unknown as { context: { json: () => Promise<{ error?: string }> } }).context;
-        const errorBody = await context.json();
-        actualError = errorBody?.error || error.message;
-      } catch {
-        actualError = error.message;
-      }
-    }
-    // Fallback to error.message
-    else if (error.message) {
-      actualError = error.message;
-    }
-
-    console.error('[UnderstandingService] Edge function error:', error, 'Data:', data, 'Extracted:', actualError);
+  let data;
+  try {
+    data = await response.json();
+  } catch (e) {
+    console.error('[UnderstandingService] Failed to parse response:', e);
+    const text = await response.text().catch(() => 'Unable to read response');
+    console.error('[UnderstandingService] Raw response:', text);
     onProgress?.({
       stage: 'failed',
-      message: `Failed: ${actualError}`,
+      message: 'Edge function returned invalid response',
       percent: 100,
     });
-    throw new Error(actualError);
+    throw new Error(`Edge function returned invalid JSON: ${response.status}`);
+  }
+
+  if (!response.ok) {
+    const errorMessage = data?.error || `Edge function failed: ${response.status}`;
+    console.error('[UnderstandingService] Edge function error:', response.status, data);
+    onProgress?.({
+      stage: 'failed',
+      message: `Failed: ${errorMessage}`,
+      percent: 100,
+    });
+    throw new Error(errorMessage);
   }
 
   if (!data?.success) {
