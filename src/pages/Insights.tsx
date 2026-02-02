@@ -20,6 +20,9 @@ import {
   PushPin,
   CheckCircle,
   ArrowsClockwise,
+  Users,
+  Clock,
+  EnvelopeSimple,
 } from '@phosphor-icons/react';
 import { Card, CardContent, Button, Chip } from '@/components/ui';
 import { useThemeStore } from '@/store/themeStore';
@@ -28,53 +31,12 @@ import {
   getProjectInsights,
   getVariantInsights,
   getVariantDetailInsight,
+  getSessionInsight,
   type ProjectInsight,
   type VariantInsight,
   type VariantDetailInsight,
+  type Viewer,
 } from '@/services/feedbackInsightsService';
-
-// Fallback mock data for demo when no real data exists
-const mockProjectsData: ProjectInsight[] = [
-  {
-    id: '1',
-    sessionId: '1',
-    name: 'E-commerce Checkout Flow',
-    creatorEmail: 'sarah@example.com',
-    variants: 4,
-    participants: 12,
-    comments: 24,
-    totalTimeSpent: '4h 32m',
-    totalViews: 2340,
-    status: 'shared',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    sessionId: '2',
-    name: 'Dashboard Redesign',
-    creatorEmail: 'mike@example.com',
-    variants: 2,
-    participants: 8,
-    comments: 15,
-    totalTimeSpent: '2h 18m',
-    totalViews: 1250,
-    status: 'shared',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    sessionId: '3',
-    name: 'Mobile App Onboarding',
-    creatorEmail: 'emma@example.com',
-    variants: 3,
-    participants: 15,
-    comments: 32,
-    totalTimeSpent: '6h 45m',
-    totalViews: 5670,
-    status: 'shared',
-    createdAt: new Date().toISOString(),
-  },
-];
 
 const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -117,10 +79,10 @@ function AllProjectsView() {
       setLoading(true);
       try {
         const data = await getProjectInsights();
-        setProjects(data.length > 0 ? data : mockProjectsData);
+        setProjects(data);
       } catch (err) {
         console.error('Error loading projects:', err);
-        setProjects(mockProjectsData);
+        setProjects([]);
       } finally {
         setLoading(false);
       }
@@ -279,32 +241,42 @@ function ProjectView({ projectId }: { projectId: string }) {
   const navigate = useNavigate();
   const { config } = useThemeStore();
   const [variants, setVariants] = useState<VariantInsight[]>([]);
+  const [viewers, setViewers] = useState<Viewer[]>([]);
   const [loading, setLoading] = useState(true);
   const [projectName, setProjectName] = useState('Project');
+  const [totalTimeSpent, setTotalTimeSpent] = useState('0m');
+  const [totalViews, setTotalViews] = useState(0);
 
   useEffect(() => {
-    async function loadVariants() {
+    async function loadData() {
       setLoading(true);
       try {
-        const data = await getVariantInsights(projectId);
-        setVariants(data);
-        // Try to get project name from mock data or use default
-        const mockProject = mockProjectsData.find((p) => p.id === projectId);
-        if (mockProject) {
-          setProjectName(mockProject.name);
+        // Load variants and session insights in parallel
+        const [variantsData, sessionData] = await Promise.all([
+          getVariantInsights(projectId),
+          getSessionInsight(projectId),
+        ]);
+
+        setVariants(variantsData);
+
+        if (sessionData) {
+          setProjectName(sessionData.project.name);
+          setViewers(sessionData.viewers);
+          setTotalTimeSpent(sessionData.project.totalTimeSpent);
+          setTotalViews(sessionData.project.totalViews);
         }
       } catch (err) {
-        console.error('Error loading variants:', err);
+        console.error('Error loading project data:', err);
       } finally {
         setLoading(false);
       }
     }
-    loadVariants();
+    loadData();
   }, [projectId]);
 
   // Stats
   const totalVariants = variants.length;
-  const totalParticipants = variants.reduce((sum, v) => sum + v.participants, 0);
+  const totalParticipants = viewers.length > 0 ? viewers.length : variants.reduce((sum, v) => sum + v.participants, 0);
 
   if (loading) {
     return (
@@ -340,7 +312,7 @@ function ProjectView({ projectId }: { projectId: string }) {
 
       {/* Stats Row */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={3}>
           <Card
             variant="outlined"
             sx={{
@@ -361,7 +333,7 @@ function ProjectView({ projectId }: { projectId: string }) {
             </Typography>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={3}>
           <Card
             variant="outlined"
             sx={{
@@ -375,14 +347,14 @@ function ProjectView({ projectId }: { projectId: string }) {
             }}
           >
             <Typography variant="body2" color="text.secondary" gutterBottom>
-              Total comments
+              Total views
             </Typography>
             <Typography variant="h5" fontWeight={500}>
-              {variants.reduce((sum, v) => sum + v.comments, 0)}
+              {totalViews}
             </Typography>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={3}>
           <Card
             variant="outlined"
             sx={{
@@ -396,10 +368,31 @@ function ProjectView({ projectId }: { projectId: string }) {
             }}
           >
             <Typography variant="body2" color="text.secondary" gutterBottom>
-              Engaged participants
+              Unique participants
             </Typography>
             <Typography variant="h5" fontWeight={500}>
               {totalParticipants}
+            </Typography>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={3}>
+          <Card
+            variant="outlined"
+            sx={{
+              p: 2,
+              textAlign: 'center',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              minHeight: 100,
+            }}
+          >
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Total time spent
+            </Typography>
+            <Typography variant="h5" fontWeight={500}>
+              {totalTimeSpent}
             </Typography>
           </Card>
         </Grid>
@@ -472,6 +465,68 @@ function ProjectView({ projectId }: { projectId: string }) {
           </Typography>
         </Box>
       )}
+
+      {/* Viewers Section */}
+      {viewers.length > 0 && (
+        <Box sx={{ mt: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <Users size={20} />
+            <Typography variant="subtitle1" fontWeight={600}>
+              Participants
+            </Typography>
+            <Chip size="small" label={viewers.length} />
+          </Box>
+          <Card variant="outlined">
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ backgroundColor: config.colors.bgSecondary }}>
+                  <TableCell sx={{ fontWeight: 600 }}>Name</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Email</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="center">Views</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Time spent</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Last seen</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {viewers.map((viewer, idx) => (
+                  <TableRow key={viewer.email || idx}>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar sx={{ width: 24, height: 24, fontSize: 10, bgcolor: 'primary.main' }}>
+                          {getInitials(viewer.name || 'A')}
+                        </Avatar>
+                        <Typography variant="body2">{viewer.name || 'Anonymous'}</Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <EnvelopeSimple size={14} />
+                        <Typography variant="body2" color="text.secondary">
+                          {viewer.email || '-'}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell align="center">{viewer.viewCount || 1}</TableCell>
+                    <TableCell align="right">
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+                        <Clock size={14} />
+                        <Typography variant="body2">
+                          {formatTime(viewer.totalDuration || 0)}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body2" color="text.secondary">
+                        {viewer.lastSeen ? formatRelativeTime(viewer.lastSeen) : '-'}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        </Box>
+      )}
     </Box>
   );
 }
@@ -490,12 +545,16 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
     async function loadDetail() {
       setLoading(true);
       try {
-        const data = await getVariantDetailInsight(projectId, variantIndex);
-        setDetail(data);
-        // Try to get project name
-        const mockProject = mockProjectsData.find((p) => p.id === projectId);
-        if (mockProject) {
-          setProjectName(mockProject.name);
+        // Load variant detail and session info in parallel
+        const [variantData, sessionData] = await Promise.all([
+          getVariantDetailInsight(projectId, variantIndex),
+          getSessionInsight(projectId),
+        ]);
+
+        setDetail(variantData);
+
+        if (sessionData) {
+          setProjectName(sessionData.project.name);
         }
       } catch (err) {
         console.error('Error loading variant detail:', err);

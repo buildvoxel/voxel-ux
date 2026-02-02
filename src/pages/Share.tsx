@@ -1,6 +1,6 @@
 /**
  * Share Page - Public view for shared prototypes with commenting
- * Comments are private per user (stored locally) until team review phase
+ * Comments are saved to DB for Insights, but only displayed privately per user
  */
 
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -25,11 +25,15 @@ import {
   CheckCircle,
   ImageBroken,
 } from '@phosphor-icons/react';
-import { getShareData, recordShareView, type ShareData } from '@/services/sharingService';
+import { getShareData, type ShareData } from '@/services/sharingService';
+import { supabasePublic } from '@/services/supabase';
 
 // Local storage keys
 const USER_INFO_KEY = 'voxel_share_user';
 const getCommentsKey = (token: string, email: string) => `voxel_comments_${token}_${email}`;
+
+// Generate unique session ID
+const generateSessionId = () => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
 interface UserInfo {
   name: string;
@@ -46,6 +50,87 @@ interface LocalComment {
   createdAt: string;
 }
 
+// Helper to record view with enhanced tracking
+async function recordEnhancedView(
+  shareId: string,
+  variantIndex: number,
+  userInfo: UserInfo | null,
+  sessionId: string
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabasePublic.rpc('record_share_view_enhanced', {
+      p_share_id: shareId,
+      p_variant_index: variantIndex,
+      p_viewer_email: userInfo?.email || null,
+      p_viewer_name: userInfo?.name || null,
+      p_session_id: sessionId,
+      p_user_agent: navigator.userAgent,
+    });
+
+    if (error) {
+      console.error('[Share] Error recording view:', error);
+      // Fall back to basic view recording
+      await supabasePublic.from('vibe_share_views').insert({
+        share_id: shareId,
+        variant_index: variantIndex,
+        viewer_ip_hash: 'anonymous',
+        user_agent: navigator.userAgent,
+        viewer_email: userInfo?.email || null,
+        viewer_name: userInfo?.name || null,
+        session_id: sessionId,
+      });
+      return null;
+    }
+
+    return data as string;
+  } catch (err) {
+    console.error('[Share] Error recording view:', err);
+    return null;
+  }
+}
+
+// Helper to update session duration
+async function updateSessionDuration(viewId: string, duration: number): Promise<void> {
+  try {
+    await supabasePublic.rpc('update_view_session_duration', {
+      p_view_id: viewId,
+      p_duration: duration,
+    });
+  } catch (err) {
+    // Fall back to direct update
+    try {
+      await supabasePublic
+        .from('vibe_share_views')
+        .update({ session_duration: duration })
+        .eq('id', viewId);
+    } catch {
+      console.error('[Share] Error updating session duration:', err);
+    }
+  }
+}
+
+// Helper to save comment to database
+async function saveCommentToDb(
+  shareToken: string,
+  comment: LocalComment,
+  userInfo: UserInfo
+): Promise<void> {
+  try {
+    await supabasePublic.rpc('add_share_comment', {
+      p_share_token: shareToken,
+      p_content: comment.content,
+      p_user_email: userInfo.email,
+      p_user_name: userInfo.name,
+      p_position_x: comment.positionX,
+      p_position_y: comment.positionY,
+      p_variant_index: comment.variantIndex,
+      p_parent_id: null,
+    });
+  } catch (err) {
+    console.error('[Share] Error saving comment to DB:', err);
+  }
+}
+
 export default function SharePage() {
   const { token } = useParams<{ token: string }>();
   const [loading, setLoading] = useState(true);
@@ -54,7 +139,7 @@ export default function SharePage() {
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
   const [wireframeError, setWireframeError] = useState(false);
 
-  // Comment state - now stored locally per user
+  // Comment state - stored locally per user but also saved to DB for Insights
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [comments, setComments] = useState<LocalComment[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -65,6 +150,11 @@ export default function SharePage() {
   const [pinComment, setPinComment] = useState('');
   const [hoveredPin, setHoveredPin] = useState<string | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+
+  // Session tracking state
+  const [viewId, setViewId] = useState<string | null>(null);
+  const [sessionStartTime] = useState(() => Date.now());
+  const [sessionId] = useState(() => generateSessionId());
 
   // User info state
   const [userInfo, setUserInfo] = useState<UserInfo | null>(() => {
@@ -140,8 +230,16 @@ export default function SharePage() {
           setHtmlContent(data.variant.html_url);
         }
 
-        // Record the view for analytics
-        await recordShareView(data.share.id, data.variant.index);
+        // Record the view with enhanced tracking
+        const recordedViewId = await recordEnhancedView(
+          data.share.id,
+          data.variant.index,
+          userInfo,
+          sessionId
+        );
+        if (recordedViewId) {
+          setViewId(recordedViewId);
+        }
       } catch (err) {
         console.error('Error loading share:', err);
         setError('Failed to load shared prototype');
@@ -151,7 +249,47 @@ export default function SharePage() {
     }
 
     loadShare();
-  }, [token]);
+  }, [token, sessionId, userInfo]);
+
+  // Track session duration on page unload
+  useEffect(() => {
+    const handleUnload = () => {
+      if (viewId) {
+        const duration = Math.floor((Date.now() - sessionStartTime) / 1000);
+        // Use sendBeacon for reliable unload tracking
+        const data = JSON.stringify({
+          view_id: viewId,
+          duration,
+        });
+        navigator.sendBeacon?.(
+          `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/update_view_session_duration`,
+          data
+        );
+      }
+    };
+
+    // Also update periodically while page is open
+    const intervalId = setInterval(() => {
+      if (viewId) {
+        const duration = Math.floor((Date.now() - sessionStartTime) / 1000);
+        updateSessionDuration(viewId, duration);
+      }
+    }, 30000); // Update every 30 seconds
+
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
+      // Final update on unmount
+      if (viewId) {
+        const duration = Math.floor((Date.now() - sessionStartTime) / 1000);
+        updateSessionDuration(viewId, duration);
+      }
+    };
+  }, [viewId, sessionStartTime]);
 
   // Load comments when user info is available
   useEffect(() => {
@@ -190,7 +328,7 @@ export default function SharePage() {
   };
 
   // Handle comment submission
-  const handleSubmitComment = () => {
+  const handleSubmitComment = async () => {
     if (!token || !newComment.trim() || !userInfo) return;
 
     const comment: LocalComment = {
@@ -203,8 +341,12 @@ export default function SharePage() {
       createdAt: new Date().toISOString(),
     };
 
+    // Save locally for immediate display
     saveLocalComments([...comments, comment]);
     setNewComment('');
+
+    // Also save to database for Insights aggregation
+    await saveCommentToDb(token, comment, userInfo);
   };
 
   // Handle pin click on preview
@@ -221,7 +363,7 @@ export default function SharePage() {
   };
 
   // Handle pin comment submission
-  const handleSubmitPinComment = () => {
+  const handleSubmitPinComment = async () => {
     if (!token || !pendingPin || !pinComment.trim() || !userInfo) return;
 
     const comment: LocalComment = {
@@ -234,10 +376,14 @@ export default function SharePage() {
       createdAt: new Date().toISOString(),
     };
 
+    // Save locally for immediate display
     saveLocalComments([...comments, comment]);
     setPendingPin(null);
     setPinComment('');
     setPinMode(false);
+
+    // Also save to database for Insights aggregation
+    await saveCommentToDb(token, comment, userInfo);
   };
 
   // Handle resolve toggle
