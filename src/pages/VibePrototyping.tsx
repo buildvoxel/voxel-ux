@@ -2344,14 +2344,15 @@ export const VibePrototyping: React.FC = () => {
           code: err.code,
           provider: err.provider,
         });
-        // Reset status to wireframing so user can retry
-        setStatus('wireframing');
-        setProgress(null);
-      } else {
-        showError(`Failed to generate prototypes: ${errorMessage}`);
       }
+
+      // Reset status to wireframe_ready so user can use Rebuild button
+      setStatus('wireframe_ready');
+      setProgress(null);
+      setError(errorMessage);
+      showError(`Failed to generate prototypes: ${errorMessage}`);
     }
-  }, [currentSession, plan, sourceMetadata, screenScreenshot, wireframes, contextFiles, selectedProvider, selectedModel, addChatMessage, setVariants, setStatus, setProgress, debouncedSavePartialHtml, showError, showSuccess, screen]);
+  }, [currentSession, plan, sourceMetadata, screenScreenshot, wireframes, contextFiles, selectedProvider, selectedModel, addChatMessage, setVariants, setStatus, setProgress, setError, debouncedSavePartialHtml, showError, showSuccess, screen]);
 
   // Handle Rebuild - re-run V2 generation for projects that already have wireframes/plans
   const [isRebuilding, setIsRebuilding] = useState(false);
@@ -2364,6 +2365,9 @@ export const VibePrototyping: React.FC = () => {
 
     try {
       addChatMessage('assistant', 'Rebuilding prototypes from existing wireframes and plans...');
+
+      // Clear any previous error
+      setError(null);
 
       // Reset to wireframe_ready state so the generation flow works correctly
       setStatus('wireframe_ready');
@@ -2387,7 +2391,7 @@ export const VibePrototyping: React.FC = () => {
     } finally {
       setIsRebuilding(false);
     }
-  }, [currentSession, plan, isRebuilding, addChatMessage, setStatus, setVariants, handleBuildHighFidelity, showError]);
+  }, [currentSession, plan, isRebuilding, addChatMessage, setStatus, setError, setVariants, handleBuildHighFidelity, showError]);
 
   // Handle iteration on a variant
   const handleIterate = useCallback(async () => {
@@ -3212,6 +3216,16 @@ export const VibePrototyping: React.FC = () => {
               )}
               {isWireframeReady && (
                 <>
+                  {error && (
+                    <Chip
+                      icon={<Warning size={14} />}
+                      label="Build failed"
+                      size="small"
+                      color="error"
+                      variant="outlined"
+                      sx={{ mr: 1 }}
+                    />
+                  )}
                   <Button
                     variant="outlined"
                     onClick={() => handleRepromptWireframes()}
@@ -3224,9 +3238,10 @@ export const VibePrototyping: React.FC = () => {
                     variant="contained"
                     onClick={handleBuildHighFidelity}
                     size="small"
+                    startIcon={error ? <ArrowClockwise size={14} /> : undefined}
                     sx={{ background: config.gradients?.primary || config.colors.primary }}
                   >
-                    Build High-Fidelity
+                    {error ? 'Retry Build' : 'Build High-Fidelity'}
                   </Button>
                 </>
               )}
