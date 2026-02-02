@@ -1,6 +1,6 @@
 /**
  * Share Page - Public view for shared prototypes with commenting
- * No authentication required
+ * Comments are private per user (stored locally) until team review phase
  */
 
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -13,8 +13,7 @@ import IconButton from '@mui/material/IconButton';
 import Badge from '@mui/material/Badge';
 import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
+import Fade from '@mui/material/Fade';
 import { Card, Chip, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@/components/ui';
 import {
   Sparkle,
@@ -24,29 +23,27 @@ import {
   PushPin,
   Check,
   CheckCircle,
-  ArrowBendUpLeft,
-  DotsThree,
-  User,
+  ImageBroken,
 } from '@phosphor-icons/react';
 import { getShareData, recordShareView, type ShareData } from '@/services/sharingService';
-import {
-  getComments,
-  addComment,
-  toggleCommentResolved,
-  deleteComment,
-  subscribeToComments,
-  unsubscribeFromComments,
-  type CommentWithReplies,
-  type CommentChangeEvent,
-} from '@/services/commentService';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 
-// Local storage key for user info
+// Local storage keys
 const USER_INFO_KEY = 'voxel_share_user';
+const getCommentsKey = (token: string, email: string) => `voxel_comments_${token}_${email}`;
 
 interface UserInfo {
   name: string;
   email: string;
+}
+
+interface LocalComment {
+  id: string;
+  content: string;
+  positionX: number | null;
+  positionY: number | null;
+  variantIndex: number | null;
+  resolved: boolean;
+  createdAt: string;
 }
 
 export default function SharePage() {
@@ -55,20 +52,18 @@ export default function SharePage() {
   const [error, setError] = useState<string | null>(null);
   const [shareData, setShareData] = useState<ShareData | null>(null);
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
+  const [wireframeError, setWireframeError] = useState(false);
 
-  // Comment state
+  // Comment state - now stored locally per user
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [comments, setComments] = useState<CommentWithReplies[]>([]);
-  const [loadingComments, setLoadingComments] = useState(false);
+  const [comments, setComments] = useState<LocalComment[]>([]);
   const [newComment, setNewComment] = useState('');
-  const [submittingComment, setSubmittingComment] = useState(false);
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
-  const [replyContent, setReplyContent] = useState('');
 
   // Pin mode state
   const [pinMode, setPinMode] = useState(false);
   const [pendingPin, setPendingPin] = useState<{ x: number; y: number } | null>(null);
   const [pinComment, setPinComment] = useState('');
+  const [hoveredPin, setHoveredPin] = useState<string | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
   // User info state
@@ -80,12 +75,29 @@ export default function SharePage() {
   const [tempUserInfo, setTempUserInfo] = useState<UserInfo>({ name: '', email: '' });
   const [pendingAction, setPendingAction] = useState<'comment' | 'pin' | null>(null);
 
-  // Comment menu state
-  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedComment, setSelectedComment] = useState<CommentWithReplies | null>(null);
+  // Load comments from local storage
+  const loadLocalComments = useCallback(() => {
+    if (!token || !userInfo?.email) return;
 
-  // Real-time subscription
-  const channelRef = useRef<RealtimeChannel | null>(null);
+    const key = getCommentsKey(token, userInfo.email);
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      try {
+        setComments(JSON.parse(stored));
+      } catch {
+        setComments([]);
+      }
+    }
+  }, [token, userInfo?.email]);
+
+  // Save comments to local storage
+  const saveLocalComments = useCallback((newComments: LocalComment[]) => {
+    if (!token || !userInfo?.email) return;
+
+    const key = getCommentsKey(token, userInfo.email);
+    localStorage.setItem(key, JSON.stringify(newComments));
+    setComments(newComments);
+  }, [token, userInfo?.email]);
 
   // Load share data
   useEffect(() => {
@@ -104,6 +116,12 @@ export default function SharePage() {
           setLoading(false);
           return;
         }
+
+        console.log('[SharePage] Share data loaded:', {
+          shareWireframes: data.share.shareWireframes,
+          wireframe_url: data.variant.wireframe_url,
+          html_url: data.variant.html_url,
+        });
 
         setShareData(data);
 
@@ -124,9 +142,6 @@ export default function SharePage() {
 
         // Record the view for analytics
         await recordShareView(data.share.id, data.variant.index);
-
-        // Load comments
-        loadComments();
       } catch (err) {
         console.error('Error loading share:', err);
         setError('Failed to load shared prototype');
@@ -138,46 +153,10 @@ export default function SharePage() {
     loadShare();
   }, [token]);
 
-  // Load comments
-  const loadComments = useCallback(async () => {
-    if (!token) return;
-
-    setLoadingComments(true);
-    try {
-      const fetchedComments = await getComments(token);
-      setComments(fetchedComments);
-    } catch (err) {
-      console.error('Error loading comments:', err);
-    } finally {
-      setLoadingComments(false);
-    }
-  }, [token]);
-
-  // Subscribe to real-time comments
+  // Load comments when user info is available
   useEffect(() => {
-    if (!shareData?.share.id) return;
-
-    const handleCommentChange = (event: CommentChangeEvent) => {
-      if (event.eventType === 'INSERT') {
-        // Reload comments to get proper threading
-        loadComments();
-      } else if (event.eventType === 'UPDATE') {
-        setComments((prev) =>
-          prev.map((c) => (c.id === event.comment.id ? { ...c, ...event.comment } : c))
-        );
-      } else if (event.eventType === 'DELETE') {
-        setComments((prev) => prev.filter((c) => c.id !== event.comment.id));
-      }
-    };
-
-    channelRef.current = subscribeToComments(shareData.share.id, handleCommentChange);
-
-    return () => {
-      if (channelRef.current) {
-        unsubscribeFromComments(channelRef.current);
-      }
-    };
-  }, [shareData?.share.id, loadComments]);
+    loadLocalComments();
+  }, [loadLocalComments]);
 
   // Handle user info submission
   const handleUserInfoSubmit = () => {
@@ -188,13 +167,15 @@ export default function SharePage() {
     localStorage.setItem(USER_INFO_KEY, JSON.stringify(info));
     setUserInfoDialogOpen(false);
 
-    // Execute pending action
-    if (pendingAction === 'comment') {
-      handleSubmitComment();
-    } else if (pendingAction === 'pin' && pendingPin) {
-      handleSubmitPinComment();
-    }
-    setPendingAction(null);
+    // Execute pending action after a brief delay to ensure state is updated
+    setTimeout(() => {
+      if (pendingAction === 'comment') {
+        setCommentsOpen(true);
+      } else if (pendingAction === 'pin') {
+        setPinMode(true);
+      }
+      setPendingAction(null);
+    }, 100);
   };
 
   // Ensure user info before action
@@ -209,58 +190,27 @@ export default function SharePage() {
   };
 
   // Handle comment submission
-  const handleSubmitComment = async () => {
-    if (!token || !newComment.trim()) return;
-    if (!ensureUserInfo('comment')) return;
-    if (!userInfo) return;
+  const handleSubmitComment = () => {
+    if (!token || !newComment.trim() || !userInfo) return;
 
-    setSubmittingComment(true);
-    try {
-      await addComment({
-        shareToken: token,
-        content: newComment.trim(),
-        userEmail: userInfo.email,
-        userName: userInfo.name,
-        variantIndex: shareData?.variant.index,
-      });
-      setNewComment('');
-      await loadComments();
-    } catch (err) {
-      console.error('Error adding comment:', err);
-    } finally {
-      setSubmittingComment(false);
-    }
-  };
+    const comment: LocalComment = {
+      id: `comment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      content: newComment.trim(),
+      positionX: null,
+      positionY: null,
+      variantIndex: shareData?.variant.index ?? null,
+      resolved: false,
+      createdAt: new Date().toISOString(),
+    };
 
-  // Handle reply submission
-  const handleSubmitReply = async (parentId: string) => {
-    if (!token || !replyContent.trim()) return;
-    if (!ensureUserInfo('comment')) return;
-    if (!userInfo) return;
-
-    setSubmittingComment(true);
-    try {
-      await addComment({
-        shareToken: token,
-        content: replyContent.trim(),
-        userEmail: userInfo.email,
-        userName: userInfo.name,
-        variantIndex: shareData?.variant.index,
-        parentId,
-      });
-      setReplyContent('');
-      setReplyingTo(null);
-      await loadComments();
-    } catch (err) {
-      console.error('Error adding reply:', err);
-    } finally {
-      setSubmittingComment(false);
-    }
+    saveLocalComments([...comments, comment]);
+    setNewComment('');
   };
 
   // Handle pin click on preview
   const handlePreviewClick = (e: React.MouseEvent) => {
     if (!pinMode || !previewRef.current) return;
+    if (!ensureUserInfo('pin')) return;
 
     const rect = previewRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -271,57 +221,42 @@ export default function SharePage() {
   };
 
   // Handle pin comment submission
-  const handleSubmitPinComment = async () => {
-    if (!token || !pendingPin || !pinComment.trim()) return;
-    if (!ensureUserInfo('pin')) return;
-    if (!userInfo) return;
+  const handleSubmitPinComment = () => {
+    if (!token || !pendingPin || !pinComment.trim() || !userInfo) return;
 
-    setSubmittingComment(true);
-    try {
-      await addComment({
-        shareToken: token,
-        content: pinComment.trim(),
-        userEmail: userInfo.email,
-        userName: userInfo.name,
-        positionX: pendingPin.x,
-        positionY: pendingPin.y,
-        variantIndex: shareData?.variant.index,
-      });
-      setPendingPin(null);
-      setPinComment('');
-      setPinMode(false);
-      await loadComments();
-    } catch (err) {
-      console.error('Error adding pin comment:', err);
-    } finally {
-      setSubmittingComment(false);
-    }
+    const comment: LocalComment = {
+      id: `pin_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      content: pinComment.trim(),
+      positionX: pendingPin.x,
+      positionY: pendingPin.y,
+      variantIndex: shareData?.variant.index ?? null,
+      resolved: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    saveLocalComments([...comments, comment]);
+    setPendingPin(null);
+    setPinComment('');
+    setPinMode(false);
   };
 
   // Handle resolve toggle
-  const handleToggleResolved = async (comment: CommentWithReplies) => {
-    try {
-      await toggleCommentResolved(comment.id, !comment.resolved);
-      await loadComments();
-    } catch (err) {
-      console.error('Error toggling resolved:', err);
-    }
+  const handleToggleResolved = (commentId: string) => {
+    const updated = comments.map((c) =>
+      c.id === commentId ? { ...c, resolved: !c.resolved } : c
+    );
+    saveLocalComments(updated);
   };
 
   // Handle delete comment
-  const handleDeleteComment = async (comment: CommentWithReplies) => {
-    try {
-      await deleteComment(comment.id);
-      await loadComments();
-    } catch (err) {
-      console.error('Error deleting comment:', err);
-    }
-    setMenuAnchorEl(null);
-    setSelectedComment(null);
+  const handleDeleteComment = (commentId: string) => {
+    const updated = comments.filter((c) => c.id !== commentId);
+    saveLocalComments(updated);
   };
 
   // Get pin comments (comments with positions)
-  const pinComments = comments.filter((c) => c.position_x !== null && c.position_y !== null);
+  const pinComments = comments.filter((c) => c.positionX !== null && c.positionY !== null);
+  const generalComments = comments.filter((c) => c.positionX === null);
 
   // Format relative time
   const formatTime = (dateStr: string) => {
@@ -358,12 +293,14 @@ export default function SharePage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          bgcolor: '#f5f5f5',
+          bgcolor: '#f8f9fa',
         }}
       >
         <Box sx={{ textAlign: 'center' }}>
-          <CircularProgress size={48} sx={{ mb: 2 }} />
-          <Typography color="text.secondary">Loading prototype...</Typography>
+          <CircularProgress size={40} sx={{ mb: 2, color: '#764ba2' }} />
+          <Typography color="text.secondary" variant="body2">
+            Loading prototype...
+          </Typography>
         </Box>
       </Box>
     );
@@ -378,15 +315,15 @@ export default function SharePage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          bgcolor: '#f5f5f5',
+          bgcolor: '#f8f9fa',
         }}
       >
-        <Card sx={{ p: 4, maxWidth: 400, textAlign: 'center' }}>
+        <Card sx={{ p: 4, maxWidth: 400, textAlign: 'center', boxShadow: 3 }}>
           <Warning size={48} color="#f57c00" style={{ marginBottom: 16 }} />
-          <Typography variant="h6" sx={{ mb: 1 }}>
+          <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
             {error || 'Share not found'}
           </Typography>
-          <Typography color="text.secondary">
+          <Typography color="text.secondary" variant="body2">
             This share link may have expired or been deactivated.
           </Typography>
         </Card>
@@ -396,7 +333,7 @@ export default function SharePage() {
 
   const { session, variant, share } = shareData;
   const variantLetter = String.fromCharCode(64 + variant.index);
-  const unresolvedCount = comments.filter((c) => !c.resolved).length;
+  const totalComments = comments.length;
 
   return (
     <Box
@@ -404,19 +341,20 @@ export default function SharePage() {
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        bgcolor: '#fafafa',
+        bgcolor: '#f8f9fa',
       }}
     >
       {/* Header */}
       <Box
         sx={{
           px: 3,
-          py: 2,
+          py: 1.5,
           bgcolor: 'white',
-          borderBottom: '1px solid #e0e0e0',
+          borderBottom: '1px solid rgba(0,0,0,0.08)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -424,16 +362,16 @@ export default function SharePage() {
             sx={{
               display: 'flex',
               alignItems: 'center',
-              gap: 1,
+              gap: 0.75,
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              px: 1.5,
-              py: 0.75,
+              px: 1.25,
+              py: 0.5,
               borderRadius: 1,
             }}
           >
-            <Sparkle size={18} color="white" weight="fill" />
+            <Sparkle size={16} color="white" weight="fill" />
             <Typography
-              variant="subtitle2"
+              variant="caption"
               sx={{
                 color: 'white',
                 fontWeight: 700,
@@ -444,70 +382,89 @@ export default function SharePage() {
             </Typography>
           </Box>
           <Box>
-            <Typography variant="subtitle1" fontWeight={600}>
+            <Typography variant="subtitle2" fontWeight={600} sx={{ lineHeight: 1.3 }}>
               {session.name || 'Shared Prototype'}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Variant {variantLetter}: {variant.title}
+              {variant.title}
             </Typography>
           </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           <Chip
             size="small"
             label={`Variant ${variantLetter}`}
             sx={{
-              bgcolor: 'rgba(118, 75, 162, 0.1)',
+              bgcolor: 'rgba(118, 75, 162, 0.08)',
               color: '#764ba2',
               fontWeight: 600,
+              fontSize: 11,
+              height: 24,
             }}
           />
-          {share.type === 'random' && (
-            <Chip
-              size="small"
-              label="Random"
-              sx={{
-                bgcolor: 'rgba(255, 193, 7, 0.2)',
-                color: '#f57c00',
-                fontWeight: 500,
-              }}
-            />
-          )}
 
           {/* Pin mode toggle */}
-          <Tooltip title={pinMode ? 'Exit pin mode' : 'Add pin comment'}>
+          <Tooltip title={pinMode ? 'Exit pin mode (Esc)' : 'Add feedback pin'}>
             <IconButton
-              onClick={() => setPinMode(!pinMode)}
+              size="small"
+              onClick={() => {
+                if (!pinMode && !ensureUserInfo('pin')) return;
+                setPinMode(!pinMode);
+                setPendingPin(null);
+              }}
               sx={{
-                bgcolor: pinMode ? 'primary.main' : 'transparent',
+                bgcolor: pinMode ? '#764ba2' : 'transparent',
                 color: pinMode ? 'white' : 'text.secondary',
-                '&:hover': { bgcolor: pinMode ? 'primary.dark' : 'action.hover' },
+                '&:hover': { bgcolor: pinMode ? '#5a3a7e' : 'rgba(0,0,0,0.04)' },
+                transition: 'all 0.2s',
               }}
             >
-              <PushPin size={20} weight={pinMode ? 'fill' : 'regular'} />
+              <PushPin size={18} weight={pinMode ? 'fill' : 'regular'} />
             </IconButton>
           </Tooltip>
 
           {/* Comments toggle */}
-          <Tooltip title="Comments">
-            <IconButton onClick={() => setCommentsOpen(true)}>
-              <Badge badgeContent={unresolvedCount} color="primary">
-                <ChatCircle size={20} />
+          <Tooltip title="My feedback">
+            <IconButton
+              size="small"
+              onClick={() => {
+                if (!ensureUserInfo('comment')) return;
+                setCommentsOpen(true);
+              }}
+              sx={{
+                color: 'text.secondary',
+                '&:hover': { bgcolor: 'rgba(0,0,0,0.04)' },
+              }}
+            >
+              <Badge
+                badgeContent={totalComments}
+                sx={{
+                  '& .MuiBadge-badge': {
+                    bgcolor: '#764ba2',
+                    color: 'white',
+                    fontSize: 10,
+                    minWidth: 16,
+                    height: 16,
+                  },
+                }}
+              >
+                <ChatCircle size={18} />
               </Badge>
             </IconButton>
           </Tooltip>
 
-          {/* User info */}
+          {/* User avatar */}
           {userInfo && (
-            <Tooltip title={`${userInfo.name} (${userInfo.email})`}>
+            <Tooltip title={`${userInfo.name}`}>
               <Avatar
                 sx={{
-                  width: 32,
-                  height: 32,
-                  fontSize: 12,
-                  bgcolor: 'primary.main',
+                  width: 28,
+                  height: 28,
+                  fontSize: 10,
+                  bgcolor: '#764ba2',
                   cursor: 'pointer',
+                  ml: 0.5,
                 }}
                 onClick={() => {
                   setTempUserInfo(userInfo);
@@ -521,19 +478,21 @@ export default function SharePage() {
         </Box>
       </Box>
 
-      {/* Variant Info */}
-      <Box
-        sx={{
-          px: 3,
-          py: 1.5,
-          bgcolor: 'white',
-          borderBottom: '1px solid #e0e0e0',
-        }}
-      >
-        <Typography variant="body2" color="text.secondary">
-          {variant.description}
-        </Typography>
-      </Box>
+      {/* Variant description bar */}
+      {variant.description && (
+        <Box
+          sx={{
+            px: 3,
+            py: 1,
+            bgcolor: 'rgba(118, 75, 162, 0.04)',
+            borderBottom: '1px solid rgba(0,0,0,0.06)',
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            {variant.description}
+          </Typography>
+        </Box>
+      )}
 
       {/* Main Preview */}
       <Box
@@ -543,47 +502,54 @@ export default function SharePage() {
           flex: 1,
           position: 'relative',
           cursor: pinMode ? 'crosshair' : 'default',
+          overflow: 'hidden',
         }}
       >
-        {/* Pin overlay */}
+        {/* Pin markers */}
         {pinComments.map((pin, idx) => (
           <Tooltip
             key={pin.id}
             title={
-              <Box>
-                <Typography variant="caption" fontWeight={600}>
-                  {pin.user_name}
-                </Typography>
-                <Typography variant="caption" display="block">
+              <Box sx={{ maxWidth: 200 }}>
+                <Typography variant="caption" sx={{ fontWeight: 500 }}>
                   {pin.content}
+                </Typography>
+                <Typography variant="caption" display="block" sx={{ opacity: 0.7, mt: 0.5 }}>
+                  {formatTime(pin.createdAt)}
                 </Typography>
               </Box>
             }
+            placement="top"
           >
             <Box
+              onMouseEnter={() => setHoveredPin(pin.id)}
+              onMouseLeave={() => setHoveredPin(null)}
               onClick={(e) => {
                 e.stopPropagation();
                 setCommentsOpen(true);
               }}
               sx={{
                 position: 'absolute',
-                left: `${pin.position_x}%`,
-                top: `${pin.position_y}%`,
+                left: `${pin.positionX}%`,
+                top: `${pin.positionY}%`,
                 transform: 'translate(-50%, -50%)',
-                width: 28,
-                height: 28,
+                width: hoveredPin === pin.id ? 32 : 26,
+                height: hoveredPin === pin.id ? 32 : 26,
                 borderRadius: '50%',
-                bgcolor: pin.resolved ? 'success.main' : 'primary.main',
+                bgcolor: pin.resolved ? '#4caf50' : '#764ba2',
                 color: 'white',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 12,
-                fontWeight: 600,
+                fontSize: 11,
+                fontWeight: 700,
                 cursor: 'pointer',
                 zIndex: 10,
-                boxShadow: 2,
-                '&:hover': { transform: 'translate(-50%, -50%) scale(1.1)' },
+                boxShadow: hoveredPin === pin.id
+                  ? '0 4px 12px rgba(118, 75, 162, 0.4)'
+                  : '0 2px 8px rgba(0,0,0,0.2)',
+                transition: 'all 0.15s ease',
+                border: '2px solid white',
               }}
             >
               {idx + 1}
@@ -591,56 +557,95 @@ export default function SharePage() {
           </Tooltip>
         ))}
 
-        {/* Pending pin */}
+        {/* Pending pin input */}
         {pendingPin && (
-          <Box
-            sx={{
-              position: 'absolute',
-              left: `${pendingPin.x}%`,
-              top: `${pendingPin.y}%`,
-              transform: 'translate(-50%, -100%)',
-              zIndex: 20,
-            }}
-          >
-            <Card sx={{ p: 2, width: 280, boxShadow: 4 }}>
-              <TextField
-                autoFocus
-                multiline
-                rows={2}
-                placeholder="Add your comment..."
-                value={pinComment}
-                onChange={(e) => setPinComment(e.target.value)}
-                fullWidth
-                size="small"
-                sx={{ mb: 1.5 }}
+          <Fade in>
+            <Box
+              sx={{
+                position: 'absolute',
+                left: `${pendingPin.x}%`,
+                top: `${pendingPin.y}%`,
+                transform: 'translate(-50%, -100%)',
+                zIndex: 20,
+                mt: -1,
+              }}
+            >
+              {/* Pin indicator */}
+              <Box
+                sx={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  bgcolor: '#764ba2',
+                  border: '2px solid white',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                  position: 'absolute',
+                  bottom: -6,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                }}
               />
-              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                <Button
+              <Card sx={{ p: 2, width: 280, boxShadow: 4, borderRadius: 2 }}>
+                <Typography variant="caption" fontWeight={600} sx={{ mb: 1.5, display: 'block', color: '#764ba2' }}>
+                  Add feedback
+                </Typography>
+                <TextField
+                  autoFocus
+                  multiline
+                  rows={2}
+                  placeholder="What's your feedback on this area?"
+                  value={pinComment}
+                  onChange={(e) => setPinComment(e.target.value)}
+                  fullWidth
                   size="small"
-                  variant="text"
-                  onClick={() => {
-                    setPendingPin(null);
-                    setPinComment('');
+                  sx={{
+                    mb: 1.5,
+                    '& .MuiOutlinedInput-root': {
+                      fontSize: 13,
+                    }
                   }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="small"
-                  variant="contained"
-                  disabled={!pinComment.trim() || submittingComment}
-                  onClick={handleSubmitPinComment}
-                >
-                  {submittingComment ? 'Adding...' : 'Add Pin'}
-                </Button>
-              </Box>
-            </Card>
-          </Box>
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setPendingPin(null);
+                      setPinComment('');
+                    }
+                  }}
+                />
+                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                  <Button
+                    size="small"
+                    variant="text"
+                    onClick={() => {
+                      setPendingPin(null);
+                      setPinComment('');
+                    }}
+                    sx={{ fontSize: 12 }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    disabled={!pinComment.trim()}
+                    onClick={handleSubmitPinComment}
+                    sx={{
+                      fontSize: 12,
+                      bgcolor: '#764ba2',
+                      '&:hover': { bgcolor: '#5a3a7e' },
+                    }}
+                  >
+                    Add Pin
+                  </Button>
+                </Box>
+              </Card>
+            </Box>
+          </Fade>
         )}
 
-        {/* Prototype preview */}
+        {/* Content display */}
         {share.shareWireframes ? (
-          variant.wireframe_url ? (
+          // Wireframe display
+          variant.wireframe_url && !wireframeError ? (
             <Box
               sx={{
                 width: '100%',
@@ -648,13 +653,14 @@ export default function SharePage() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                bgcolor: '#f5f5f5',
+                bgcolor: '#f0f0f0',
                 p: 4,
               }}
             >
               <img
                 src={variant.wireframe_url}
                 alt={`Wireframe - Variant ${variantLetter}`}
+                onError={() => setWireframeError(true)}
                 style={{
                   maxWidth: '100%',
                   maxHeight: '100%',
@@ -671,11 +677,19 @@ export default function SharePage() {
                 width: '100%',
                 height: '100%',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
+                bgcolor: '#f5f5f5',
               }}
             >
-              <Typography color="text.secondary">No wireframe available</Typography>
+              <ImageBroken size={48} color="#999" />
+              <Typography color="text.secondary" sx={{ mt: 2 }}>
+                Wireframe not available
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                The wireframe image could not be loaded
+              </Typography>
             </Box>
           )
         ) : htmlContent ? (
@@ -724,27 +738,35 @@ export default function SharePage() {
           </Box>
         )}
 
-        {/* Pin mode overlay hint */}
+        {/* Pin mode hint */}
         {pinMode && !pendingPin && (
-          <Box
-            sx={{
-              position: 'absolute',
-              bottom: 16,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              bgcolor: 'rgba(0,0,0,0.8)',
-              color: 'white',
-              px: 2,
-              py: 1,
-              borderRadius: 2,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-            }}
-          >
-            <PushPin size={16} />
-            <Typography variant="body2">Click anywhere to add a pin comment</Typography>
-          </Box>
+          <Fade in>
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: 24,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                bgcolor: 'rgba(0,0,0,0.85)',
+                color: 'white',
+                px: 2.5,
+                py: 1.25,
+                borderRadius: 2,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              }}
+            >
+              <PushPin size={16} weight="fill" />
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                Click anywhere to add feedback
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.6, ml: 1 }}>
+                Press Esc to cancel
+              </Typography>
+            </Box>
+          </Fade>
         )}
       </Box>
 
@@ -752,23 +774,22 @@ export default function SharePage() {
       <Box
         sx={{
           px: 3,
-          py: 1.5,
+          py: 1,
           bgcolor: 'white',
-          borderTop: '1px solid #e0e0e0',
+          borderTop: '1px solid rgba(0,0,0,0.06)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           gap: 1,
         }}
       >
-        <Sparkle size={14} color="#764ba2" weight="fill" />
-        <Typography variant="caption" color="text.secondary">
+        <Sparkle size={12} color="#764ba2" weight="fill" />
+        <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>
           Created with{' '}
           <Typography
-            component="a"
-            href="/"
+            component="span"
             variant="caption"
-            sx={{ color: '#764ba2', textDecoration: 'none', fontWeight: 500 }}
+            sx={{ color: '#764ba2', fontWeight: 600, fontSize: 11 }}
           >
             Voxel
           </Typography>
@@ -780,154 +801,168 @@ export default function SharePage() {
         anchor="right"
         open={commentsOpen}
         onClose={() => setCommentsOpen(false)}
-        PaperProps={{ sx: { width: 400, maxWidth: '100vw' } }}
+        PaperProps={{
+          sx: {
+            width: 360,
+            maxWidth: '100vw',
+            boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
+          },
+        }}
       >
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
           {/* Drawer Header */}
           <Box
             sx={{
-              px: 2,
-              py: 1.5,
-              borderBottom: '1px solid #e0e0e0',
+              px: 2.5,
+              py: 2,
+              borderBottom: '1px solid rgba(0,0,0,0.08)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              bgcolor: '#fafafa',
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <ChatCircle size={20} weight="fill" />
+            <Box>
               <Typography variant="subtitle1" fontWeight={600}>
-                Comments
+                My Feedback
               </Typography>
-              {comments.length > 0 && (
-                <Chip size="small" label={comments.length} />
-              )}
+              <Typography variant="caption" color="text.secondary">
+                Only visible to you
+              </Typography>
             </Box>
             <IconButton onClick={() => setCommentsOpen(false)} size="small">
-              <X size={20} />
+              <X size={18} />
             </IconButton>
           </Box>
 
           {/* Comments List */}
           <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-            {loadingComments ? (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <CircularProgress size={24} />
-              </Box>
-            ) : comments.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
-                <ChatCircle size={48} color="#ccc" />
-                <Typography color="text.secondary" sx={{ mt: 1 }}>
-                  No comments yet
+            {comments.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 6 }}>
+                <Box
+                  sx={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: '50%',
+                    bgcolor: 'rgba(118, 75, 162, 0.08)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    mx: 'auto',
+                    mb: 2,
+                  }}
+                >
+                  <ChatCircle size={28} color="#764ba2" />
+                </Box>
+                <Typography fontWeight={500} sx={{ mb: 0.5 }}>
+                  No feedback yet
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Be the first to share feedback!
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Add pins or comments to share your thoughts
                 </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<PushPin size={14} />}
+                  onClick={() => {
+                    setCommentsOpen(false);
+                    setPinMode(true);
+                  }}
+                  sx={{
+                    borderColor: '#764ba2',
+                    color: '#764ba2',
+                    '&:hover': { borderColor: '#5a3a7e', bgcolor: 'rgba(118, 75, 162, 0.04)' },
+                  }}
+                >
+                  Add a pin
+                </Button>
               </Box>
             ) : (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {comments.map((comment) => (
-                  <CommentItem
-                    key={comment.id}
-                    comment={comment}
-                    pinIndex={pinComments.findIndex((p) => p.id === comment.id) + 1}
-                    formatTime={formatTime}
-                    getInitials={getInitials}
-                    onReply={() => setReplyingTo(comment.id)}
-                    onToggleResolved={() => handleToggleResolved(comment)}
-                    onMenuOpen={(e) => {
-                      setMenuAnchorEl(e.currentTarget);
-                      setSelectedComment(comment);
-                    }}
-                    replyingTo={replyingTo}
-                    replyContent={replyContent}
-                    setReplyContent={setReplyContent}
-                    onSubmitReply={() => handleSubmitReply(comment.id)}
-                    onCancelReply={() => {
-                      setReplyingTo(null);
-                      setReplyContent('');
-                    }}
-                    submittingComment={submittingComment}
-                  />
-                ))}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                {/* Pin comments */}
+                {pinComments.length > 0 && (
+                  <Box sx={{ mb: 1 }}>
+                    <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                      PINNED FEEDBACK ({pinComments.length})
+                    </Typography>
+                    {pinComments.map((comment, idx) => (
+                      <CommentCard
+                        key={comment.id}
+                        comment={comment}
+                        pinNumber={idx + 1}
+                        formatTime={formatTime}
+                        onToggleResolved={() => handleToggleResolved(comment.id)}
+                        onDelete={() => handleDeleteComment(comment.id)}
+                      />
+                    ))}
+                  </Box>
+                )}
+
+                {/* General comments */}
+                {generalComments.length > 0 && (
+                  <Box>
+                    <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                      GENERAL FEEDBACK ({generalComments.length})
+                    </Typography>
+                    {generalComments.map((comment) => (
+                      <CommentCard
+                        key={comment.id}
+                        comment={comment}
+                        formatTime={formatTime}
+                        onToggleResolved={() => handleToggleResolved(comment.id)}
+                        onDelete={() => handleDeleteComment(comment.id)}
+                      />
+                    ))}
+                  </Box>
+                )}
               </Box>
             )}
           </Box>
 
           {/* New Comment Input */}
-          <Box sx={{ p: 2, borderTop: '1px solid #e0e0e0' }}>
+          <Box sx={{ p: 2, borderTop: '1px solid rgba(0,0,0,0.08)', bgcolor: '#fafafa' }}>
             <TextField
               multiline
               rows={2}
-              placeholder="Add a comment..."
+              placeholder="Add general feedback..."
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               fullWidth
               size="small"
-              sx={{ mb: 1.5 }}
+              sx={{
+                mb: 1.5,
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: 'white',
+                  fontSize: 13,
+                },
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.metaKey) {
+                  handleSubmitComment();
+                }
+              }}
             />
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              {userInfo ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Avatar sx={{ width: 24, height: 24, fontSize: 10, bgcolor: 'primary.main' }}>
-                    {getInitials(userInfo.name)}
-                  </Avatar>
-                  <Typography variant="caption" color="text.secondary">
-                    {userInfo.name}
-                  </Typography>
-                </Box>
-              ) : (
-                <Button
-                  size="small"
-                  variant="text"
-                  startIcon={<User size={16} />}
-                  onClick={() => {
-                    setTempUserInfo({ name: '', email: '' });
-                    setUserInfoDialogOpen(true);
-                  }}
-                >
-                  Set your name
-                </Button>
-              )}
+              <Typography variant="caption" color="text.secondary">
+                ⌘ + Enter to submit
+              </Typography>
               <Button
                 variant="contained"
                 size="small"
-                disabled={!newComment.trim() || submittingComment}
+                disabled={!newComment.trim()}
                 onClick={handleSubmitComment}
+                sx={{
+                  bgcolor: '#764ba2',
+                  '&:hover': { bgcolor: '#5a3a7e' },
+                  fontSize: 12,
+                }}
               >
-                {submittingComment ? 'Sending...' : 'Send'}
+                Add Feedback
               </Button>
             </Box>
           </Box>
         </Box>
       </Drawer>
-
-      {/* Comment Menu */}
-      <Menu
-        anchorEl={menuAnchorEl}
-        open={Boolean(menuAnchorEl)}
-        onClose={() => {
-          setMenuAnchorEl(null);
-          setSelectedComment(null);
-        }}
-      >
-        <MenuItem
-          onClick={() => {
-            if (selectedComment) handleToggleResolved(selectedComment);
-            setMenuAnchorEl(null);
-          }}
-        >
-          {selectedComment?.resolved ? 'Mark as unresolved' : 'Mark as resolved'}
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            if (selectedComment) handleDeleteComment(selectedComment);
-          }}
-          sx={{ color: 'error.main' }}
-        >
-          Delete comment
-        </MenuItem>
-      </Menu>
 
       {/* User Info Dialog */}
       <Dialog
@@ -938,18 +973,25 @@ export default function SharePage() {
         }}
         maxWidth="xs"
         fullWidth
+        PaperProps={{ sx: { borderRadius: 2 } }}
       >
-        <DialogTitle>
-          {userInfo ? 'Update your info' : 'Enter your info to comment'}
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant="h6" fontWeight={600}>
+            {userInfo ? 'Update your info' : 'Before you start'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Your feedback will be saved locally
+          </Typography>
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
-              label="Name"
+              label="Your name"
               value={tempUserInfo.name}
               onChange={(e) => setTempUserInfo((prev) => ({ ...prev, name: e.target.value }))}
               fullWidth
               autoFocus
+              size="small"
             />
             <TextField
               label="Email"
@@ -957,11 +999,12 @@ export default function SharePage() {
               value={tempUserInfo.email}
               onChange={(e) => setTempUserInfo((prev) => ({ ...prev, email: e.target.value }))}
               fullWidth
-              helperText="Your email won't be shared publicly"
+              size="small"
+              helperText="Used to save your feedback privately"
             />
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
             variant="text"
             onClick={() => {
@@ -975,8 +1018,12 @@ export default function SharePage() {
             variant="contained"
             onClick={handleUserInfoSubmit}
             disabled={!tempUserInfo.name.trim() || !tempUserInfo.email.trim()}
+            sx={{
+              bgcolor: '#764ba2',
+              '&:hover': { bgcolor: '#5a3a7e' },
+            }}
           >
-            {userInfo ? 'Update' : 'Continue'}
+            Continue
           </Button>
         </DialogActions>
       </Dialog>
@@ -984,144 +1031,96 @@ export default function SharePage() {
   );
 }
 
-// Comment Item Component
-interface CommentItemProps {
-  comment: CommentWithReplies;
-  pinIndex: number;
+// Comment Card Component
+interface CommentCardProps {
+  comment: LocalComment;
+  pinNumber?: number;
   formatTime: (date: string) => string;
-  getInitials: (name: string) => string;
-  onReply: () => void;
   onToggleResolved: () => void;
-  onMenuOpen: (e: React.MouseEvent<HTMLElement>) => void;
-  replyingTo: string | null;
-  replyContent: string;
-  setReplyContent: (content: string) => void;
-  onSubmitReply: () => void;
-  onCancelReply: () => void;
-  submittingComment: boolean;
+  onDelete: () => void;
 }
 
-function CommentItem({
-  comment,
-  pinIndex,
-  formatTime,
-  getInitials,
-  onReply,
-  onToggleResolved,
-  onMenuOpen,
-  replyingTo,
-  replyContent,
-  setReplyContent,
-  onSubmitReply,
-  onCancelReply,
-  submittingComment,
-}: CommentItemProps) {
-  const isPin = comment.position_x !== null && comment.position_y !== null;
+function CommentCard({ comment, pinNumber, formatTime, onToggleResolved, onDelete }: CommentCardProps) {
+  const [showActions, setShowActions] = useState(false);
 
   return (
     <Box
+      onMouseEnter={() => setShowActions(true)}
+      onMouseLeave={() => setShowActions(false)}
       sx={{
         p: 1.5,
-        borderRadius: 1,
-        bgcolor: comment.resolved ? 'rgba(46, 125, 50, 0.05)' : 'rgba(0,0,0,0.02)',
+        mb: 1,
+        borderRadius: 1.5,
+        bgcolor: comment.resolved ? 'rgba(76, 175, 80, 0.06)' : 'white',
         border: '1px solid',
-        borderColor: comment.resolved ? 'success.light' : 'divider',
+        borderColor: comment.resolved ? 'rgba(76, 175, 80, 0.2)' : 'rgba(0,0,0,0.08)',
+        transition: 'all 0.15s',
+        '&:hover': {
+          borderColor: comment.resolved ? 'rgba(76, 175, 80, 0.3)' : 'rgba(0,0,0,0.15)',
+        },
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-        <Avatar sx={{ width: 32, height: 32, fontSize: 12, bgcolor: 'primary.main' }}>
-          {getInitials(comment.user_name)}
-        </Avatar>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-            <Typography variant="subtitle2" fontWeight={600}>
-              {comment.user_name}
-            </Typography>
-            {isPin && pinIndex > 0 && (
-              <Chip
-                size="small"
-                icon={<PushPin size={12} />}
-                label={`Pin ${pinIndex}`}
-                sx={{ height: 20, fontSize: 10 }}
-              />
-            )}
-            {comment.resolved && (
-              <CheckCircle size={14} color="#2e7d32" weight="fill" />
-            )}
-            <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-              {formatTime(comment.created_at)}
-            </Typography>
-          </Box>
-          <Typography variant="body2" sx={{ mb: 1, wordBreak: 'break-word' }}>
-            {comment.content}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <IconButton size="small" onClick={onReply}>
-              <ArrowBendUpLeft size={14} />
-            </IconButton>
-            <IconButton size="small" onClick={onToggleResolved}>
-              <Check size={14} />
-            </IconButton>
-            <IconButton size="small" onClick={onMenuOpen}>
-              <DotsThree size={14} />
-            </IconButton>
-          </Box>
-
-          {/* Reply input */}
-          {replyingTo === comment.id && (
-            <Box sx={{ mt: 1.5 }}>
-              <TextField
-                autoFocus
-                multiline
-                rows={2}
-                placeholder="Write a reply..."
-                value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                fullWidth
-                size="small"
-                sx={{ mb: 1 }}
-              />
-              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                <Button size="small" variant="text" onClick={onCancelReply}>
-                  Cancel
-                </Button>
-                <Button
-                  size="small"
-                  variant="contained"
-                  disabled={!replyContent.trim() || submittingComment}
-                  onClick={onSubmitReply}
-                >
-                  Reply
-                </Button>
-              </Box>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 0.75 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {pinNumber && (
+            <Box
+              sx={{
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                bgcolor: comment.resolved ? '#4caf50' : '#764ba2',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 10,
+                fontWeight: 700,
+              }}
+            >
+              {pinNumber}
             </Box>
           )}
-
-          {/* Replies */}
-          {comment.replies && comment.replies.length > 0 && (
-            <Box sx={{ mt: 1.5, pl: 2, borderLeft: '2px solid #e0e0e0' }}>
-              {comment.replies.map((reply) => (
-                <Box key={reply.id} sx={{ mb: 1.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.25 }}>
-                    <Avatar sx={{ width: 20, height: 20, fontSize: 8, bgcolor: 'grey.500' }}>
-                      {getInitials(reply.user_name)}
-                    </Avatar>
-                    <Typography variant="caption" fontWeight={600}>
-                      {reply.user_name}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {formatTime(reply.created_at)}
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" sx={{ pl: 3.5 }}>
-                    {reply.content}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
+          {comment.resolved && (
+            <Chip
+              size="small"
+              label="Resolved"
+              icon={<CheckCircle size={12} weight="fill" />}
+              sx={{
+                height: 20,
+                fontSize: 10,
+                bgcolor: 'rgba(76, 175, 80, 0.1)',
+                color: '#2e7d32',
+                '& .MuiChip-icon': { color: '#2e7d32' },
+              }}
+            />
           )}
         </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, opacity: showActions ? 1 : 0, transition: 'opacity 0.15s' }}>
+          <Tooltip title={comment.resolved ? 'Mark unresolved' : 'Mark resolved'}>
+            <IconButton size="small" onClick={onToggleResolved} sx={{ p: 0.5 }}>
+              <Check size={14} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton size="small" onClick={onDelete} sx={{ p: 0.5, color: 'error.main' }}>
+              <X size={14} />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
+      <Typography
+        variant="body2"
+        sx={{
+          wordBreak: 'break-word',
+          opacity: comment.resolved ? 0.7 : 1,
+          textDecoration: comment.resolved ? 'line-through' : 'none',
+        }}
+      >
+        {comment.content}
+      </Typography>
+      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
+        {formatTime(comment.createdAt)}
+      </Typography>
     </Box>
   );
 }
