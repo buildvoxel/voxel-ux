@@ -1019,7 +1019,7 @@ export default function SharePage() {
           </Box>
 
           {/* Comments List */}
-          <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+          <Box sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: '#f5f5f5' }}>
             {comments.length === 0 ? (
               <Box sx={{ textAlign: 'center', py: 6 }}>
                 <Box
@@ -1027,7 +1027,7 @@ export default function SharePage() {
                     width: 64,
                     height: 64,
                     borderRadius: '50%',
-                    bgcolor: 'rgba(118, 75, 162, 0.08)',
+                    bgcolor: '#ede7f6',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1035,7 +1035,7 @@ export default function SharePage() {
                     mb: 2,
                   }}
                 >
-                  <ChatCircle size={28} color="#764ba2" />
+                  <ChatCircle size={28} color="#7e57c2" />
                 </Box>
                 <Typography fontWeight={500} sx={{ mb: 0.5 }}>
                   No feedback yet
@@ -1052,9 +1052,9 @@ export default function SharePage() {
                     setPinMode(true);
                   }}
                   sx={{
-                    borderColor: '#764ba2',
-                    color: '#764ba2',
-                    '&:hover': { borderColor: '#5a3a7e', bgcolor: 'rgba(118, 75, 162, 0.04)' },
+                    borderColor: '#7e57c2',
+                    color: '#7e57c2',
+                    '&:hover': { borderColor: '#5e35b1', bgcolor: '#ede7f6' },
                   }}
                 >
                   Add a pin
@@ -1234,12 +1234,14 @@ function CommentCard({ comment, pinNumber, formatTime, onToggleResolved, onDelet
         p: 1.5,
         mb: 1,
         borderRadius: 1.5,
-        bgcolor: comment.resolved ? 'rgba(76, 175, 80, 0.06)' : 'white',
+        bgcolor: comment.resolved ? 'rgba(76, 175, 80, 0.05)' : '#ffffff',
         border: '1px solid',
-        borderColor: comment.resolved ? 'rgba(76, 175, 80, 0.2)' : 'rgba(0,0,0,0.08)',
+        borderColor: comment.resolved ? 'rgba(76, 175, 80, 0.2)' : '#e0e0e0',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
         transition: 'all 0.15s',
         '&:hover': {
-          borderColor: comment.resolved ? 'rgba(76, 175, 80, 0.3)' : 'rgba(0,0,0,0.15)',
+          borderColor: comment.resolved ? 'rgba(76, 175, 80, 0.3)' : '#bdbdbd',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
         },
       }}
     >
