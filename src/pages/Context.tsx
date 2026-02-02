@@ -972,7 +972,7 @@ export function Context() {
       {/* 2x2 Category Grid */}
       {loading ? (
         <Grid container spacing={3}>
-          {[1, 2, 3, 4, 5].map((i) => (
+          {[1, 2, 3, 4].map((i) => (
             <Grid item xs={12} md={6} key={i}>
               <Skeleton variant="rectangular" height={320} sx={{ borderRadius: 2 }} />
             </Grid>
