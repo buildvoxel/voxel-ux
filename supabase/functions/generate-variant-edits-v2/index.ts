@@ -171,7 +171,18 @@ async function callAnthropic(
   const messages: Array<{ role: string; content: unknown }> = [];
 
   if (screenshotBase64) {
-    const imageData = screenshotBase64.replace(/^data:image\/\w+;base64,/, '');
+    // Extract media type from data URL if present
+    let mediaType = 'image/png'; // default
+    let imageData = screenshotBase64;
+
+    const dataUrlMatch = screenshotBase64.match(/^data:(image\/\w+);base64,/);
+    if (dataUrlMatch) {
+      mediaType = dataUrlMatch[1]; // e.g., 'image/jpeg' or 'image/png'
+      imageData = screenshotBase64.replace(/^data:image\/\w+;base64,/, '');
+    }
+
+    console.log('[callAnthropic] Image media type:', mediaType, 'data length:', imageData.length);
+
     messages.push({
       role: 'user',
       content: [
@@ -179,7 +190,7 @@ async function callAnthropic(
           type: 'image',
           source: {
             type: 'base64',
-            media_type: 'image/png',
+            media_type: mediaType,
             data: imageData,
           },
         },
@@ -314,10 +325,21 @@ async function callGoogle(
   const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [];
 
   if (screenshotBase64) {
-    const imageData = screenshotBase64.replace(/^data:image\/\w+;base64,/, '');
+    // Extract media type from data URL if present
+    let mimeType = 'image/png'; // default
+    let imageData = screenshotBase64;
+
+    const dataUrlMatch = screenshotBase64.match(/^data:(image\/\w+);base64,/);
+    if (dataUrlMatch) {
+      mimeType = dataUrlMatch[1];
+      imageData = screenshotBase64.replace(/^data:image\/\w+;base64,/, '');
+    }
+
+    console.log('[callGoogle] Image mime type:', mimeType, 'data length:', imageData.length);
+
     parts.push({
       inlineData: {
-        mimeType: 'image/png',
+        mimeType,
         data: imageData,
       },
     });

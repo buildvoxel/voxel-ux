@@ -85,16 +85,16 @@ const MAX_CHILDREN = 50;
 
 /**
  * Generate a unique CSS selector for an element
- * Priority: ID > data-testid > aria-label > meaningful classes > data-* attrs > nth-child
+ * Priority: ID > data-testid > aria-label > role+text > meaningful classes > data-* attrs > parent-chain
  */
-function generateSelector(element: Element, parentSelector: string): string {
+function generateSelector(element: Element, parentSelector: string, depth: number = 0): string {
   const tag = element.tagName.toLowerCase();
   const id = element.id;
 
   // Filter classes - keep semantic/meaningful classes, skip generated ones
-  const classes = Array.from(element.classList).filter(c =>
+  const allClasses = Array.from(element.classList).filter(c =>
     // Skip auto-generated utility classes that change frequently
-    !c.match(/^(css-|sc-|emotion-|__|\d|MuiBox-|MuiTypography-|MuiButton-|MuiIcon-)/i) &&
+    !c.match(/^(css-|sc-|emotion-|__|\d|MuiBox-|MuiTypography-|MuiButton-|MuiIcon-|chakra-)/i) &&
     c.length > 1 &&
     c.length < 40 &&
     // Keep classes that look semantic/meaningful
@@ -109,38 +109,50 @@ function generateSelector(element: Element, parentSelector: string): string {
   // 2. data-testid is very reliable for testing
   const testId = element.getAttribute('data-testid');
   if (testId && testId.length < 50) {
-    return `[data-testid="${testId}"]`;
+    return `[data-testid="${CSS.escape(testId)}"]`;
   }
 
   // 3. aria-label for accessible elements
   const ariaLabel = element.getAttribute('aria-label');
   if (ariaLabel && ariaLabel.length < 50 && ariaLabel.length > 2) {
-    return `${tag}[aria-label="${ariaLabel}"]`;
+    return `${tag}[aria-label="${CSS.escape(ariaLabel)}"]`;
   }
 
-  // 4. role attribute for semantic elements
+  // 4. role attribute combined with text for uniqueness
   const role = element.getAttribute('role');
-  if (role && ['button', 'link', 'heading', 'navigation', 'main', 'banner', 'dialog', 'alert'].includes(role)) {
-    // Combine with text content for uniqueness
-    const text = element.textContent?.trim().slice(0, 20);
+  if (role && ['button', 'link', 'menuitem', 'tab', 'option'].includes(role)) {
+    const text = element.textContent?.trim().replace(/\s+/g, ' ').slice(0, 30);
     if (text && text.length > 2) {
+      // Can't select by text content directly in CSS, but role is still useful
       return `${tag}[role="${role}"]`;
     }
   }
 
-  // 5. Build class-based selector with meaningful classes
-  if (classes.length > 0) {
-    // Use up to 2 meaningful classes
-    const meaningfulClasses = classes.slice(0, 2).map(c => CSS.escape(c)).join('.');
-    return `${tag}.${meaningfulClasses}`;
+  // 5. For links/buttons, try to use href or meaningful text-related attrs
+  if (tag === 'a') {
+    const href = element.getAttribute('href');
+    if (href && href.length < 50 && !href.startsWith('javascript:') && !href.startsWith('#')) {
+      // Use href for more specific selection
+      const cleanHref = href.split('?')[0].slice(0, 40);
+      if (cleanHref.length > 1) {
+        return `a[href="${CSS.escape(cleanHref)}"]`;
+      }
+    }
   }
 
-  // 6. Use data attributes if available (prioritize semantic ones)
-  const priorityDataAttrs = ['data-id', 'data-name', 'data-type', 'data-value', 'data-key'];
+  // 6. Build class-based selector with ALL meaningful classes (not just 2)
+  // More classes = more specific = better matching
+  if (allClasses.length > 0) {
+    const escapedClasses = allClasses.slice(0, 4).map(c => CSS.escape(c)).join('.');
+    return `${tag}.${escapedClasses}`;
+  }
+
+  // 7. Use data attributes if available (prioritize semantic ones)
+  const priorityDataAttrs = ['data-id', 'data-name', 'data-type', 'data-value', 'data-key', 'data-index'];
   for (const attrName of priorityDataAttrs) {
     const value = element.getAttribute(attrName);
     if (value && value.length < 40) {
-      return `${tag}[${attrName}="${value}"]`;
+      return `${tag}[${attrName}="${CSS.escape(value)}"]`;
     }
   }
 
@@ -149,19 +161,19 @@ function generateSelector(element: Element, parentSelector: string): string {
     .filter(attr =>
       attr.name.startsWith('data-') &&
       attr.value.length < 40 &&
-      !attr.name.match(/^data-(reactid|reactroot|emotion)/i)
+      !attr.name.match(/^data-(reactid|reactroot|emotion|radix)/i)
     )
     .slice(0, 1);
 
   if (dataAttrs.length > 0) {
-    return `${tag}[${dataAttrs[0].name}="${dataAttrs[0].value}"]`;
+    return `${tag}[${dataAttrs[0].name}="${CSS.escape(dataAttrs[0].value)}"]`;
   }
 
-  // 7. For form elements, use name or type
+  // 8. For form elements, use name or type
   if (['input', 'select', 'textarea', 'button'].includes(tag)) {
     const name = element.getAttribute('name');
     if (name && name.length < 40) {
-      return `${tag}[name="${name}"]`;
+      return `${tag}[name="${CSS.escape(name)}"]`;
     }
     const type = element.getAttribute('type');
     if (type) {
@@ -169,28 +181,14 @@ function generateSelector(element: Element, parentSelector: string): string {
     }
   }
 
-  // 8. For links, use href pattern
-  if (tag === 'a') {
-    const href = element.getAttribute('href');
-    if (href && href.length < 50 && !href.startsWith('javascript:')) {
-      // Use partial href match for flexibility
-      const shortHref = href.split('?')[0].slice(0, 40);
-      return `a[href^="${shortHref}"]`;
-    }
+  // 9. Build a parent-chain selector for better specificity
+  // This is more reliable than nth-of-type without context
+  if (parentSelector && parentSelector !== 'body' && depth < 5) {
+    // Create a child combinator selector
+    return `${parentSelector} > ${tag}`;
   }
 
-  // 9. Fall back to positional selector
-  if (parentSelector && element.parentElement) {
-    const siblings = Array.from(element.parentElement.children).filter(
-      s => s.tagName === element.tagName
-    );
-    if (siblings.length > 1) {
-      const index = siblings.indexOf(element) + 1;
-      return `${parentSelector} > ${tag}:nth-of-type(${index})`;
-    }
-  }
-
-  // 10. Last resort: just the tag
+  // 10. Last resort: just the tag (avoid nth-of-type as standalone)
   return tag;
 }
 
@@ -241,16 +239,30 @@ function processElement(
     return null;
   }
 
-  const selector = generateSelector(element, parentSelector);
+  const selector = generateSelector(element, parentSelector, depth);
 
-  // Track selector uniqueness
+  // Track selector uniqueness - if we've seen this exact selector before,
+  // we need to make it more specific
   const selectorCount = selectorMap.get(selector) || 0;
   selectorMap.set(selector, selectorCount + 1);
+
+  // Build the node - for duplicate selectors, include parent chain for specificity
+  let finalSelector = selector;
+  if (selectorCount > 0) {
+    // If this selector already exists, try to make it unique by including more context
+    // Use the parent chain if available, or add a disambiguation comment
+    if (parentSelector && parentSelector !== 'body') {
+      finalSelector = `${parentSelector} > ${selector.includes('>') ? selector.split('>').pop()?.trim() || tag : selector}`;
+    } else {
+      // As last resort, add index notation but with clear context
+      finalSelector = `${selector} /* instance ${selectorCount + 1} */`;
+    }
+  }
 
   // Build the node
   const node: ElementNode = {
     tag,
-    selector: selectorCount > 0 ? `${selector}:nth-of-type(${selectorCount + 1})` : selector,
+    selector: finalSelector,
     depth,
   };
 
