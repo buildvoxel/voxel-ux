@@ -1,5 +1,6 @@
-// Supabase Edge Function for extracting UX guidelines from product video frames
-// Uses vision models (Claude, Gemini, GPT-4V) to analyze video screenshots
+// Supabase Edge Function for extracting UX guidelines from product video
+// Uses vision models (Claude, Gemini, GPT-4V) to analyze video content
+// Gemini supports native video; Claude/OpenAI use extracted frames
 // Deploy with: supabase functions deploy extract-ux-guidelines
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -11,8 +12,10 @@ const corsHeaders = {
 
 interface ExtractGuidelinesRequest {
   videoName: string
-  frames: string[]              // Array of base64-encoded video frames (JPEG/PNG)
-  videoDescription?: string     // Optional description of the video
+  frames?: string[]              // Array of base64-encoded video frames (for Claude/OpenAI)
+  videoBase64?: string           // Full video as base64 (for Gemini native video support)
+  videoMimeType?: string         // MIME type of video (e.g., 'video/mp4')
+  videoDescription?: string      // Optional description of the video
   provider?: 'anthropic' | 'openai' | 'google'
   model?: string
 }
@@ -225,21 +228,40 @@ async function generateWithOpenAI(apiKey: string, model: string, frames: string[
   return data.choices[0]?.message?.content || ''
 }
 
-// Generate with Google Gemini (Vision)
-async function generateWithGoogle(apiKey: string, model: string, frames: string[], videoName: string): Promise<string> {
-  console.log('[extract-ux-guidelines] Calling Google Gemini Vision API with', frames.length, 'frames')
-
-  // Build parts array with images and text
+// Generate with Google Gemini (Vision) - supports native video or frames
+async function generateWithGoogle(
+  apiKey: string,
+  model: string,
+  videoName: string,
+  frames?: string[],
+  videoBase64?: string,
+  videoMimeType?: string
+): Promise<string> {
+  // Build parts array
   const parts: Array<{ text?: string; inline_data?: { mime_type: string; data: string } }> = []
 
-  // Add each frame as inline_data
-  for (let i = 0; i < frames.length; i++) {
+  if (videoBase64 && videoMimeType) {
+    // Native video support - Gemini can analyze video directly!
+    console.log('[extract-ux-guidelines] Calling Gemini with NATIVE VIDEO support')
     parts.push({
       inline_data: {
-        mime_type: 'image/jpeg',
-        data: frames[i],
+        mime_type: videoMimeType,
+        data: videoBase64,
       },
     })
+  } else if (frames && frames.length > 0) {
+    // Fallback to frames
+    console.log('[extract-ux-guidelines] Calling Gemini with', frames.length, 'frames')
+    for (let i = 0; i < frames.length; i++) {
+      parts.push({
+        inline_data: {
+          mime_type: 'image/jpeg',
+          data: frames[i],
+        },
+      })
+    }
+  } else {
+    throw new Error('No video or frames provided for Gemini')
   }
 
   // Add the analysis prompt
@@ -320,15 +342,27 @@ Deno.serve(async (req) => {
     })
 
     const body: ExtractGuidelinesRequest = await req.json()
-    console.log('[extract-ux-guidelines] Video:', body.videoName, 'Frames:', body.frames?.length)
+    console.log('[extract-ux-guidelines] Video:', body.videoName,
+      'Frames:', body.frames?.length,
+      'HasVideo:', !!body.videoBase64,
+      'VideoType:', body.videoMimeType)
 
-    if (!body.videoName || !body.frames || body.frames.length === 0) {
-      throw new Error('Missing required fields: videoName, frames (array of base64 images)')
+    // Validate input - need either frames or video
+    const hasFrames = body.frames && body.frames.length > 0
+    const hasVideo = body.videoBase64 && body.videoMimeType
+
+    if (!body.videoName || (!hasFrames && !hasVideo)) {
+      throw new Error('Missing required fields: videoName and either frames[] or videoBase64+videoMimeType')
     }
 
     // Limit frames to prevent token overflow (max 10 frames)
-    const framesToUse = body.frames.slice(0, 10)
-    console.log('[extract-ux-guidelines] Using', framesToUse.length, 'frames for analysis')
+    const framesToUse = hasFrames ? body.frames!.slice(0, 10) : undefined
+    if (framesToUse) {
+      console.log('[extract-ux-guidelines] Using', framesToUse.length, 'frames for analysis')
+    }
+    if (hasVideo) {
+      console.log('[extract-ux-guidelines] Video provided for native analysis')
+    }
 
     // Get user's API key
     const requestedProvider = body.provider
@@ -361,23 +395,44 @@ Deno.serve(async (req) => {
 
     const startTime = Date.now()
     let rawResponse: string
+    let analysisMode: 'frames' | 'video' = 'frames'
 
     switch (keyConfig.provider) {
       case 'anthropic':
+        // Claude requires frames (no native video support)
+        if (!framesToUse) {
+          throw new Error('Anthropic/Claude requires frames. Please use Google Gemini for native video support.')
+        }
         rawResponse = await generateWithAnthropic(apiKey, modelToUse, framesToUse, body.videoName)
         break
       case 'openai':
+        // OpenAI requires frames (no native video support)
+        if (!framesToUse) {
+          throw new Error('OpenAI/GPT-4V requires frames. Please use Google Gemini for native video support.')
+        }
         rawResponse = await generateWithOpenAI(apiKey, modelToUse, framesToUse, body.videoName)
         break
       case 'google':
-        rawResponse = await generateWithGoogle(apiKey, modelToUse, framesToUse, body.videoName)
+        // Gemini supports native video OR frames
+        if (hasVideo) {
+          analysisMode = 'video'
+          rawResponse = await generateWithGoogle(
+            apiKey, modelToUse, body.videoName,
+            undefined, body.videoBase64, body.videoMimeType
+          )
+        } else {
+          rawResponse = await generateWithGoogle(
+            apiKey, modelToUse, body.videoName,
+            framesToUse, undefined, undefined
+          )
+        }
         break
       default:
         throw new Error(`Unsupported provider: ${keyConfig.provider}`)
     }
 
     const durationMs = Date.now() - startTime
-    console.log('[extract-ux-guidelines] Response length:', rawResponse.length, 'Duration:', durationMs, 'ms')
+    console.log('[extract-ux-guidelines] Response length:', rawResponse.length, 'Duration:', durationMs, 'ms', 'Mode:', analysisMode)
 
     const result = parseGuidelines(rawResponse)
     console.log('[extract-ux-guidelines] Extracted', result.guidelines.length, 'guidelines')
@@ -389,7 +444,8 @@ Deno.serve(async (req) => {
         guidelines: result.guidelines,
         model: modelToUse,
         provider: keyConfig.provider,
-        framesAnalyzed: framesToUse.length,
+        analysisMode,
+        framesAnalyzed: analysisMode === 'frames' ? framesToUse?.length : undefined,
         durationMs,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

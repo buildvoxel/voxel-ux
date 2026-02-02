@@ -106,11 +106,33 @@ export async function extractVideoFrames(
 }
 
 /**
- * Extract UX guidelines from video frames using vision models
+ * Convert video file to base64
+ */
+export async function videoToBase64(videoFile: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove the data URL prefix (e.g., "data:video/mp4;base64,")
+      const base64 = result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = () => reject(new Error('Failed to read video file'));
+    reader.readAsDataURL(videoFile);
+  });
+}
+
+/**
+ * Extract UX guidelines using vision models
+ * Supports both frames (for Claude/OpenAI) and native video (for Gemini)
  */
 export async function extractUXGuidelines(
   videoName: string,
-  frames: string[],
+  options: {
+    frames?: string[];
+    videoBase64?: string;
+    videoMimeType?: string;
+  },
   videoDescription?: string,
   provider?: 'anthropic' | 'openai' | 'google',
   model?: string,
@@ -126,16 +148,22 @@ export async function extractUXGuidelines(
     throw new Error('Not authenticated');
   }
 
+  const isVideoMode = !!(options.videoBase64 && options.videoMimeType);
+  const framesCount = options.frames?.length || 0;
+
   // Progress: Analyzing
   onProgress?.({
     stage: 'analyzing',
-    message: `Analyzing ${frames.length} frames with vision AI...`,
+    message: isVideoMode
+      ? 'Analyzing video with Gemini vision AI...'
+      : `Analyzing ${framesCount} frames with vision AI...`,
     percent: 50,
   });
 
   console.log('[UXGuidelinesService] Extracting guidelines:', {
     videoName,
-    framesCount: frames.length,
+    mode: isVideoMode ? 'native-video' : 'frames',
+    framesCount,
     hasDescription: !!videoDescription,
   });
 
@@ -143,7 +171,9 @@ export async function extractUXGuidelines(
   const { data, error } = await supabase.functions.invoke('extract-ux-guidelines', {
     body: {
       videoName,
-      frames,
+      frames: options.frames,
+      videoBase64: options.videoBase64,
+      videoMimeType: options.videoMimeType,
       videoDescription,
       provider,
       model,
@@ -214,7 +244,27 @@ export async function extractUXGuidelines(
 }
 
 /**
- * Full extraction pipeline: video file -> frames -> guidelines
+ * Get the user's configured AI provider
+ */
+async function getUserProvider(): Promise<'anthropic' | 'openai' | 'google' | null> {
+  try {
+    const { data, error } = await supabase
+      .from('user_api_key_refs')
+      .select('provider')
+      .eq('is_active', true)
+      .limit(1)
+      .single();
+
+    if (error || !data) return null;
+    return data.provider as 'anthropic' | 'openai' | 'google';
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Full extraction pipeline: video file -> guidelines
+ * Automatically uses native video for Gemini, frames for Claude/OpenAI
  */
 export async function extractGuidelinesFromVideo(
   videoFile: File,
@@ -223,50 +273,97 @@ export async function extractGuidelinesFromVideo(
   provider?: 'anthropic' | 'openai' | 'google',
   model?: string
 ): Promise<ExtractionResult> {
-  // Step 1: Extract frames from video
-  onProgress?.({
-    stage: 'extracting-frames',
-    message: 'Extracting frames from video...',
-    percent: 10,
-  });
+  // Determine which provider to use
+  const effectiveProvider = provider || await getUserProvider();
+  const useNativeVideo = effectiveProvider === 'google';
 
-  const frames = await extractVideoFrames(videoFile, numFrames, (percent) => {
+  console.log('[UXGuidelinesService] Provider:', effectiveProvider, 'Mode:', useNativeVideo ? 'native-video' : 'frames');
+
+  if (useNativeVideo) {
+    // Gemini: Send video directly (native video support!)
+    onProgress?.({
+      stage: 'preparing',
+      message: 'Preparing video for Gemini analysis...',
+      percent: 10,
+    });
+
+    const videoBase64 = await videoToBase64(videoFile);
+    const videoMimeType = videoFile.type || 'video/mp4';
+
+    console.log('[UXGuidelinesService] Video ready for Gemini:', {
+      size: `${(videoBase64.length / 1024 / 1024).toFixed(1)}MB`,
+      mimeType: videoMimeType,
+    });
+
+    onProgress?.({
+      stage: 'analyzing',
+      message: 'Analyzing video with Gemini vision AI...',
+      percent: 30,
+    });
+
+    const result = await extractUXGuidelines(
+      videoFile.name,
+      { videoBase64, videoMimeType },
+      undefined,
+      provider,
+      model,
+      (progress) => {
+        if (progress.stage === 'analyzing') {
+          onProgress?.({
+            ...progress,
+            percent: 30 + (progress.percent * 0.7),
+          });
+        } else {
+          onProgress?.(progress);
+        }
+      }
+    );
+
+    return result;
+  } else {
+    // Claude/OpenAI: Extract frames and send
     onProgress?.({
       stage: 'extracting-frames',
-      message: `Extracting frames... ${percent}%`,
-      percent: 10 + (percent * 0.3), // 10-40%
+      message: 'Extracting frames from video...',
+      percent: 10,
     });
-  });
 
-  console.log('[UXGuidelinesService] Extracted', frames.length, 'frames from video');
+    const frames = await extractVideoFrames(videoFile, numFrames, (percent) => {
+      onProgress?.({
+        stage: 'extracting-frames',
+        message: `Extracting frames... ${percent}%`,
+        percent: 10 + (percent * 0.3), // 10-40%
+      });
+    });
 
-  // Step 2: Send frames to vision API for analysis
-  onProgress?.({
-    stage: 'analyzing',
-    message: 'Analyzing frames with vision AI...',
-    percent: 45,
-  });
+    console.log('[UXGuidelinesService] Extracted', frames.length, 'frames from video');
 
-  const result = await extractUXGuidelines(
-    videoFile.name,
-    frames,
-    undefined,
-    provider,
-    model,
-    (progress) => {
-      // Map analyzing progress to 45-100%
-      if (progress.stage === 'analyzing') {
-        onProgress?.({
-          ...progress,
-          percent: 45 + (progress.percent * 0.55),
-        });
-      } else {
-        onProgress?.(progress);
+    onProgress?.({
+      stage: 'analyzing',
+      message: 'Analyzing frames with vision AI...',
+      percent: 45,
+    });
+
+    const result = await extractUXGuidelines(
+      videoFile.name,
+      { frames },
+      undefined,
+      provider,
+      model,
+      (progress) => {
+        if (progress.stage === 'analyzing') {
+          onProgress?.({
+            ...progress,
+            percent: 45 + (progress.percent * 0.55),
+          });
+        } else {
+          onProgress?.(progress);
+        }
       }
-    }
-  );
+    );
 
-  return result;
+    return result;
+  }
 }
 
 /**
