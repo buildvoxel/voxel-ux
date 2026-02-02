@@ -162,8 +162,8 @@ BEGIN
       WHERE vv.session_id = s.id
     )::BIGINT AS variant_count,
     CASE
-      WHEN EXISTS (SELECT 1 FROM vibe_shares WHERE session_id = s.id AND is_active = true) THEN 'shared'
-      WHEN EXISTS (SELECT 1 FROM vibe_shares WHERE session_id = s.id) THEN 'expired'
+      WHEN EXISTS (SELECT 1 FROM vibe_shares vsub WHERE vsub.session_id = s.id AND vsub.is_active = true) THEN 'shared'
+      WHEN EXISTS (SELECT 1 FROM vibe_shares vsub WHERE vsub.session_id = s.id) THEN 'expired'
       ELSE 'draft'
     END AS status,
     s.created_at,
@@ -305,7 +305,7 @@ BEGIN
         AND c.parent_id IS NULL
     ), '[]'::JSONB) AS comments
   FROM vibe_variants vv
-  LEFT JOIN vibe_variant_plans vvp ON vvp.variant_id = vv.id
+  LEFT JOIN vibe_variant_plans vvp ON vvp.id = vv.plan_id
   WHERE vv.session_id = p_session_id
   ORDER BY vv.variant_index;
 END;
@@ -353,8 +353,8 @@ BEGIN
       WHERE sh.session_id = s.id
     )::BIGINT AS total_comments,
     CASE
-      WHEN EXISTS (SELECT 1 FROM vibe_shares WHERE session_id = s.id AND is_active = true) THEN 'shared'
-      WHEN EXISTS (SELECT 1 FROM vibe_shares WHERE session_id = s.id) THEN 'expired'
+      WHEN EXISTS (SELECT 1 FROM vibe_shares vsub WHERE vsub.session_id = s.id AND vsub.is_active = true) THEN 'shared'
+      WHEN EXISTS (SELECT 1 FROM vibe_shares vsub WHERE vsub.session_id = s.id) THEN 'expired'
       ELSE 'draft'
     END AS status,
     s.created_at
@@ -362,7 +362,7 @@ BEGIN
   LEFT JOIN vibe_shares vs ON vs.session_id = s.id
   WHERE s.user_id = auth.uid()
   GROUP BY s.id, s.name, s.created_at
-  HAVING EXISTS (SELECT 1 FROM vibe_shares WHERE session_id = s.id)  -- Only show sessions with shares
+  HAVING EXISTS (SELECT 1 FROM vibe_shares vsub WHERE vsub.session_id = s.id)  -- Only show sessions with shares
   ORDER BY s.created_at DESC;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

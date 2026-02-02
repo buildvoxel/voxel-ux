@@ -363,18 +363,16 @@ export async function getVariantInsights(sessionId: string): Promise<VariantInsi
  * Fallback method for getting variant insights
  */
 async function getVariantInsightsFallback(sessionId: string): Promise<VariantInsight[]> {
-  // Get variants with their plans and wireframe URLs
+  // Get variants with their thumbnail URLs
+  // Note: vibe_variant_plans is related via plan_id foreign key
   const { data: variants, error } = await supabase
     .from('vibe_variants')
     .select(`
       id,
       variant_index,
       session_id,
-      wireframe_url,
-      vibe_variant_plans (
-        title,
-        description
-      )
+      plan_id,
+      thumbnail_url
     `)
     .eq('session_id', sessionId)
     .order('variant_index');
@@ -382,6 +380,17 @@ async function getVariantInsightsFallback(sessionId: string): Promise<VariantIns
   if (error || !variants) {
     console.error('[FeedbackInsightsService] Error fetching variants:', error);
     return [];
+  }
+
+  // Fetch variant plans separately for title/description
+  const planIds = variants.map((v) => v.plan_id).filter(Boolean);
+  let plans: { id: string; title: string; description: string }[] = [];
+  if (planIds.length > 0) {
+    const { data: plansData } = await supabase
+      .from('vibe_variant_plans')
+      .select('id, title, description')
+      .in('id', planIds);
+    plans = plansData || [];
   }
 
   // Get shares for this session
@@ -410,12 +419,9 @@ async function getVariantInsightsFallback(sessionId: string): Promise<VariantIns
 
   // Build variant insights
   const variantInsights: VariantInsight[] = (variants || []).map((variant) => {
-    const variantWithPlan = variant as unknown as {
-      vibe_variant_plans: { title: string; description: string } | null;
-      wireframe_url: string | null;
-    };
-    const plan = variantWithPlan.vibe_variant_plans;
-    const wireframeUrl = variantWithPlan.wireframe_url;
+    // Look up plan by plan_id
+    const plan = plans.find((p) => p.id === variant.plan_id);
+    const thumbnailUrl = (variant as { thumbnail_url?: string }).thumbnail_url || null;
     const variantIndex = variant.variant_index;
     const label = `Variant ${String.fromCharCode(64 + variantIndex)}`;
 
@@ -463,7 +469,7 @@ async function getVariantInsightsFallback(sessionId: string): Promise<VariantIns
       summary: null,
       isTopPerformer: false,
       viewers,
-      wireframeUrl,
+      wireframeUrl: thumbnailUrl,
     };
   });
 
@@ -505,16 +511,16 @@ export async function getVariantDetailInsight(
       // Find the specific variant from RPC results
       const row = rpcData.find((r: { variant_index: number }) => r.variant_index === variantIndex);
       if (row) {
-        // Fetch wireframe URL separately since RPC doesn't return it
+        // Fetch thumbnail URL separately since RPC doesn't return it
         let wireframeUrl: string | null = null;
         const { data: variantData } = await supabase
           .from('vibe_variants')
-          .select('wireframe_url')
+          .select('thumbnail_url')
           .eq('session_id', sessionId)
           .eq('variant_index', variantIndex)
           .single();
         if (variantData) {
-          wireframeUrl = variantData.wireframe_url;
+          wireframeUrl = (variantData as { thumbnail_url?: string }).thumbnail_url || null;
         }
 
         variantInsight = {
