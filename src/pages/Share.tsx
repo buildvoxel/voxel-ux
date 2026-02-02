@@ -114,9 +114,9 @@ async function saveCommentToDb(
   shareToken: string,
   comment: LocalComment,
   userInfo: UserInfo
-): Promise<void> {
+): Promise<boolean> {
   try {
-    await supabasePublic.rpc('add_share_comment', {
+    const { data, error } = await supabasePublic.rpc('add_share_comment', {
       p_share_token: shareToken,
       p_content: comment.content,
       p_user_email: userInfo.email,
@@ -126,8 +126,45 @@ async function saveCommentToDb(
       p_variant_index: comment.variantIndex,
       p_parent_id: null,
     });
+
+    if (error) {
+      console.error('[Share] Error saving comment to DB via RPC:', error);
+      // Try direct insert as fallback
+      const { data: shareData } = await supabasePublic
+        .from('vibe_shares')
+        .select('id')
+        .eq('share_token', shareToken)
+        .eq('is_active', true)
+        .single();
+
+      if (shareData) {
+        const { error: insertError } = await supabasePublic
+          .from('share_comments')
+          .insert({
+            share_id: shareData.id,
+            user_email: userInfo.email,
+            user_name: userInfo.name,
+            content: comment.content,
+            position_x: comment.positionX,
+            position_y: comment.positionY,
+            variant_index: comment.variantIndex,
+          });
+
+        if (insertError) {
+          console.error('[Share] Fallback insert also failed:', insertError);
+          return false;
+        }
+        console.log('[Share] Comment saved via fallback insert');
+        return true;
+      }
+      return false;
+    }
+
+    console.log('[Share] Comment saved to DB:', data);
+    return true;
   } catch (err) {
     console.error('[Share] Error saving comment to DB:', err);
+    return false;
   }
 }
 
@@ -509,7 +546,7 @@ export default function SharePage() {
               display: 'flex',
               alignItems: 'center',
               gap: 0.75,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(135deg, #9b59b6 0%, #764ba2 100%)',
               px: 1.25,
               py: 0.5,
               borderRadius: 1,

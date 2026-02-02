@@ -552,25 +552,35 @@ export async function getVariantDetailInsight(
       if (!variantInsight) {
         return null;
       }
+    }
 
-      // Get comments manually
-      const { data: shares } = await supabase
-        .from('vibe_shares')
-        .select('id')
-        .eq('session_id', sessionId);
+    // Always fetch comments directly for reliability (RPC JSON parsing can be unreliable)
+    const { data: shares } = await supabase
+      .from('vibe_shares')
+      .select('id')
+      .eq('session_id', sessionId);
 
-      const shareIds = shares?.map((s) => s.id) || [];
+    const shareIds = shares?.map((s) => s.id) || [];
+    console.log('[FeedbackInsights] Fetching comments for shares:', shareIds);
 
-      if (shareIds.length > 0) {
-        const { data: commentsData } = await supabase
-          .from('share_comments')
-          .select('*')
-          .in('share_id', shareIds)
-          .or(`variant_index.eq.${variantIndex},variant_index.is.null`)
-          .is('parent_id', null)
-          .order('created_at', { ascending: false });
+    if (shareIds.length > 0) {
+      const { data: commentsData, error: commentsError } = await supabase
+        .from('share_comments')
+        .select('*')
+        .in('share_id', shareIds)
+        .is('parent_id', null)
+        .order('created_at', { ascending: false });
 
-        comments = (commentsData || []).map((c) => ({
+      if (commentsError) {
+        console.error('[FeedbackInsights] Error fetching comments:', commentsError);
+      } else {
+        console.log('[FeedbackInsights] Fetched comments:', commentsData?.length || 0);
+        // Filter for this variant (or null which means applies to all)
+        const filteredComments = (commentsData || []).filter(
+          (c) => c.variant_index === variantIndex || c.variant_index === null
+        );
+
+        comments = filteredComments.map((c) => ({
           id: c.id,
           userName: c.user_name,
           userEmail: c.user_email,
