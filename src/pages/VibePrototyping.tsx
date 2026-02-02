@@ -144,6 +144,7 @@ import {
 import DualModeEditor from '@/components/DualModeEditor';
 import WYSIWYGEditor from '@/components/WYSIWYGEditor';
 import { captureHtmlScreenshot, compressScreenshot } from '@/services/screenshotService';
+import { quickEnhance } from '@/services/injectionService';
 
 // ============== Types ==============
 
@@ -904,11 +905,13 @@ function FetchedHtmlIframe({
   fallbackHtml,
   title,
   style,
+  enableInteractivity = false,
 }: {
   url?: string | null;
   fallbackHtml?: string | null;
   title: string;
   style?: React.CSSProperties;
+  enableInteractivity?: boolean;
 }) {
   const [html, setHtml] = useState<string | null>(null);
   const [isFetching, setIsFetching] = useState(false);
@@ -935,7 +938,9 @@ function FetchedHtmlIframe({
     }
   }, [url]);
 
-  const effectiveHtml = html || fallbackHtml;
+  const rawHtml = html || fallbackHtml;
+  // Optionally enhance with interactivity runtime
+  const effectiveHtml = rawHtml && enableInteractivity ? quickEnhance(rawHtml) : rawHtml;
 
   if (effectiveHtml) {
     return (
@@ -978,6 +983,7 @@ function CanvasVariantCard({
   progress = 0,
   onClick,
   viewMode = 'prototypes',
+  enableInteractivity = false,
 }: {
   label: string;
   isLoading?: boolean;
@@ -988,6 +994,7 @@ function CanvasVariantCard({
   progress?: number;
   onClick?: () => void;
   viewMode?: 'wireframes' | 'prototypes';
+  enableInteractivity?: boolean;
 }) {
   // Show streaming preview if available during loading
   const showStreamingPreview = isLoading && streamingHtml && streamingHtml.length > 100;
@@ -1119,13 +1126,14 @@ function CanvasVariantCard({
               <FetchedHtmlIframe
                 url={htmlUrl!}
                 title={label}
+                enableInteractivity={enableInteractivity}
                 style={{
                   width: '200%',
                   height: '200%',
                   border: 'none',
                   transform: 'scale(0.5)',
                   transformOrigin: 'top left',
-                  pointerEvents: 'none',
+                  pointerEvents: enableInteractivity ? 'auto' : 'none',
                 }}
               />
               <Box
@@ -1201,6 +1209,7 @@ function InlineExpansionGrid({
   onIterateClick,
   getVariantByIndex,
   viewMode = 'prototypes',
+  enableInteractivity = false,
 }: {
   wireframes: Array<{ variantIndex: number; wireframeUrl: string; wireframeHtml?: string }>;
   focusedIndex: number;
@@ -1208,6 +1217,7 @@ function InlineExpansionGrid({
   onIterateClick?: () => void;
   getVariantByIndex: (index: number) => { html_url?: string; status: string; iteration_count?: number } | undefined;
   viewMode?: 'wireframes' | 'prototypes';
+  enableInteractivity?: boolean;
 }) {
   const { config } = useThemeStore();
   const labels = ['Variant A', 'Variant B', 'Variant C', 'Variant D'];
@@ -1272,7 +1282,9 @@ function InlineExpansionGrid({
 
   // Always use srcDoc to bypass Supabase Storage's CSP headers that block scripts
   // Priority: fetched HTML > wireframe HTML body > null
-  const effectiveHtml = fetchedHtml || focusedHtml;
+  const rawHtml = fetchedHtml || focusedHtml;
+  // Optionally enhance with interactivity runtime (only for prototypes, not wireframes)
+  const effectiveHtml = rawHtml && enableInteractivity && !isWireframe ? quickEnhance(rawHtml) : rawHtml;
 
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 2, minHeight: 0 }}>
@@ -1494,6 +1506,7 @@ export const VibePrototyping: React.FC = () => {
   const [pagesAnchorEl, setPagesAnchorEl] = useState<null | HTMLElement>(null);
   const [breadcrumbAnchorEl, setBreadcrumbAnchorEl] = useState<null | HTMLElement>(null);
   const [previewSize, setPreviewSize] = useState<PreviewSize>('desktop');
+  const [interactivityEnabled, setInteractivityEnabled] = useState(false); // Enable prototype interactivity
 
   // Screen name editing
   const [isEditingName, setIsEditingName] = useState(false);
@@ -3968,6 +3981,25 @@ export const VibePrototyping: React.FC = () => {
 
               <Divider orientation="vertical" flexItem />
 
+              {/* Interactivity Toggle */}
+              <Tooltip title={interactivityEnabled ? 'Disable Interactivity' : 'Enable Interactivity (buttons, forms, modals)'}>
+                <IconButton
+                  size="small"
+                  onClick={() => setInteractivityEnabled(!interactivityEnabled)}
+                  sx={{
+                    bgcolor: interactivityEnabled ? 'primary.main' : 'transparent',
+                    color: interactivityEnabled ? 'white' : 'inherit',
+                    '&:hover': {
+                      bgcolor: interactivityEnabled ? 'primary.dark' : 'action.hover',
+                    },
+                  }}
+                >
+                  <Lightning size={18} weight={interactivityEnabled ? 'fill' : 'regular'} />
+                </IconButton>
+              </Tooltip>
+
+              <Divider orientation="vertical" flexItem />
+
               <Button
                 variant="contained"
                 size="small"
@@ -4118,6 +4150,7 @@ export const VibePrototyping: React.FC = () => {
                         progress={variantProgress}
                         onClick={canClick ? () => handleVariantClick(idx + 1) : undefined}
                         viewMode={viewMode}
+                        enableInteractivity={interactivityEnabled}
                       />
                     </Grid>
                   );
@@ -4133,6 +4166,7 @@ export const VibePrototyping: React.FC = () => {
               focusedIndex={focusedVariantIndex}
               getVariantByIndex={getVariantByIndex}
               viewMode={viewMode}
+              enableInteractivity={interactivityEnabled}
             />
           )}
 
@@ -4167,6 +4201,7 @@ export const VibePrototyping: React.FC = () => {
                         wireframeHtml={wireframe?.wireframeHtml}
                         onClick={() => handleVariantClick(idx + 1)}
                         viewMode={viewMode}
+                        enableInteractivity={interactivityEnabled}
                       />
                     </Grid>
                   );
@@ -4185,6 +4220,7 @@ export const VibePrototyping: React.FC = () => {
               onIterateClick={() => setIterationDialogOpen(true)}
               getVariantByIndex={getVariantByIndex}
               viewMode={viewMode}
+              enableInteractivity={interactivityEnabled}
             />
           )}
 
