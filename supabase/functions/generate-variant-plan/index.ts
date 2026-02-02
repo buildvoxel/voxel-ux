@@ -148,12 +148,25 @@ async function generateWithAnthropic(apiKey: string, model: string, prompt: stri
   const content: Array<{ type: string; text?: string; source?: { type: string; media_type: string; data: string } }> = []
 
   if (screenshotBase64) {
+    // Handle both raw base64 and data URL formats
+    let base64Data = screenshotBase64
+    let mediaType = 'image/jpeg' // default
+
+    if (screenshotBase64.startsWith('data:')) {
+      // Extract media type and base64 data from data URL
+      const match = screenshotBase64.match(/^data:([^;]+);base64,(.+)$/)
+      if (match) {
+        mediaType = match[1]
+        base64Data = match[2]
+      }
+    }
+
     content.push({
       type: 'image',
       source: {
         type: 'base64',
-        media_type: 'image/jpeg',
-        data: screenshotBase64,
+        media_type: mediaType,
+        data: base64Data,
       },
     })
     content.push({
@@ -196,10 +209,18 @@ async function generateWithOpenAI(apiKey: string, model: string, prompt: string,
   const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = []
 
   if (screenshotBase64) {
+    // Handle both raw base64 and data URL formats
+    let imageUrl = screenshotBase64
+
+    if (!screenshotBase64.startsWith('data:')) {
+      // If raw base64, add data URL prefix
+      imageUrl = `data:image/jpeg;base64,${screenshotBase64}`
+    }
+
     content.push({
       type: 'image_url',
       image_url: {
-        url: `data:image/jpeg;base64,${screenshotBase64}`,
+        url: imageUrl,
       },
     })
     content.push({
@@ -244,10 +265,23 @@ async function generateWithGoogle(apiKey: string, model: string, prompt: string,
   const parts: Array<{ text?: string; inline_data?: { mime_type: string; data: string } }> = []
 
   if (screenshotBase64) {
+    // Handle both raw base64 and data URL formats
+    let base64Data = screenshotBase64
+    let mimeType = 'image/jpeg' // default
+
+    if (screenshotBase64.startsWith('data:')) {
+      // Extract media type and base64 data from data URL
+      const match = screenshotBase64.match(/^data:([^;]+);base64,(.+)$/)
+      if (match) {
+        mimeType = match[1]
+        base64Data = match[2]
+      }
+    }
+
     parts.push({
       inline_data: {
-        mime_type: 'image/jpeg',
-        data: screenshotBase64,
+        mime_type: mimeType,
+        data: base64Data,
       },
     })
     parts.push({
