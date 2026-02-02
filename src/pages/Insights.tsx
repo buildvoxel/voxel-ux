@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
@@ -9,100 +10,69 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import LinearProgress from '@mui/material/LinearProgress';
+import CircularProgress from '@mui/material/CircularProgress';
+import Avatar from '@mui/material/Avatar';
+import Tooltip from '@mui/material/Tooltip';
 import {
   Eye,
   Trophy,
+  ChatCircle,
+  PushPin,
+  CheckCircle,
+  ArrowsClockwise,
 } from '@phosphor-icons/react';
-import { Card, CardContent } from '@/components/ui';
+import { Card, CardContent, Button, Chip } from '@/components/ui';
 import { useThemeStore } from '@/store/themeStore';
 import { PageHeader } from '@/components';
+import {
+  getProjectInsights,
+  getVariantInsights,
+  getVariantDetailInsight,
+  type ProjectInsight,
+  type VariantInsight,
+  type VariantDetailInsight,
+} from '@/services/feedbackInsightsService';
 
-// Mock data - Updated to match wireframe columns
-const projectsData = [
+// Fallback mock data for demo when no real data exists
+const mockProjectsData: ProjectInsight[] = [
   {
     id: '1',
+    sessionId: '1',
     name: 'E-commerce Checkout Flow',
-    creator: 'Sarah Chen',
+    creatorEmail: 'sarah@example.com',
     variants: 4,
     participants: 12,
     comments: 24,
     totalTimeSpent: '4h 32m',
     totalViews: 2340,
-    totalClicks: 890,
-    avgEngagement: 245,
-    topConversion: 15.3,
     status: 'shared',
+    createdAt: new Date().toISOString(),
   },
   {
     id: '2',
+    sessionId: '2',
     name: 'Dashboard Redesign',
-    creator: 'Mike Johnson',
+    creatorEmail: 'mike@example.com',
     variants: 2,
     participants: 8,
     comments: 15,
     totalTimeSpent: '2h 18m',
     totalViews: 1250,
-    totalClicks: 450,
-    avgEngagement: 180,
-    topConversion: 12.1,
     status: 'shared',
+    createdAt: new Date().toISOString(),
   },
   {
     id: '3',
+    sessionId: '3',
     name: 'Mobile App Onboarding',
-    creator: 'Emma Wilson',
+    creatorEmail: 'emma@example.com',
     variants: 3,
     participants: 15,
     comments: 32,
     totalTimeSpent: '6h 45m',
     totalViews: 5670,
-    totalClicks: 2100,
-    avgEngagement: 320,
-    topConversion: 18.5,
-    status: 'deployed',
-  },
-];
-
-const variantsData = [
-  {
-    id: 'a',
-    label: 'Variant A',
-    views: 890,
-    clicks: 234,
-    conversionRate: 15.3,
-    avgTimeSpent: 245,
-    scrollDepth: 78,
-    isTopPerformer: true,
-  },
-  {
-    id: 'b',
-    label: 'Variant B',
-    views: 760,
-    clicks: 198,
-    conversionRate: 12.1,
-    avgTimeSpent: 210,
-    scrollDepth: 65,
-    isTopPerformer: false,
-  },
-  {
-    id: 'c',
-    label: 'Variant C',
-    views: 450,
-    clicks: 112,
-    conversionRate: 10.5,
-    avgTimeSpent: 180,
-    scrollDepth: 55,
-    isTopPerformer: false,
-  },
-  {
-    id: 'd',
-    label: 'Variant D',
-    views: 240,
-    clicks: 56,
-    conversionRate: 8.2,
-    avgTimeSpent: 150,
-    scrollDepth: 45,
-    isTopPerformer: false,
+    status: 'shared',
+    createdAt: new Date().toISOString(),
   },
 ];
 
@@ -112,26 +82,88 @@ const formatTime = (seconds: number) => {
   return `${mins}m ${secs}s`;
 };
 
+const formatRelativeTime = (dateStr: string) => {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+};
+
+const getInitials = (name: string) => {
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
+
 // All Projects View
 function AllProjectsView() {
   const navigate = useNavigate();
+  const [projects, setProjects] = useState<ProjectInsight[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Stats per wireframe
-  const activeProjects = projectsData.filter(p => p.status === 'shared' || p.status === 'deployed').length;
-  const totalProjects = projectsData.length;
-  const avgVariantsPerProject = Math.round(
-    projectsData.reduce((sum, p) => sum + p.variants, 0) / projectsData.length
-  );
-  const totalParticipants = projectsData.reduce((sum, p) => sum + p.participants, 0);
+  useEffect(() => {
+    async function loadProjects() {
+      setLoading(true);
+      try {
+        const data = await getProjectInsights();
+        setProjects(data.length > 0 ? data : mockProjectsData);
+      } catch (err) {
+        console.error('Error loading projects:', err);
+        setProjects(mockProjectsData);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadProjects();
+  }, []);
+
+  // Stats
+  const activeProjects = projects.filter((p) => p.status === 'shared').length;
+  const totalProjects = projects.length;
+  const avgVariantsPerProject =
+    projects.length > 0
+      ? Math.round(projects.reduce((sum, p) => sum + p.variants, 0) / projects.length)
+      : 0;
+  const totalParticipants = projects.reduce((sum, p) => sum + p.participants, 0);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box>
       <PageHeader title="Insights" />
 
-      {/* Stats Row - Per wireframe */}
+      {/* Stats Row */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={4}>
-          <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 100 }}>
+          <Card
+            variant="outlined"
+            sx={{
+              p: 2,
+              textAlign: 'center',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              minHeight: 100,
+            }}
+          >
             <Typography variant="body2" color="text.secondary" gutterBottom>
               Number of projects
             </Typography>
@@ -144,9 +176,20 @@ function AllProjectsView() {
           </Card>
         </Grid>
         <Grid item xs={12} sm={4}>
-          <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 100 }}>
+          <Card
+            variant="outlined"
+            sx={{
+              p: 2,
+              textAlign: 'center',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              minHeight: 100,
+            }}
+          >
             <Typography variant="body2" color="text.secondary" gutterBottom>
-              Avg. number variants per projects
+              Avg. variants per project
             </Typography>
             <Typography variant="h5" fontWeight={500}>
               {avgVariantsPerProject}
@@ -154,7 +197,18 @@ function AllProjectsView() {
           </Card>
         </Grid>
         <Grid item xs={12} sm={4}>
-          <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 100 }}>
+          <Card
+            variant="outlined"
+            sx={{
+              p: 2,
+              textAlign: 'center',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              minHeight: 100,
+            }}
+          >
             <Typography variant="body2" color="text.secondary" gutterBottom>
               Engaged participants
             </Typography>
@@ -165,7 +219,7 @@ function AllProjectsView() {
         </Grid>
       </Grid>
 
-      {/* Projects Table - Columns per wireframe */}
+      {/* Projects Table */}
       <TableContainer component={Card} sx={{ border: 'none' }}>
         <Table>
           <TableHead>
@@ -179,15 +233,22 @@ function AllProjectsView() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {projectsData.map((project) => (
+            {projects.map((project) => (
               <TableRow
                 key={project.id}
                 hover
-                onClick={() => navigate(`/insights/${project.id}`)}
+                onClick={() => navigate(`/insights/${project.sessionId}`)}
                 sx={{ cursor: 'pointer' }}
               >
-                <TableCell>{project.name}</TableCell>
-                <TableCell>{project.creator}</TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {project.name}
+                    {project.status === 'shared' && (
+                      <Chip size="small" label="Active" color="success" sx={{ height: 20, fontSize: 10 }} />
+                    )}
+                  </Box>
+                </TableCell>
+                <TableCell>{project.creatorEmail}</TableCell>
                 <TableCell align="center">{project.variants}</TableCell>
                 <TableCell align="center">{project.participants}</TableCell>
                 <TableCell align="center">{project.comments}</TableCell>
@@ -197,32 +258,61 @@ function AllProjectsView() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {projects.length === 0 && (
+        <Box sx={{ textAlign: 'center', py: 6 }}>
+          <ChatCircle size={48} color="#ccc" />
+          <Typography color="text.secondary" sx={{ mt: 2 }}>
+            No shared projects yet
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Share a prototype to start collecting feedback
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 }
 
-// Project View - Per wireframe: Insights > Project name
+// Project View
 function ProjectView({ projectId }: { projectId: string }) {
   const navigate = useNavigate();
   const { config } = useThemeStore();
-  const project = projectsData.find((p) => p.id === projectId);
+  const [variants, setVariants] = useState<VariantInsight[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [projectName, setProjectName] = useState('Project');
 
-  if (!project) {
-    return <Typography>Project not found</Typography>;
+  useEffect(() => {
+    async function loadVariants() {
+      setLoading(true);
+      try {
+        const data = await getVariantInsights(projectId);
+        setVariants(data);
+        // Try to get project name from mock data or use default
+        const mockProject = mockProjectsData.find((p) => p.id === projectId);
+        if (mockProject) {
+          setProjectName(mockProject.name);
+        }
+      } catch (err) {
+        console.error('Error loading variants:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadVariants();
+  }, [projectId]);
+
+  // Stats
+  const totalVariants = variants.length;
+  const totalParticipants = variants.reduce((sum, v) => sum + v.participants, 0);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <CircularProgress />
+      </Box>
+    );
   }
-
-  // Project-specific variants data with wireframe columns
-  const projectVariants = [
-    { id: 'a', name: 'Variant A', description: '', sessions: 45, participants: 12, comments: 8, totalTimeSpent: '1h 15m', isTopPerformer: false },
-    { id: 'b', name: 'Modern UX', description: 'Clean, minimalist approach', sessions: 62, participants: 18, comments: 12, totalTimeSpent: '2h 32m', isTopPerformer: true },
-    { id: 'c', name: 'Gradual discovery', description: 'Progressive disclosure pattern', sessions: 38, participants: 9, comments: 5, totalTimeSpent: '58m', isTopPerformer: false },
-    { id: 'd', name: 'Variant D', description: '', sessions: 28, participants: 6, comments: 3, totalTimeSpent: '42m', isTopPerformer: false },
-  ];
-
-  // Stats per wireframe
-  const totalVariants = projectVariants.length;
-  const avgVariants = Math.round(totalVariants / 1); // Per project
-  const totalParticipants = projectVariants.reduce((sum, v) => sum + v.participants, 0);
 
   return (
     <Box>
@@ -240,37 +330,71 @@ function ProjectView({ projectId }: { projectId: string }) {
         >
           Insights
         </Typography>
-        <Typography variant="h5" fontWeight={500} color="text.secondary">{'>'}</Typography>
-        <Typography variant="h5" fontWeight={500}>{project.name}</Typography>
+        <Typography variant="h5" fontWeight={500} color="text.secondary">
+          {'>'}
+        </Typography>
+        <Typography variant="h5" fontWeight={500}>
+          {projectName}
+        </Typography>
       </Box>
 
-      {/* Stats Row - Per wireframe: 3 cards */}
+      {/* Stats Row */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={4}>
-          <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 100 }}>
+          <Card
+            variant="outlined"
+            sx={{
+              p: 2,
+              textAlign: 'center',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              minHeight: 100,
+            }}
+          >
             <Typography variant="body2" color="text.secondary" gutterBottom>
-              Number of projects
+              Total variants
             </Typography>
             <Typography variant="h5" fontWeight={500}>
-              1/1
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              (active/total)
+              {totalVariants}
             </Typography>
           </Card>
         </Grid>
         <Grid item xs={12} sm={4}>
-          <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 100 }}>
+          <Card
+            variant="outlined"
+            sx={{
+              p: 2,
+              textAlign: 'center',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              minHeight: 100,
+            }}
+          >
             <Typography variant="body2" color="text.secondary" gutterBottom>
-              Avg. number variants per projects
+              Total comments
             </Typography>
             <Typography variant="h5" fontWeight={500}>
-              {avgVariants}
+              {variants.reduce((sum, v) => sum + v.comments, 0)}
             </Typography>
           </Card>
         </Grid>
         <Grid item xs={12} sm={4}>
-          <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 100 }}>
+          <Card
+            variant="outlined"
+            sx={{
+              p: 2,
+              textAlign: 'center',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              minHeight: 100,
+            }}
+          >
             <Typography variant="body2" color="text.secondary" gutterBottom>
               Engaged participants
             </Typography>
@@ -281,76 +405,125 @@ function ProjectView({ projectId }: { projectId: string }) {
         </Grid>
       </Grid>
 
-      {/* Variants Table - Columns per wireframe */}
+      {/* Variants Table */}
       <TableContainer component={Card} sx={{ border: 'none' }}>
         <Table>
           <TableHead>
             <TableRow sx={{ backgroundColor: config.colors.bgSecondary }}>
-              <TableCell sx={{ fontWeight: 600 }}>Variant name</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Variant</TableCell>
               <TableCell sx={{ fontWeight: 600 }}>Description</TableCell>
-              <TableCell sx={{ fontWeight: 600 }} align="center"># Sessions</TableCell>
-              <TableCell sx={{ fontWeight: 600 }} align="center"># Participants</TableCell>
-              <TableCell sx={{ fontWeight: 600 }} align="center"># Comments</TableCell>
-              <TableCell sx={{ fontWeight: 600 }} align="right">Total time spent</TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="center">
+                Sessions
+              </TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="center">
+                Participants
+              </TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="center">
+                Comments
+              </TableCell>
+              <TableCell sx={{ fontWeight: 600 }} align="right">
+                Time spent
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {projectVariants.map((variant) => (
+            {variants.map((variant) => (
               <TableRow
-                key={variant.id}
+                key={variant.variantIndex}
                 hover
-                onClick={() => navigate(`/insights/${projectId}/${variant.id}`)}
+                onClick={() => navigate(`/insights/${projectId}/${variant.variantIndex}`)}
                 sx={{ cursor: 'pointer' }}
               >
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {variant.name}
-                    {variant.isTopPerformer && (
-                      <Trophy size={16} weight="fill" />
+                    {variant.title || variant.label}
+                    {variant.isTopPerformer && <Trophy size={16} weight="fill" color="#ffc107" />}
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: 300 }}>
+                    {variant.description || '-'}
+                  </Typography>
+                </TableCell>
+                <TableCell align="center">{variant.sessions}</TableCell>
+                <TableCell align="center">{variant.participants}</TableCell>
+                <TableCell align="center">
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                    {variant.comments}
+                    {variant.resolvedComments > 0 && (
+                      <Tooltip title={`${variant.resolvedComments} resolved`}>
+                        <CheckCircle size={14} color="#2e7d32" weight="fill" />
+                      </Tooltip>
                     )}
                   </Box>
                 </TableCell>
-                <TableCell>{variant.description}</TableCell>
-                <TableCell align="center">{variant.sessions}</TableCell>
-                <TableCell align="center">{variant.participants}</TableCell>
-                <TableCell align="center">{variant.comments}</TableCell>
                 <TableCell align="right">{variant.totalTimeSpent}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </TableContainer>
+
+      {variants.length === 0 && (
+        <Box sx={{ textAlign: 'center', py: 6 }}>
+          <Eye size={48} color="#ccc" />
+          <Typography color="text.secondary" sx={{ mt: 2 }}>
+            No variants found
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 }
 
-// Variant View - Per wireframe: Insights > Project name > Variant name
+// Variant View
 function VariantView({ projectId, variantId }: { projectId: string; variantId: string }) {
   const navigate = useNavigate();
   const { config } = useThemeStore();
-  const project = projectsData.find((p) => p.id === projectId);
-  const variant = variantsData.find((v) => v.id === variantId);
+  const [detail, setDetail] = useState<VariantDetailInsight | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [projectName, setProjectName] = useState('Project');
 
-  if (!project || !variant) {
-    return <Typography>Not found</Typography>;
+  const variantIndex = parseInt(variantId, 10);
+
+  useEffect(() => {
+    async function loadDetail() {
+      setLoading(true);
+      try {
+        const data = await getVariantDetailInsight(projectId, variantIndex);
+        setDetail(data);
+        // Try to get project name
+        const mockProject = mockProjectsData.find((p) => p.id === projectId);
+        if (mockProject) {
+          setProjectName(mockProject.name);
+        }
+      } catch (err) {
+        console.error('Error loading variant detail:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDetail();
+  }, [projectId, variantIndex]);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
-  // Mock feedback data
-  const feedbackComments = [
-    { id: 1, user: 'Sarah Chen', comment: 'Love the clean layout! Very intuitive.', time: '2h ago' },
-    { id: 2, user: 'Mike Johnson', comment: 'The CTA button could be more prominent.', time: '4h ago' },
-    { id: 3, user: 'Emma Wilson', comment: 'Great flow, easy to navigate.', time: '1d ago' },
-    { id: 4, user: 'Alex Rodriguez', comment: 'Navigation is smooth and intuitive.', time: '2d ago' },
-    { id: 5, user: 'Jordan Lee', comment: 'Consider adding more visual hierarchy.', time: '3d ago' },
-  ];
-
-  // Funnel data
-  const funnelSteps = [
-    { label: 'Viewed', count: variant.views, percent: 100 },
-    { label: 'Engaged', count: Math.round(variant.views * 0.65), percent: 65 },
-    { label: 'Clicked CTA', count: variant.clicks, percent: Math.round((variant.clicks / variant.views) * 100) },
-    { label: 'Completed', count: Math.round(variant.clicks * 0.4), percent: Math.round((variant.clicks * 0.4 / variant.views) * 100) },
-  ];
+  if (!detail) {
+    return (
+      <Box sx={{ textAlign: 'center', py: 6 }}>
+        <Typography color="text.secondary">Variant not found</Typography>
+        <Button onClick={() => navigate(`/insights/${projectId}`)} sx={{ mt: 2 }}>
+          Back to project
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 140px)' }}>
@@ -368,7 +541,9 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
         >
           Insights
         </Typography>
-        <Typography variant="h5" fontWeight={500} color="text.secondary">{'>'}</Typography>
+        <Typography variant="h5" fontWeight={500} color="text.secondary">
+          {'>'}
+        </Typography>
         <Typography
           variant="h5"
           fontWeight={500}
@@ -379,10 +554,15 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
           }}
           onClick={() => navigate(`/insights/${projectId}`)}
         >
-          {project.name}
+          {projectName}
         </Typography>
-        <Typography variant="h5" fontWeight={500} color="text.secondary">{'>'}</Typography>
-        <Typography variant="h5" fontWeight={500}>{variant.label}</Typography>
+        <Typography variant="h5" fontWeight={500} color="text.secondary">
+          {'>'}
+        </Typography>
+        <Typography variant="h5" fontWeight={500}>
+          {detail.title || detail.label}
+        </Typography>
+        {detail.isTopPerformer && <Trophy size={20} weight="fill" color="#ffc107" />}
       </Box>
 
       {/* Top Section: Stats (2x2) + Thumbnail */}
@@ -396,7 +576,7 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
                   Total sessions
                 </Typography>
                 <Typography variant="h5" fontWeight={500}>
-                  {variant.views}
+                  {detail.sessions}
                 </Typography>
               </Card>
             </Grid>
@@ -406,17 +586,17 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
                   Unique participants
                 </Typography>
                 <Typography variant="h5" fontWeight={500}>
-                  {Math.round(variant.views * 0.4)}
+                  {detail.participants}
                 </Typography>
               </Card>
             </Grid>
             <Grid item xs={6}>
               <Card variant="outlined" sx={{ p: 2, textAlign: 'center', height: '100%', minHeight: 90 }}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Time spent per session
+                  Time per session
                 </Typography>
                 <Typography variant="h5" fontWeight={500}>
-                  {formatTime(variant.avgTimeSpent)}
+                  {formatTime(detail.avgTimeSpent)}
                 </Typography>
               </Card>
             </Grid>
@@ -426,14 +606,14 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
                   Feedback shared
                 </Typography>
                 <Typography variant="h5" fontWeight={500}>
-                  {feedbackComments.length}
+                  {detail.comments.length}
                 </Typography>
               </Card>
             </Grid>
           </Grid>
         </Grid>
 
-        {/* Variant Thumbnail */}
+        {/* Variant Thumbnail / Actions */}
         <Grid item xs={12} md={4}>
           <Card variant="outlined" sx={{ height: '100%', minHeight: 180 }}>
             <Box
@@ -448,9 +628,17 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
               }}
             >
               <Eye size={32} color={config.colors.textSecondary} />
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Variant Thumbnail
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+                {detail.label}
               </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ArrowsClockwise size={16} />}
+                onClick={() => navigate(`/vibe/${projectId}`)}
+              >
+                Create iteration
+              </Button>
             </Box>
           </Card>
         </Grid>
@@ -458,7 +646,7 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
 
       {/* Main content: Left (Feedback Summary + Funnel) + Right (Feedback Shared) */}
       <Grid container spacing={3} sx={{ flex: 1, minHeight: 0 }}>
-        {/* Left Column: Feedback Summary + Funnel stacked */}
+        {/* Left Column */}
         <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {/* Feedback Summary */}
           <Box>
@@ -466,14 +654,19 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
               <Typography variant="subtitle1" fontWeight={600}>
                 Feedback summary
               </Typography>
-              <Box component="span" sx={{ fontSize: 14 }}>📋</Box>
             </Box>
             <Card variant="outlined">
               <CardContent>
                 <Typography variant="body2" color="text.secondary">
-                  Overall positive reception. Users appreciated the clean layout and intuitive navigation.
-                  Main suggestions focus on improving CTA visibility and button contrast.
+                  {detail.feedbackSummary}
                 </Typography>
+                {detail.keyThemes.length > 0 && (
+                  <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {detail.keyThemes.map((theme, idx) => (
+                      <Chip key={idx} size="small" label={theme} variant="outlined" />
+                    ))}
+                  </Box>
+                )}
               </CardContent>
             </Card>
           </Box>
@@ -484,12 +677,11 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
               <Typography variant="subtitle1" fontWeight={600}>
                 Participants funnel
               </Typography>
-              <Box component="span" sx={{ fontSize: 14 }}>📊</Box>
             </Box>
             <Card variant="outlined">
               <CardContent>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  {funnelSteps.map((step, index) => (
+                  {detail.participantsFunnel.map((step, index) => (
                     <Box key={step.label}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                         <Typography variant="body2">{step.label}</Typography>
@@ -505,9 +697,12 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
                           borderRadius: 4,
                           backgroundColor: 'grey.200',
                           '& .MuiLinearProgress-bar': {
-                            backgroundColor: index === 0 ? config.colors.primary :
-                              index === funnelSteps.length - 1 ? config.colors.success :
-                              config.colors.textSecondary,
+                            backgroundColor:
+                              index === 0
+                                ? config.colors.primary
+                                : index === detail.participantsFunnel.length - 1
+                                ? config.colors.success
+                                : config.colors.textSecondary,
                           },
                         }}
                       />
@@ -519,27 +714,95 @@ function VariantView({ projectId, variantId }: { projectId: string; variantId: s
           </Box>
         </Grid>
 
-        {/* Right Column: Feedback Shared - takes full height */}
+        {/* Right Column: Feedback Shared */}
         <Grid item xs={12} md={6} sx={{ display: 'flex', flexDirection: 'column' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexShrink: 0 }}>
             <Typography variant="subtitle1" fontWeight={600}>
               Feedback shared
             </Typography>
-            <Box component="span" sx={{ fontSize: 14 }}>💬</Box>
+            <Chip size="small" label={detail.comments.length} />
           </Box>
           <Card variant="outlined" sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, flex: 1, overflow: 'auto' }}>
-                {feedbackComments.map((fb) => (
-                  <Box key={fb.id} sx={{ borderBottom: '1px solid', borderColor: 'divider', pb: 1.5 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="body2" fontWeight={500}>{fb.user}</Typography>
-                      <Typography variant="caption" color="text.secondary">{fb.time}</Typography>
+            <CardContent
+              sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+            >
+              {detail.comments.length === 0 ? (
+                <Box
+                  sx={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <ChatCircle size={48} color="#ccc" />
+                  <Typography color="text.secondary" sx={{ mt: 1 }}>
+                    No feedback yet
+                  </Typography>
+                </Box>
+              ) : (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1.5,
+                    flex: 1,
+                    overflow: 'auto',
+                  }}
+                >
+                  {detail.comments.map((fb) => (
+                    <Box
+                      key={fb.id}
+                      sx={{
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                        pb: 1.5,
+                        opacity: fb.resolved ? 0.6 : 1,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          mb: 0.5,
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Avatar sx={{ width: 24, height: 24, fontSize: 10, bgcolor: 'primary.main' }}>
+                            {getInitials(fb.userName)}
+                          </Avatar>
+                          <Typography variant="body2" fontWeight={500}>
+                            {fb.userName}
+                          </Typography>
+                          {fb.positionX !== null && (
+                            <Tooltip title="Pin comment">
+                              <PushPin size={12} />
+                            </Tooltip>
+                          )}
+                          {fb.resolved && (
+                            <Tooltip title="Resolved">
+                              <CheckCircle size={14} color="#2e7d32" weight="fill" />
+                            </Tooltip>
+                          )}
+                        </Box>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatRelativeTime(fb.createdAt)}
+                        </Typography>
+                      </Box>
+                      <Typography variant="body2" color="text.secondary">
+                        {fb.content}
+                      </Typography>
+                      {fb.replyCount > 0 && (
+                        <Typography variant="caption" color="primary" sx={{ mt: 0.5, display: 'block' }}>
+                          {fb.replyCount} {fb.replyCount === 1 ? 'reply' : 'replies'}
+                        </Typography>
+                      )}
                     </Box>
-                    <Typography variant="body2" color="text.secondary">{fb.comment}</Typography>
-                  </Box>
-                ))}
-              </Box>
+                  ))}
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Grid>

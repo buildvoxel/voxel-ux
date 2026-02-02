@@ -278,6 +278,141 @@ export interface Database {
           created_at?: string;
         };
       };
+      share_collaborators: {
+        Row: {
+          id: string;
+          share_id: string;
+          user_id: string | null;
+          email: string;
+          display_name: string | null;
+          role: 'owner' | 'editor' | 'commenter' | 'viewer';
+          invited_by: string | null;
+          invited_at: string;
+          accepted_at: string | null;
+          last_seen_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          share_id: string;
+          user_id?: string | null;
+          email: string;
+          display_name?: string | null;
+          role: 'owner' | 'editor' | 'commenter' | 'viewer';
+          invited_by?: string | null;
+          invited_at?: string;
+          accepted_at?: string | null;
+          last_seen_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          share_id?: string;
+          user_id?: string | null;
+          email?: string;
+          display_name?: string | null;
+          role?: 'owner' | 'editor' | 'commenter' | 'viewer';
+          invited_by?: string | null;
+          invited_at?: string;
+          accepted_at?: string | null;
+          last_seen_at?: string | null;
+        };
+      };
+      share_comments: {
+        Row: {
+          id: string;
+          share_id: string;
+          user_id: string | null;
+          user_email: string;
+          user_name: string;
+          content: string;
+          position_x: number | null;
+          position_y: number | null;
+          variant_index: number | null;
+          parent_id: string | null;
+          resolved: boolean;
+          resolved_by: string | null;
+          resolved_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          share_id: string;
+          user_id?: string | null;
+          user_email: string;
+          user_name: string;
+          content: string;
+          position_x?: number | null;
+          position_y?: number | null;
+          variant_index?: number | null;
+          parent_id?: string | null;
+          resolved?: boolean;
+          resolved_by?: string | null;
+          resolved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          share_id?: string;
+          user_id?: string | null;
+          user_email?: string;
+          user_name?: string;
+          content?: string;
+          position_x?: number | null;
+          position_y?: number | null;
+          variant_index?: number | null;
+          parent_id?: string | null;
+          resolved?: boolean;
+          resolved_by?: string | null;
+          resolved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      share_feedback_insights: {
+        Row: {
+          id: string;
+          share_id: string;
+          session_id: string;
+          variant_index: number | null;
+          total_comments: number;
+          resolved_comments: number;
+          unique_commenters: number;
+          sentiment_score: number | null;
+          key_themes: Json;
+          summary: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          share_id: string;
+          session_id: string;
+          variant_index?: number | null;
+          total_comments?: number;
+          resolved_comments?: number;
+          unique_commenters?: number;
+          sentiment_score?: number | null;
+          key_themes?: Json;
+          summary?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          share_id?: string;
+          session_id?: string;
+          variant_index?: number | null;
+          total_comments?: number;
+          resolved_comments?: number;
+          unique_commenters?: number;
+          sentiment_score?: number | null;
+          key_themes?: Json;
+          summary?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       vibe_sessions: {
         Row: {
           id: string;
@@ -509,3 +644,17 @@ export type VibeVariantInsert = Database['public']['Tables']['vibe_variants']['I
 
 export type ScreenUIMetadata = Database['public']['Tables']['screen_ui_metadata']['Row'];
 export type ScreenUIMetadataInsert = Database['public']['Tables']['screen_ui_metadata']['Insert'];
+
+// Share collaboration types
+export type ShareCollaborator = Database['public']['Tables']['share_collaborators']['Row'];
+export type ShareCollaboratorInsert = Database['public']['Tables']['share_collaborators']['Insert'];
+export type ShareCollaboratorUpdate = Database['public']['Tables']['share_collaborators']['Update'];
+
+export type ShareComment = Database['public']['Tables']['share_comments']['Row'];
+export type ShareCommentInsert = Database['public']['Tables']['share_comments']['Insert'];
+export type ShareCommentUpdate = Database['public']['Tables']['share_comments']['Update'];
+
+export type ShareFeedbackInsights = Database['public']['Tables']['share_feedback_insights']['Row'];
+export type ShareFeedbackInsightsInsert = Database['public']['Tables']['share_feedback_insights']['Insert'];
+
+export type CollaboratorRole = 'owner' | 'editor' | 'commenter' | 'viewer';
