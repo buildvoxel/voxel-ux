@@ -442,6 +442,9 @@ export function Context() {
   const [extracting, setExtracting] = useState(false);
   const [extractionProgress, setExtractionProgress] = useState<ExtractionProgress | null>(null);
   const [guidelinesExpanded, setGuidelinesExpanded] = useState(true);
+  const [guidelinesVideo, setGuidelinesVideo] = useState<File | null>(null);
+  const [isDraggingVideo, setIsDraggingVideo] = useState(false);
+  const guidelinesVideoInputRef = useRef<HTMLInputElement>(null);
 
   // Load files on mount
   useEffect(() => {
@@ -533,29 +536,48 @@ export function Context() {
     }
   };
 
-  // Get video files for UX guidelines extraction
-  const videoFiles = Object.values(files)
-    .flat()
-    .filter((f) => f.fileType === 'video');
+  // Handle video upload for guidelines
+  const handleGuidelinesVideoSelect = (file: File) => {
+    const videoTypes = ['video/mp4', 'video/mov', 'video/avi', 'video/webm', 'video/quicktime'];
+    if (!videoTypes.includes(file.type) && !file.name.match(/\.(mp4|mov|avi|webm|mkv)$/i)) {
+      showError('Please upload a video file (MP4, MOV, AVI, WebM)');
+      return;
+    }
+    setGuidelinesVideo(file);
+    showSuccess(`Video "${file.name}" ready for analysis`);
+  };
 
-  // Extract UX guidelines from a video (demo mode for now)
-  const handleExtractGuidelines = async (video?: ContextFile) => {
+  const handleGuidelinesVideoDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingVideo(false);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) {
+      handleGuidelinesVideoSelect(droppedFiles[0]);
+    }
+  }, []);
+
+  // Extract UX guidelines from uploaded video (demo mode for now)
+  const handleExtractGuidelines = async () => {
     try {
       setExtracting(true);
       setExtractionProgress({ stage: 'preparing', message: 'Preparing...', percent: 0 });
 
+      const videoName = guidelinesVideo?.name || 'Product Demo';
+
       // For demo: use demo extraction (no actual transcription yet)
+      // In production, this would send the video for transcription first
       const result = await extractGuidelinesDemo(
-        video?.title || 'Product Demo',
+        videoName,
         (progress) => setExtractionProgress(progress)
       );
 
       // Create and store guidelines set
       const guidelinesSet = createGuidelinesSet(
-        video?.title || 'Product UX Guidelines',
+        videoName.replace(/\.[^/.]+$/, '') || 'Product UX Guidelines',
         result,
-        video?.id,
-        video?.title
+        undefined,
+        videoName
       );
 
       setUXGuidelines(guidelinesSet);
@@ -700,9 +722,9 @@ export function Context() {
 
             {/* Extract Button or Guidelines Display */}
             {!uxGuidelinesSet ? (
-              <Box sx={{ textAlign: 'center', py: 3 }}>
+              <Box sx={{ py: 2 }}>
                 {extracting ? (
-                  <Box>
+                  <Box sx={{ textAlign: 'center' }}>
                     <LinearProgress
                       variant="determinate"
                       value={extractionProgress?.percent || 0}
@@ -714,24 +736,108 @@ export function Context() {
                   </Box>
                 ) : (
                   <>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      {videoFiles.length > 0
-                        ? `${videoFiles.length} video file(s) available for analysis`
-                        : 'Upload a product demo video to extract UX guidelines'}
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      startIcon={<PlayArrowIcon />}
-                      onClick={() => handleExtractGuidelines(videoFiles[0])}
+                    {/* Video Upload Area */}
+                    <input
+                      ref={guidelinesVideoInputRef}
+                      type="file"
+                      hidden
+                      accept=".mp4,.mov,.avi,.webm,.mkv,video/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleGuidelinesVideoSelect(file);
+                        e.target.value = '';
+                      }}
+                    />
+                    <Box
+                      onDragEnter={(e) => { e.preventDefault(); setIsDraggingVideo(true); }}
+                      onDragLeave={(e) => { e.preventDefault(); setIsDraggingVideo(false); }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={handleGuidelinesVideoDrop}
+                      onClick={() => !guidelinesVideo && guidelinesVideoInputRef.current?.click()}
                       sx={{
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%)',
-                        },
+                        border: '2px dashed',
+                        borderColor: isDraggingVideo ? '#667eea' : guidelinesVideo ? '#52c41a' : 'divider',
+                        borderRadius: 2,
+                        p: 3,
+                        textAlign: 'center',
+                        cursor: guidelinesVideo ? 'default' : 'pointer',
+                        backgroundColor: isDraggingVideo ? 'rgba(102, 126, 234, 0.05)' : guidelinesVideo ? 'rgba(82, 196, 26, 0.05)' : 'transparent',
+                        transition: 'all 0.2s ease',
+                        '&:hover': !guidelinesVideo ? {
+                          borderColor: '#667eea',
+                          backgroundColor: 'rgba(102, 126, 234, 0.03)',
+                        } : {},
                       }}
                     >
-                      Extract UX Guidelines {videoFiles.length > 0 ? 'from Video' : '(Demo)'}
-                    </Button>
+                      {guidelinesVideo ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                          <Box
+                            sx={{
+                              width: 48,
+                              height: 48,
+                              borderRadius: 1,
+                              backgroundColor: 'rgba(82, 196, 26, 0.1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#52c41a',
+                            }}
+                          >
+                            <VideocamOutlinedIcon />
+                          </Box>
+                          <Box sx={{ textAlign: 'left' }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {guidelinesVideo.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {(guidelinesVideo.size / (1024 * 1024)).toFixed(1)} MB
+                            </Typography>
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setGuidelinesVideo(null);
+                            }}
+                            sx={{ ml: 1 }}
+                          >
+                            <DeleteOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      ) : (
+                        <>
+                          <CloudUploadOutlinedIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+                          <Typography variant="body2" color="text.secondary">
+                            Drop a product demo video here or click to upload
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            MP4, MOV, AVI, WebM supported
+                          </Typography>
+                        </>
+                      )}
+                    </Box>
+
+                    {/* Extract Button */}
+                    <Box sx={{ textAlign: 'center', mt: 2 }}>
+                      <Button
+                        variant="contained"
+                        startIcon={<PlayArrowIcon />}
+                        onClick={handleExtractGuidelines}
+                        sx={{
+                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%)',
+                          },
+                        }}
+                      >
+                        {guidelinesVideo ? 'Extract UX Guidelines' : 'Try Demo Extraction'}
+                      </Button>
+                      {!guidelinesVideo && (
+                        <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
+                          No video? Try demo mode to see sample guidelines
+                        </Typography>
+                      )}
+                    </Box>
                   </>
                 )}
               </Box>
