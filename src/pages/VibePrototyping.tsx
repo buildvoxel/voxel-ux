@@ -2353,6 +2353,42 @@ export const VibePrototyping: React.FC = () => {
     }
   }, [currentSession, plan, sourceMetadata, screenScreenshot, wireframes, contextFiles, selectedProvider, selectedModel, addChatMessage, setVariants, setStatus, setProgress, debouncedSavePartialHtml, showError, showSuccess, screen]);
 
+  // Handle Rebuild - re-run V2 generation for projects that already have wireframes/plans
+  const [isRebuilding, setIsRebuilding] = useState(false);
+
+  const handleRebuild = useCallback(async () => {
+    if (!currentSession || !plan || isRebuilding) return;
+
+    setIsRebuilding(true);
+    console.log('[VibePrototyping] Starting rebuild...');
+
+    try {
+      addChatMessage('assistant', 'Rebuilding prototypes from existing wireframes and plans...');
+
+      // Reset to wireframe_ready state so the generation flow works correctly
+      setStatus('wireframe_ready');
+
+      // Clear existing variants to show fresh progress
+      setVariants([]);
+      setCompletedVariantIndices(new Set());
+      setStreamingHtml({});
+      setVariantStartTimes({});
+      setVariantProgressMessages({});
+      setElapsedTimes({});
+
+      // Small delay to ensure state updates propagate
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Now call the build function
+      await handleBuildHighFidelity();
+    } catch (err) {
+      console.error('[VibePrototyping] Rebuild error:', err);
+      showError('Failed to rebuild prototypes');
+    } finally {
+      setIsRebuilding(false);
+    }
+  }, [currentSession, plan, isRebuilding, addChatMessage, setStatus, setVariants, handleBuildHighFidelity, showError]);
+
   // Handle iteration on a variant
   const handleIterate = useCallback(async () => {
     if (!currentSession || !focusedVariantIndex || !fetchedVariantHtml || !iterationPrompt.trim()) {
@@ -3193,6 +3229,17 @@ export const VibePrototyping: React.FC = () => {
                     Build High-Fidelity
                   </Button>
                 </>
+              )}
+              {isComplete && (
+                <Button
+                  variant="outlined"
+                  onClick={handleRebuild}
+                  disabled={isRebuilding}
+                  size="small"
+                  startIcon={<ArrowClockwise size={14} />}
+                >
+                  {isRebuilding ? 'Rebuilding...' : 'Rebuild Variants'}
+                </Button>
               )}
               {/* View toggle removed - use chat section steps or pipeline stepper icons instead */}
             </Box>
