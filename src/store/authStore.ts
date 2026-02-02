@@ -54,6 +54,31 @@ async function mapSupabaseUser(supabaseUser: SupabaseUser): Promise<User> {
   };
 }
 
+// Helper to retry async operations with exponential backoff for AbortError
+async function retryOnAbortError<T>(
+  operation: () => Promise<T>,
+  maxRetries = 3,
+  baseDelayMs = 100
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      // Only retry on AbortError (Supabase lock mechanism issue)
+      const isAbortError = error instanceof Error && error.name === 'AbortError';
+      if (!isAbortError || attempt === maxRetries) {
+        throw error;
+      }
+      // Exponential backoff: 100ms, 200ms, 400ms
+      const delay = baseDelayMs * Math.pow(2, attempt);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw lastError;
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -80,7 +105,11 @@ export const useAuthStore = create<AuthState>()(
         }
 
         try {
-          const { data: { session } } = await supabase.auth.getSession();
+          // Use retry logic to handle AbortError from Supabase's lock mechanism
+          // This can happen when detectSessionInUrl processes concurrently with getSession
+          const { data: { session } } = await retryOnAbortError(
+            () => supabase.auth.getSession()
+          );
 
           if (session?.user) {
             const user = await mapSupabaseUser(session.user);
