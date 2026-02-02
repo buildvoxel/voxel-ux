@@ -46,6 +46,7 @@ export interface VariantInsight {
   summary: string | null;
   isTopPerformer: boolean;
   viewers: Viewer[];
+  wireframeUrl: string | null;
 }
 
 export interface FeedbackComment {
@@ -337,6 +338,7 @@ export async function getVariantInsights(sessionId: string): Promise<VariantInsi
         totalDuration: v.duration || 0,
         lastSeen: v.viewedAt,
       })),
+      wireframeUrl: null, // RPC doesn't return this, will be fetched separately if needed
     }));
 
     // Mark top performer
@@ -361,14 +363,15 @@ export async function getVariantInsights(sessionId: string): Promise<VariantInsi
  * Fallback method for getting variant insights
  */
 async function getVariantInsightsFallback(sessionId: string): Promise<VariantInsight[]> {
-  // Get variants with their plans
+  // Get variants with their plans and wireframe URLs
   const { data: variants, error } = await supabase
     .from('vibe_variants')
     .select(`
       id,
       variant_index,
       session_id,
-      vibe_variant_plans!inner (
+      wireframe_url,
+      vibe_variant_plans (
         title,
         description
       )
@@ -407,7 +410,12 @@ async function getVariantInsightsFallback(sessionId: string): Promise<VariantIns
 
   // Build variant insights
   const variantInsights: VariantInsight[] = (variants || []).map((variant) => {
-    const plan = (variant as unknown as { vibe_variant_plans: { title: string; description: string } }).vibe_variant_plans;
+    const variantWithPlan = variant as unknown as {
+      vibe_variant_plans: { title: string; description: string } | null;
+      wireframe_url: string | null;
+    };
+    const plan = variantWithPlan.vibe_variant_plans;
+    const wireframeUrl = variantWithPlan.wireframe_url;
     const variantIndex = variant.variant_index;
     const label = `Variant ${String.fromCharCode(64 + variantIndex)}`;
 
@@ -455,6 +463,7 @@ async function getVariantInsightsFallback(sessionId: string): Promise<VariantIns
       summary: null,
       isTopPerformer: false,
       viewers,
+      wireframeUrl,
     };
   });
 
@@ -496,6 +505,18 @@ export async function getVariantDetailInsight(
       // Find the specific variant from RPC results
       const row = rpcData.find((r: { variant_index: number }) => r.variant_index === variantIndex);
       if (row) {
+        // Fetch wireframe URL separately since RPC doesn't return it
+        let wireframeUrl: string | null = null;
+        const { data: variantData } = await supabase
+          .from('vibe_variants')
+          .select('wireframe_url')
+          .eq('session_id', sessionId)
+          .eq('variant_index', variantIndex)
+          .single();
+        if (variantData) {
+          wireframeUrl = variantData.wireframe_url;
+        }
+
         variantInsight = {
           variantIndex: row.variant_index,
           label: row.variant_label,
@@ -517,6 +538,7 @@ export async function getVariantDetailInsight(
             name: v.name,
             totalDuration: v.duration || 0,
           })),
+          wireframeUrl,
         };
 
         // Extract comments from RPC result
