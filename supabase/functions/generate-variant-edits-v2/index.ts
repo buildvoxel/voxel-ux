@@ -144,6 +144,48 @@ Generate a JSON array of operations. Each operation MUST use a selector from the
 6. **Include descriptions** - Every operation MUST have a "description" field.
 7. **Logical order** - Structure changes first, then content, then styling.
 
+## Interactivity Guidelines (IMPORTANT)
+
+When inserting or replacing HTML elements, follow these patterns to enable automatic interactivity:
+
+**Buttons & Actions:**
+- Use \`<button>\` tags for clickable actions (not divs or spans)
+- Add descriptive text content: \`<button>Save Changes</button>\`
+- Use \`type="submit"\` for form submit buttons
+
+**Forms:**
+- Wrap inputs in \`<form>\` tags
+- Use semantic input types: \`type="email"\`, \`type="tel"\`, \`type="password"\`
+- Add \`placeholder\` attributes for guidance
+- Add \`name\` attributes to all form fields
+
+**Navigation & Links:**
+- Use \`<a href="#section">\` for in-page navigation
+- Use \`<nav>\` wrapper for navigation menus
+
+**Modals & Dialogs:**
+- Add \`role="dialog"\` or class containing "modal" to modal containers
+- Include close button with class containing "close"
+- Example: \`<div class="modal" role="dialog"><button class="close-btn">×</button>...</div>\`
+
+**Tabs:**
+- Use \`role="tablist"\` on tab container
+- Use \`role="tab"\` on tab buttons
+- Use \`role="tabpanel"\` on tab content panels
+- Add \`aria-controls\` linking tab to panel
+
+**Dropdowns:**
+- Use \`role="menu"\` or class containing "dropdown"
+- Trigger element should be a button
+- Menu items should be \`<a>\` or \`<button>\` elements
+
+**Tables with Data:**
+- Use proper \`<table>\`, \`<thead>\`, \`<tbody>\`, \`<th>\`, \`<td>\` structure
+- Add column headers in \`<th>\` for sortable columns
+- Use realistic placeholder data (names, emails, dates, prices)
+
+Following these patterns ensures the prototype will have working interactivity when previewed.
+
 ## Response Format
 
 Return ONLY a valid JSON object (no markdown, no explanation):
