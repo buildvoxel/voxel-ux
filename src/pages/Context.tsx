@@ -38,7 +38,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useContextStore } from '@/store/contextStore';
 import {
-  extractUXGuidelines,
+  extractGuidelinesFromVideo,
   extractGuidelinesDemo,
   createGuidelinesSet,
   type ExtractionProgress,
@@ -445,8 +445,6 @@ export function Context() {
   const [guidelinesExpanded, setGuidelinesExpanded] = useState(true);
   const [guidelinesVideo, setGuidelinesVideo] = useState<File | null>(null);
   const [isDraggingVideo, setIsDraggingVideo] = useState(false);
-  const [videoTranscript, setVideoTranscript] = useState('');
-  const [showTranscriptInput, setShowTranscriptInput] = useState(false);
   const guidelinesVideoInputRef = useRef<HTMLInputElement>(null);
 
   // Load files on mount
@@ -560,7 +558,7 @@ export function Context() {
     }
   }, []);
 
-  // Extract UX guidelines - uses real service with transcript, or demo mode
+  // Extract UX guidelines using vision AI to analyze video frames
   const handleExtractGuidelines = async (useDemo = false) => {
     try {
       setExtracting(true);
@@ -570,21 +568,20 @@ export function Context() {
 
       let result;
 
-      if (useDemo || !videoTranscript.trim()) {
-        // Demo mode - no transcript available
+      if (useDemo || !guidelinesVideo) {
+        // Demo mode - no video available
         result = await extractGuidelinesDemo(
           videoName,
           (progress) => setExtractionProgress(progress)
         );
       } else {
-        // Real extraction with transcript
-        result = await extractUXGuidelines(
-          videoName,
-          videoTranscript.trim(),
-          guidelinesVideo ? `Product demo video: ${videoName}` : undefined,
-          undefined, // provider
-          undefined, // model
-          (progress) => setExtractionProgress(progress)
+        // Real extraction - extract frames and analyze with vision AI
+        result = await extractGuidelinesFromVideo(
+          guidelinesVideo,
+          (progress) => setExtractionProgress(progress),
+          8, // number of frames to extract
+          undefined, // provider (use default)
+          undefined  // model (use default)
         );
       }
 
@@ -597,9 +594,8 @@ export function Context() {
       );
 
       setUXGuidelines(guidelinesSet);
-      setShowTranscriptInput(false);
-      setVideoTranscript('');
-      showSuccess(`Extracted ${result.guidelines.length} UX guidelines`);
+      setGuidelinesVideo(null); // Clear video after successful extraction
+      showSuccess(`Extracted ${result.guidelines.length} UX guidelines from ${result.framesAnalyzed || 'demo'} frames`);
     } catch (error) {
       console.error('Failed to extract guidelines:', error);
       showError(error instanceof Error ? error.message : 'Failed to extract guidelines');
@@ -835,53 +831,9 @@ export function Context() {
                       )}
                     </Box>
 
-                    {/* Transcript Input (when video uploaded) */}
-                    {guidelinesVideo && (
-                      <Box sx={{ mt: 2 }}>
-                        <Alert severity="info" sx={{ mb: 2 }}>
-                          <Typography variant="body2">
-                            <strong>Automatic transcription coming soon!</strong> For now, paste the video transcript below,
-                            or use demo mode to see sample guidelines.
-                          </Typography>
-                        </Alert>
-
-                        {showTranscriptInput ? (
-                          <Box>
-                            <textarea
-                              placeholder="Paste your video transcript here... (e.g., from YouTube captions, Rev.com, or any transcription service)"
-                              value={videoTranscript}
-                              onChange={(e) => setVideoTranscript(e.target.value)}
-                              style={{
-                                width: '100%',
-                                minHeight: 120,
-                                padding: 12,
-                                borderRadius: 8,
-                                border: '1px solid #e0e0e0',
-                                fontFamily: 'inherit',
-                                fontSize: 14,
-                                resize: 'vertical',
-                              }}
-                            />
-                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                              {videoTranscript.length > 0 ? `${videoTranscript.length} characters` : 'Paste transcript from your video'}
-                            </Typography>
-                          </Box>
-                        ) : (
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => setShowTranscriptInput(true)}
-                            sx={{ mb: 1 }}
-                          >
-                            Add Transcript Manually
-                          </Button>
-                        )}
-                      </Box>
-                    )}
-
                     {/* Extract Buttons */}
                     <Box sx={{ textAlign: 'center', mt: 2, display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-                      {guidelinesVideo && videoTranscript.trim() && (
+                      {guidelinesVideo && (
                         <Button
                           variant="contained"
                           startIcon={<PlayArrowIcon />}
@@ -893,23 +845,28 @@ export function Context() {
                             },
                           }}
                         >
-                          Extract from Transcript
+                          Extract UX Guidelines
                         </Button>
                       )}
                       <Button
-                        variant={guidelinesVideo && videoTranscript.trim() ? 'outlined' : 'contained'}
+                        variant={guidelinesVideo ? 'outlined' : 'contained'}
                         startIcon={<PlayArrowIcon />}
                         onClick={() => handleExtractGuidelines(true)}
-                        sx={guidelinesVideo && videoTranscript.trim() ? {} : {
+                        sx={guidelinesVideo ? {} : {
                           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                           '&:hover': {
                             background: 'linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%)',
                           },
                         }}
                       >
-                        {guidelinesVideo ? 'Use Demo Guidelines' : 'Try Demo Extraction'}
+                        {guidelinesVideo ? 'Try Demo Instead' : 'Try Demo Extraction'}
                       </Button>
                     </Box>
+                    {guidelinesVideo && (
+                      <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
+                        Will extract 8 frames and analyze with vision AI (Claude/Gemini/GPT-4V)
+                      </Typography>
+                    )}
                     {!guidelinesVideo && (
                       <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
                         No video? Try demo mode to see sample guidelines
