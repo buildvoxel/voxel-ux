@@ -65,7 +65,7 @@ const categoryConfigs: CategoryConfig[] = [
     color: '#764ba2',
   },
   {
-    id: 'ux_guidelines',
+    id: 'kpis',
     title: 'UX Principles & Guidelines',
     description: 'Extract UX patterns from product videos',
     icon: <AutoAwesomeIcon />,
@@ -844,7 +844,7 @@ export function Context() {
     goals: [],
     backlog: [],
     knowledge: [],
-    ux_guidelines: [],
+    kpis: [],
   });
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<ContextCategoryType | null>(null);
@@ -876,7 +876,7 @@ export function Context() {
         goals: [],
         backlog: [],
         knowledge: [],
-        ux_guidelines: [],
+        kpis: [],
       };
 
       allFiles.forEach((file) => {
@@ -996,7 +996,7 @@ export function Context() {
                 },
               }}
             >
-              {config.id === 'ux_guidelines' ? (
+              {config.id === 'kpis' ? (
                 <UXGuidelinesCard
                   config={config}
                   files={files[config.id]}
