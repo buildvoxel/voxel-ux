@@ -16,16 +16,33 @@ export const supabase: SupabaseClient = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      // Disable automatic URL detection to prevent race conditions with getSession()
-      // that cause AbortError. Session from URL is handled explicitly in AuthCallback.
-      detectSessionInUrl: false,
-      // Use a unique storage key to avoid conflicts
-      storageKey: 'voxel-auth-token',
-      // Increase flow state expiry to handle slow connections
-      flowType: 'pkce',
+      detectSessionInUrl: true,
     },
   }
 );
+
+// Singleton promise to prevent concurrent auth.getUser() calls
+// which cause AbortError due to Supabase's internal lock mechanism
+let authPromise: Promise<{ user: import('@supabase/supabase-js').User | null }> | null = null;
+
+/**
+ * Get current authenticated user with deduplication.
+ * Multiple concurrent calls will share the same promise to avoid AbortError.
+ */
+export async function getAuthUserSafe() {
+  if (authPromise) {
+    return authPromise;
+  }
+
+  authPromise = supabase.auth.getUser()
+    .then(({ data }) => ({ user: data.user }))
+    .finally(() => {
+      // Clear after a short delay to allow for batched calls
+      setTimeout(() => { authPromise = null; }, 100);
+    });
+
+  return authPromise;
+}
 
 // Create a separate client for public/anonymous operations (no auth)
 export const supabasePublic: SupabaseClient = createClient(

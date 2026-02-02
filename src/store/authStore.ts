@@ -54,30 +54,8 @@ async function mapSupabaseUser(supabaseUser: SupabaseUser): Promise<User> {
   };
 }
 
-// Helper to retry async operations with exponential backoff for AbortError
-async function retryOnAbortError<T>(
-  operation: () => Promise<T>,
-  maxRetries = 3,
-  baseDelayMs = 100
-): Promise<T> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error;
-      // Only retry on AbortError (Supabase lock mechanism issue)
-      const isAbortError = error instanceof Error && error.name === 'AbortError';
-      if (!isAbortError || attempt === maxRetries) {
-        throw error;
-      }
-      // Exponential backoff: 100ms, 200ms, 400ms
-      const delay = baseDelayMs * Math.pow(2, attempt);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  throw lastError;
-}
+// Track if auth listener is already set up to prevent duplicate listeners
+let authListenerSetUp = false;
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -104,12 +82,17 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
 
-        try {
-          // Use retry logic to handle AbortError from Supabase's lock mechanism
-          // This can happen when detectSessionInUrl processes concurrently with getSession
-          const { data: { session } } = await retryOnAbortError(
-            () => supabase.auth.getSession()
-          );
+        // Prevent setting up multiple listeners
+        if (authListenerSetUp) {
+          return;
+        }
+        authListenerSetUp = true;
+
+        // Use onAuthStateChange as the primary way to get auth state
+        // This avoids race conditions with detectSessionInUrl that cause AbortError
+        // The INITIAL_SESSION event fires when the client first initializes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          console.log('[AuthStore] Auth state change:', event);
 
           if (session?.user) {
             const user = await mapSupabaseUser(session.user);
@@ -120,33 +103,19 @@ export const useAuthStore = create<AuthState>()(
               accessToken: session.access_token,
               isLoading: false,
             });
-          } else {
-            set({ isLoading: false });
+          } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
+            set({
+              supabaseUser: null,
+              user: null,
+              isAuthenticated: false,
+              accessToken: null,
+              isLoading: false,
+            });
           }
+        });
 
-          // Listen for auth changes
-          supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN' && session?.user) {
-              const user = await mapSupabaseUser(session.user);
-              set({
-                supabaseUser: session.user,
-                user,
-                isAuthenticated: true,
-                accessToken: session.access_token,
-              });
-            } else if (event === 'SIGNED_OUT') {
-              set({
-                supabaseUser: null,
-                user: null,
-                isAuthenticated: false,
-                accessToken: null,
-              });
-            }
-          });
-        } catch (error) {
-          console.error('Auth initialization error:', error);
-          set({ isLoading: false });
-        }
+        // Store subscription for potential cleanup (not strictly needed in this app)
+        (window as unknown as { __authSubscription?: typeof subscription }).__authSubscription = subscription;
       },
 
       loginWithEmail: async (email, password) => {

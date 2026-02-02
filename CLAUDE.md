@@ -110,3 +110,29 @@ npm run lint    # Run ESLint
 ## Mock Data
 
 Captured screens are stored in `src/mock-captures/screens/` as HTML files from the SingleFile browser extension. The screensStore loads these as mock data.
+
+## Supabase Auth - CRITICAL Guidelines
+
+**DO NOT modify the following without careful consideration:**
+
+### Auth Configuration (`src/services/supabase.ts`)
+- **Keep `detectSessionInUrl: true`** - This is required for OAuth callbacks to work
+- **Do NOT change the default `storageKey`** - Changing it invalidates all existing sessions
+- **Do NOT change `flowType`** - The default implicit flow is configured in Supabase dashboard
+
+### Auth Initialization (`src/store/authStore.ts`)
+- **Use `onAuthStateChange` as the primary auth source** - It handles the `INITIAL_SESSION` event reliably
+- **Do NOT call `supabase.auth.getSession()` or `supabase.auth.getUser()` directly during initialization** - This races with `detectSessionInUrl` and causes `AbortError`
+- **The auth listener should only be set up once** - Use a flag to prevent duplicate listeners
+
+### Getting User in Components/Stores
+- **Use `useAuthStore.getState().supabaseUser`** instead of calling `supabase.auth.getUser()` directly
+- **If you must call auth methods, use `getAuthUserSafe()`** from supabase.ts which deduplicates concurrent calls
+- **Run data fetching operations sequentially**, not in parallel, when they all need auth
+
+### Common Pitfalls That Break Auth
+1. ❌ Calling `supabase.auth.getUser()` from multiple components simultaneously
+2. ❌ Changing Supabase client config options (storageKey, flowType, detectSessionInUrl)
+3. ❌ Calling `getSession()` before `onAuthStateChange` listener is set up
+4. ✅ Use `onAuthStateChange` and wait for `INITIAL_SESSION` or `SIGNED_IN` events
+5. ✅ Get user from `useAuthStore` instead of calling Supabase auth directly
